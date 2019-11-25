@@ -1,14 +1,19 @@
-import numpy as np
-import sys, os, glob, time, itk
-import pandas as pd
-from scipy import ndimage as nd
-from scipy import interpolate
+import glob
+import itk
+import os
+import sys
+import time
+
 import nibabel as nib
-from skimage.morphology import skeletonize, medial_axis
+import numpy as np
+import pandas as pd
 from matplotlib import pyplot as plt
-from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 from mpl_toolkits.mplot3d import Axes3D
+from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+from scipy import interpolate
+from scipy import ndimage as nd
 from skimage import measure, feature
+from skimage.morphology import skeletonize, medial_axis
 
 
 def save_image(array, affine, header, namepath):
