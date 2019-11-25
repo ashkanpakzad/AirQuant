@@ -65,17 +65,36 @@ ax.scatter(x_fine, y_fine, z_fine, c='blue')
 # TODO: consider how to construct spline interpolation interval.
 u_fine = np.linspace(0, 1, 17)  # interpolate at each point in edge for now
 x_fine, y_fine, z_fine = interpolate.splev(u_fine, tck)  # get spline coords
-tangents = np.gradient([x_fine, y_fine, z_fine])  # finds tangent direction along each point
+# TODO: work out how to get the tangent!
+def central_diff(vector, point):
+    return (vector[point + 1] - vector[point - 1]) / 2
 
-# for first point only
+spline_point = 3  # which point along the spline? (not min or max of u)
+x_tan = central_diff(x_fine, spline_point)
+y_tan = central_diff(y_fine, spline_point)
+z_tan = central_diff(z_fine, spline_point)
+#tangents = np.array(np.gradient([x_fine, y_fine, z_fine]))  # finds tangent direction along each point
+
+# for single point only
 # plane defined by a*x+b*y+c*z+d=0 where [a,b,c] is the normal vector.
-origin = np.asarray([x_fine[0], y_fine[0], z_fine[0]])
-normal = tangents[0][:, 0]
+origin = np.asarray([x_fine[spline_point], y_fine[spline_point], z_fine[spline_point]])
+normal = np.array([x_tan, y_tan, z_tan])
 d = np.dot(-1 * origin, normal)  # -point*normal_v
 
 # grid points
-x = np.arange(0, 10, 0.5)
-y = np.arange(0, 10, 0.5)
+perp_slice_size = 30  # even
+precision = 0.5  # all values must be round
+bounds = (perp_slice_size * precision) / 2
+
+lowerx1 = origin[0] - bounds
+upperx1 = origin[0] + bounds
+
+lowerx2 = origin[1] - bounds
+
+upperx2 = origin[1] + bounds
+
+x = np.arange(lowerx1, upperx1, precision)
+y = np.arange(lowerx2, upperx2, precision)
 
 XX, YY = np.meshgrid(x, y)
 ZZ = (-normal[0] * XX - normal[1] * YY - d) / normal[2];
@@ -83,12 +102,6 @@ ZZ = (-normal[0] * XX - normal[1] * YY - d) / normal[2];
 # interpolate on CT image to generate slice
 image_array = itk.GetArrayFromImage(image)
 image_size = image_array.shape
-points = np.mgrid[0:image_size[0], 0:image_size[1], 0:image_size[2]]
-
-z = np.arange(145, 155, 0.5)
-interp_mesh = np.meshgrid[x, y, z]
-interp_points = np.moveaxis(interp_mesh, 0, -1)
-# interp_points = interp_mesh
 
 interp_mesh = np.array((XX, YY, ZZ))
 interp_points = np.rollaxis(interp_mesh, 0, 3)
@@ -97,7 +110,7 @@ arb_slice = scipy.interpolate.interpn((np.arange(image_size[0]), np.arange(image
                                       image_array, interp_points)
 
 plt.figure()
-plt.imshow(arb_slice)
+plt.imshow(arb_slice, cmap='gray')
 
 elapsed = time.time() - t
 print('Time elapsed = ', elapsed)
