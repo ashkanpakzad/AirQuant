@@ -5,7 +5,6 @@ from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import cm
 from scipy.interpolate import interpn
 
-
 # Set up grid and array of values
 x1 = np.arange(10)
 x2 = np.arange(10)
@@ -64,6 +63,7 @@ plt.imshow(v[1,:,:])
 origin = np.array(([4.25,4.5,5.0])) # point in plane
 normal = np.array(([1, 1, 1]))
 d = np.dot(-1*origin, normal)
+
 
 perp_slice_size = 10 # even
 precision = 0.25 # all values must be round
