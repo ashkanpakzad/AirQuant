@@ -64,17 +64,53 @@ classdef AirwaySkel
             % Constructs perpendicular images as if travelling along an
             % airway segment.
             
-            % 1. Compute whole Spline
-            spline = ComputeSpline(obj, link_index);
-            
+            % * Compute whole Spline
+            spline = ComputeSpline(obj, link_index);       
+            spline_para_limit = length(spline); %%% NEED TO CORRECT THIS
+            spline_points = 0:obj.spline_para_interval:spline_para_limit;
+           
             % loop along spline
-            for i = 0:obj.spline_para_interval:obj.spline_para_limit;
-                % 2. Compute Normal Vector per spline point
-                [normal, CT_point] = ComputeNormal(spline, point);
-                % 3. Interpolate Perpendicular Slice per spline point
+            TransAirwayImage = zeros(133,133,length(spline_points));
+            for i = 1:length(spline_points)
+                % * Compute Normal Vector per spline point
+                [normal, CT_point] = ComputeNormal(spline, spline_points(i));
+                % * Interpolate Perpendicular Slice per spline point
+                TransAirwayImage(:,:,i) = InterpolateCT(obj, normal, CT_point);
             end
+            %%% TODO:SAVE TRANSAIRWAYIMAGE IN OBJECT
         end
        
+        function CT_plane = InterpolateCT(obj, normal, CT_point)
+            % Interpolates a CT plane of the image.
+            % Based on original function by Kin Quan 2018
+            
+            % * Construct spatial physical CT grid
+            image_sz = size(obj.CT);
+            [x_domain , y_domain , z_domain] = ...
+                meshgrid(1:image_sz(2),1:image_sz(1),1:image_sz(3));
+            x_domain = x_domain*obj.CTinfo.PixelDimensions(1);
+            y_domain = y_domain*obj.CTinfo.PixelDimensions(2);
+            z_domain = z_domain*obj.CTinfo.PixelDimensions(3);
+            
+            % * Get plane grid
+            basis_vecs = Orthonormal_basis_with_tangent_vector(normal);
+            plane_grid = Grids_coords_for_plane(basis_vecs(:,3),...
+            basis_vecs(:,2), CT_point, obj.physical_plane_length,...
+            obj.physical_sampling_interval);
+            
+            % * Execute cubic inperpolation
+            plane_intensities = interp3(x_domain,y_domain,z_domain,...
+            obj.CT,plane_grid.y(:),plane_grid.x(:),...
+            plane_grid.z(:),'cubic');
+            
+            % Reshape
+            % TODO: Look at what these two lines do.
+            plane_length = sqrt(length(plane_grid.y(:)));
+            CT_plane = reshape(plane_intensities,...
+                [plane_length plane_length]);
+            
+        end
+        
         
         function spline = ComputeSpline(obj, link_index)
             % Computes a smooth spline of a single graph edge.
@@ -100,6 +136,8 @@ classdef AirwaySkel
         end
         
     end
+    
+    
     methods (Static)
         function [normal, CT_point] = ComputeNormal(spline, point)
             % Based on original function by Kin Quan 2018
@@ -111,5 +149,7 @@ classdef AirwaySkel
             tangent_vec = fnval(spline_1diff,point);
             normal = tangent_vec/norm(tangent_vec,2);
         end
+        
+        
     end
 end
