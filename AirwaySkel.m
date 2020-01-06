@@ -65,6 +65,20 @@ classdef AirwaySkel
         end
         
         
+        function obj = AirwayImageAll(obj)
+            % Traverse all airway segments except the trachea.
+            disp('Start traversing all airway segments')
+            total_branches = length(obj.Glink);
+            for i = 1:length(obj.Glink)
+                % skip the trachea
+                if i == obj.trachea_path
+                    continue
+                end
+                obj = CreateAirwayImage(obj, i);
+                disp(['Completed ', num2str(i), ' of ', num2str(total_branches)])
+            end
+        end
+        
         function obj = CreateAirwayImage(obj, link_index)
             % Constructs perpendicular images as if travelling along an
             % airway segment.
