@@ -20,6 +20,7 @@ classdef AirwaySkel
         Glink
         trachea_path
         carina_node
+        TraversedImage
     end
     
     methods
@@ -40,6 +41,8 @@ classdef AirwaySkel
             end
             % graph airway skeleton
             obj = GenerateSkel(obj);
+            % set up empty cell for traversed images
+            obj.TraversedImage = cell(length(obj.Glink),1);
         end
         
         
@@ -49,7 +52,6 @@ classdef AirwaySkel
             [obj.Gadj,obj.Gnode,obj.Glink] =...
                 Skel2Graph3D(skel,[obj.branch_threshold]);
         end
-        
         
         function obj = FindTracheaCarina(obj)
             % Identify the Trachea path
@@ -77,7 +79,8 @@ classdef AirwaySkel
                 % * Interpolate Perpendicular Slice per spline point
                 TransAirwayImage(:,:,i) = InterpolateCT(obj, normal, CT_point);
             end
-            %%% TODO:SAVE TRANSAIRWAYIMAGE IN OBJECT
+            % * Save traversed image
+            obj.TraversedImage(link_index) = TransAirwayImage;
         end
        
         function CT_plane = InterpolateCT(obj, normal, CT_point)
