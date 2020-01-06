@@ -41,6 +41,8 @@ classdef AirwaySkel
             end
             % graph airway skeleton
             obj = GenerateSkel(obj);
+            % identify trachea and carina
+            obj = FindTracheaCarina(obj);
             % set up empty cell for traversed images
             obj.TraversedImage = cell(length(obj.Glink),1);
         end
@@ -53,10 +55,11 @@ classdef AirwaySkel
                 Skel2Graph3D(skel,[obj.branch_threshold]);
         end
         
+        
         function obj = FindTracheaCarina(obj)
             % Identify the Trachea path
             % Assumes trachea fully segmented and towards greater Z.
-            [~, maxind] = max(obj.Gnode.comz);
+            [~, maxind] = max([obj.Gnode.comz]);
             obj.trachea_path = obj.Gnode(maxind).links;
             obj.carina_node = obj.Gnode(maxind).conn;
         end
@@ -68,14 +71,14 @@ classdef AirwaySkel
             
             % * Compute whole Spline
             spline = ComputeSpline(obj, link_index);       
-            spline_para_limit = length(spline); %%% NEED TO CORRECT THIS
-            spline_points = 0:obj.spline_para_interval:spline_para_limit;
+            spline_para_limit = spline.breaks(end);
+            spline_points = 0:obj.spline_sampling_interval:spline_para_limit;
            
             % loop along spline
             TransAirwayImage = zeros(133,133,length(spline_points));
             for i = 1:length(spline_points)
                 % * Compute Normal Vector per spline point
-                [normal, CT_point] = ComputeNormal(spline, spline_points(i));
+                [normal, CT_point] = AirwaySkel.ComputeNormal(spline, spline_points(i));
                 % * Interpolate Perpendicular Slice per spline point
                 TransAirwayImage(:,:,i) = InterpolateCT(obj, normal, CT_point);
             end
@@ -83,6 +86,7 @@ classdef AirwaySkel
             obj.TraversedImage(link_index) = TransAirwayImage;
         end
        
+        
         function CT_plane = InterpolateCT(obj, normal, CT_point)
             % Interpolates a CT plane of the image.
             % Based on original function by Kin Quan 2018
