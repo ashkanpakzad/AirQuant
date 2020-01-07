@@ -3,7 +3,7 @@ classdef AirwaySkel
         CT
         CTinfo
         seg
-        branch_threshold = 0;
+        branch_threshold = 3;
         % CT Properties/resampling params
         physical_plane_length = 40;
         physical_sampling_interval = 0.3;
@@ -28,7 +28,10 @@ classdef AirwaySkel
         function obj = AirwaySkel(CTimage, CTinfo, segimage, params)
             % Initialise the AirwaySkel class.
             obj.CT = CTimage;
-            obj.seg = segimage;
+            % TODO: consider preprocess segmentation to keep largest
+            % connected component.
+            % ensure no holes in segmentation
+            obj.seg = imfill(segimage,'holes');
             obj.CTinfo = CTinfo;
             % set params
             if ~isempty(params)
@@ -54,15 +57,17 @@ classdef AirwaySkel
         
         function obj = GenerateSkel(obj)
             % Generate the airway skeleton
-            skel = bwskel([obj.seg]);
+            skel = bwskel(obj.seg,'MinBranchLength', obj.branch_threshold);
             [obj.Gadj,obj.Gnode,obj.Glink] =...
-                Skel2Graph3D(skel,[obj.branch_threshold]);
+                Skel2Graph3D(skel,0);
         end
         
         
         function obj = FindTracheaCarina(obj)
-            % Identify the Trachea path
+            % Identify the Trachea path and the carina node.
             % Assumes trachea fully segmented and towards greater Z.
+            
+            % Smoothen 
             [~, maxind] = max([obj.Gnode.comz]);
             obj.trachea_path = obj.Gnode(maxind).links;
             obj.carina_node = obj.Gnode(maxind).conn;
@@ -83,6 +88,7 @@ classdef AirwaySkel
             end
         end
         
+        
         function obj = CreateAirwayImage(obj, link_index)
             % Constructs perpendicular images as if travelling along an
             % airway segment.
@@ -93,6 +99,7 @@ classdef AirwaySkel
             spline_points = 0:obj.spline_sampling_interval:spline_para_limit;
            
             % loop along spline
+            % TODO: auto calc 133
             TransAirwayImage = zeros(133,133,length(spline_points));
             for i = 1:length(spline_points)
                 % * Compute Normal Vector per spline point
@@ -104,9 +111,10 @@ classdef AirwaySkel
             obj.TraversedImage{link_index, 1} = TransAirwayImage;
             
             % add arclength to specs
+            % TODO: correct method to compute arclength? 
             obj.arclength = spline_points(end);
         end
-       
+        
         
         function CT_plane = InterpolateCT(obj, normal, CT_point)
             % Interpolates a CT plane of the image.
@@ -136,7 +144,6 @@ classdef AirwaySkel
             plane_length = sqrt(length(plane_grid.y(:)));
             CT_plane = reshape(plane_intensities,...
                 [plane_length plane_length]);
-            
         end
         
         
@@ -164,7 +171,7 @@ classdef AirwaySkel
         end
         
         
-        function Tree(obj)
+        function PlotTree(obj)
             % Plot the airway tree with nodes and links
             % Original Function by Ashkan Pakzad on 27th July 2019.
             
@@ -188,9 +195,9 @@ classdef AirwaySkel
     methods (Static)
         function [normal, CT_point] = ComputeNormal(spline, point)
             % Based on original function by Kin Quan 2018
-            % 1. interperate real point on spline
+            % * interperate real point on spline
             CT_point = fnval(spline, point);
-            % 2. get tangent of point along spline
+            % * get tangent of point along spline
             % differentiate along spline to get gradient
             spline_1diff = fnder(spline,1);
             tangent_vec = fnval(spline_1diff,point);
