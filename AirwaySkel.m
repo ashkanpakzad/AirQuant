@@ -21,6 +21,7 @@ classdef AirwaySkel
         trachea_path
         carina_node
         TraversedImage
+        arclength
     end
     
     methods
@@ -45,6 +46,9 @@ classdef AirwaySkel
             obj = FindTracheaCarina(obj);
             % set up empty cell for traversed images
             obj.TraversedImage = cell(length(obj.Glink),1);
+            % set up empty specs doubles
+            obj.arclength = zeros(length(obj.Glink),1);
+            %obj.specs(length(obj.Glink)) = struct();
         end
         
         
@@ -97,7 +101,10 @@ classdef AirwaySkel
                 TransAirwayImage(:,:,i) = InterpolateCT(obj, normal, CT_point);
             end
             % * Save traversed image
-            obj.TraversedImage(link_index) = TransAirwayImage;
+            obj.TraversedImage{link_index, 1} = TransAirwayImage;
+            
+            % add arclength to specs
+            obj.arclength = spline_points(end);
         end
        
         
@@ -155,6 +162,25 @@ classdef AirwaySkel
             %Generating the spline
             spline = cscvn(smooth_data_points);
         end
+        
+        
+        function Tree(obj)
+            % Plot the airway tree with nodes and links
+            % Original Function by Ashkan Pakzad on 27th July 2019.
+            
+            X = [obj.Gnode.comy];
+            Y = [obj.Gnode.comx];
+            Z = [obj.Gnode.comz];
+            nums = string(1:length(X));
+                            
+            isosurface(bwskel([obj.seg]));
+            hold on
+            plot3(X,Y,Z, 'r.', 'MarkerSize', 15);
+            text(X+1,Y+1,Z+1, nums)
+            axis([0 size(obj.CT, 1) 0 size(obj.CT, 2) 0 size(obj.CT, 3)])
+            view(80,0)
+        end
+        
         
     end
     
