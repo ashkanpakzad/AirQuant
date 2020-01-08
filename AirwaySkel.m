@@ -22,6 +22,7 @@ classdef AirwaySkel
         carina_node
         TraversedImage
         arclength
+        
     end
     
     methods
@@ -110,15 +111,9 @@ classdef AirwaySkel
                 % * Compute real arc_length at this spline point
                 arc_length(i) = Arc_length_to_point(spline_points(i),spline);
             end
-            % * Save traversed image
+            % * Save traversed image and arclength for each image
             obj.TraversedImage{link_index, 1} = TransAirwayImage;
             obj.arclength{link_index, 1} = arc_length;
-            
-            % add arclength to specs
-            % TODO: correct method to compute arclength? 
-
-    
-            obj.arclength = spline_points(end);
         end
         
         
