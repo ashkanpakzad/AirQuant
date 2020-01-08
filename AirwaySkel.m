@@ -50,7 +50,7 @@ classdef AirwaySkel
             % set up empty cell for traversed images
             obj.TraversedImage = cell(length(obj.Glink),1);
             % set up empty specs doubles
-            obj.arclength = zeros(length(obj.Glink),1);
+            obj.arclength = cell(length(obj.Glink),1);
             %obj.specs(length(obj.Glink)) = struct();
         end
         
@@ -101,17 +101,23 @@ classdef AirwaySkel
             % loop along spline
             % TODO: auto calc 133
             TransAirwayImage = zeros(133,133,length(spline_points));
+            arc_length = zeros(length(spline_points),1);
             for i = 1:length(spline_points)
                 % * Compute Normal Vector per spline point
                 [normal, CT_point] = AirwaySkel.ComputeNormal(spline, spline_points(i));
                 % * Interpolate Perpendicular Slice per spline point
                 TransAirwayImage(:,:,i) = InterpolateCT(obj, normal, CT_point);
+                % * Compute real arc_length at this spline point
+                arc_length(i) = Arc_length_to_point(spline_points(i),spline);
             end
             % * Save traversed image
             obj.TraversedImage{link_index, 1} = TransAirwayImage;
+            obj.arclength{link_index, 1} = arc_length;
             
             % add arclength to specs
             % TODO: correct method to compute arclength? 
+
+    
             obj.arclength = spline_points(end);
         end
         
