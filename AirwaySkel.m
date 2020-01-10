@@ -18,9 +18,9 @@ classdef AirwaySkel
         Gadj
         Gnode
         Glink
-        plane_length
         trachea_path
         carina_node
+        % Resampled image slices along graph paths/airway segments.
         TraversedImage
         TraversedSeg
         arclength
@@ -70,7 +70,7 @@ classdef AirwaySkel
             % Identify the Trachea path and the carina node.
             % Assumes trachea fully segmented and towards greater Z.
             
-            % Smoothen 
+            % Smoothen
             [~, maxind] = max([obj.Gnode.comz]);
             obj.trachea_path = obj.Gnode(maxind).links;
             obj.carina_node = obj.Gnode(maxind).conn;
@@ -91,16 +91,16 @@ classdef AirwaySkel
             end
         end
         
-        
+        %%%
         function obj = CreateAirwayImage(obj, link_index)
             % Constructs perpendicular images as if travelling along an
             % airway segment in CT image and Segmentation.
             
             % * Compute whole Spline
-            spline = ComputeSpline(obj, link_index);       
+            spline = ComputeSpline(obj, link_index);
             spline_para_limit = spline.breaks(end);
             spline_points = 0:obj.spline_sampling_interval:spline_para_limit;
-           
+            
             % loop along spline
             % TODO: auto calc 133
             TransAirwayImage = zeros(133,133,length(spline_points));
@@ -115,7 +115,7 @@ classdef AirwaySkel
                 % * Compute real arc_length at this spline point
                 arc_length(i) = Arc_length_to_point(spline_points(i),spline);
             end
-            % * Replace NaN entries in images with zero.            
+            % * Replace NaN entries in images with zero.
             TransAirwayImage(isnan(TransAirwayImage)) = 0;
             TransSegImage(isnan(TransAirwayImage)) = 0;
             % * Save traversed image and arclength for each image
@@ -140,18 +140,18 @@ classdef AirwaySkel
             % * Get plane grid
             basis_vecs = Orthonormal_basis_with_tangent_vector(normal);
             plane_grid = Grids_coords_for_plane(basis_vecs(:,3),...
-            basis_vecs(:,2), CT_point, obj.physical_plane_length,...
-            obj.physical_sampling_interval);
+                basis_vecs(:,2), CT_point, obj.physical_plane_length,...
+                obj.physical_sampling_interval);
             
             % * Execute cubic inperpolation on CT
             plane_intensities = interp3(x_domain,y_domain,z_domain,...
-            obj.CT,plane_grid.y(:),plane_grid.x(:),...
-            plane_grid.z(:),'cubic');
+                obj.CT,plane_grid.y(:),plane_grid.x(:),...
+                plane_grid.z(:),'cubic');
             
             % * Execute cubic inperpolation on CT
             seg_intensities = interp3(x_domain,y_domain,z_domain,...
-            double(obj.seg),plane_grid.y(:),plane_grid.x(:),...
-            plane_grid.z(:),'cubic');
+                double(obj.seg),plane_grid.y(:),plane_grid.x(:),...
+                plane_grid.z(:),'cubic');
             
             % Reshape
             % TODO: Look at what these two lines do.
@@ -186,7 +186,113 @@ classdef AirwaySkel
             spline = cscvn(smooth_data_points);
         end
         
+        %%% TAPERING MEASUREMENTS %%%
+        FindAirwayBoundariesFWHM(obj, link_index)
+        %Based on function by Kin Quan 2018 that is based on Kiraly06 
         
+        number_of_slice = size(tapering_image,3);
+        
+        %Getting the pixel size - this is to convert it into the phyical diamter
+        pixel_size = plane_input_sturct.physical_sampling_interval.^2;
+        
+        %Getting the outputs
+        ellptical_info_cell = {};
+        ellptical_info_cell_wall = {};
+        ellptical_area = [];
+        ellptical_area_wall = [];
+        slice_fail_case = [];
+        slice_fail_case_wall = [];
+        
+        %% Perfroming the loop
+        for k = 1:size(obj.TraversedImage{link_index, 1}, 3)
+            
+            % * Check that airway centre is slice centre
+            
+            % Recompute centre if necessary
+            
+            
+            
+            
+            plane_input_sturct.cross_sectional_image = binary_tapering_seg(:,:,k);
+            plane_input_sturct.center = ...
+                Return_centre_pt_image(plane_input_sturct.cross_sectional_image);
+            %PLacing the raw image inorder to give a more
+            plane_input_sturct.raw_sectional_image = tapering_image(:,:,k);
+            
+            %% This is to look at the centre of the segmentation
+            [centre_ind , new_centre] =  ...
+                Check_centre_with_segmentation(plane_input_sturct.cross_sectional_image,...
+                binary_tapering_seg(:,:,k));
+            
+            if ~centre_ind
+                plane_input_sturct.center = fliplr(new_centre);
+            end
+            
+            % Raycast to find the lumen boundary
+            
+            %Computing the area with the describeed method
+            [area_info_sturct_wall, area_info_sturct] =...
+                Cross_sectional_FWHM_SL(plane_input_sturct);
+            try
+                %Recording the infomation
+                ellptical_info_cell = ...
+                    cat(1,ellptical_info_cell,area_info_sturct);
+                
+                %Recording the area in phyical information
+                single_area = (area_info_sturct.area)*pixel_size;
+                ellptical_area = cat(1,ellptical_area,single_area);
+                
+            catch
+                %This is the case when the ray casting fails
+                area_info_sturct = NaN;
+                ellptical_info_cell = ...
+                    cat(1,ellptical_info_cell,area_info_sturct);
+                
+                %Recording the area in phyical information
+                single_area = NaN;
+                ellptical_area = cat(1,ellptical_area,single_area);
+                
+                %Recroding the failed case
+                slice_fail_case = cat(1,slice_fail_case,k);
+                
+            end
+            %%  safety catch - wall
+            try
+                
+                %Recording the infomation
+                ellptical_info_cell_wall = ...
+                    cat(1,ellptical_info_cell_wall,area_info_sturct_wall);
+                
+                single_area_wall = (area_info_sturct_wall.area)*pixel_size;
+                ellptical_area_wall = cat(1,ellptical_area_wall,single_area_wall);
+                
+            catch
+                %This is the case when the ray casting fails
+                area_info_sturct_wall = NaN;
+                ellptical_info_cell_wall = ...
+                    cat(1,ellptical_info_cell_wall,area_info_sturct_wall);
+                
+                single_area_wall = NaN;
+                ellptical_area_wall = cat(1,ellptical_area_wall,single_area_wall);
+                
+                %Recroding the failed case
+                slice_fail_case_wall = cat(1,slice_fail_case_wall,k);
+            end
+            
+        end
+        
+        %% Getting the outputs
+        tapering_info_sturct = struct;
+        tapering_info_sturct.elliptical_info = ellptical_info_cell;
+        tapering_info_sturct.elliptical_info_wall = ellptical_info_cell_wall;
+        tapering_info_sturct.phyiscal_area = ellptical_area;
+        tapering_info_sturct.phyiscal_area_wall = ellptical_area_wall;
+        tapering_info_sturct.fail_cases = slice_fail_case;
+        tapering_info_sturct.fail_cases_wall = slice_fail_case_wall;
+        
+        
+        
+        %%% VISUALISATION %%%
         function PlotTree(obj)
             % Plot the airway tree with nodes and links
             % Original Function by Ashkan Pakzad on 27th July 2019.
@@ -195,7 +301,7 @@ classdef AirwaySkel
             Y = [obj.Gnode.comx];
             Z = [obj.Gnode.comz];
             nums = string(1:length(X));
-                            
+            
             isosurface(bwskel([obj.seg]));
             hold on
             plot3(X,Y,Z, 'r.', 'MarkerSize', 15);
