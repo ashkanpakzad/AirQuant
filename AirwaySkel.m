@@ -18,9 +18,11 @@ classdef AirwaySkel
         Gadj
         Gnode
         Glink
+        plane_length
         trachea_path
         carina_node
         TraversedImage
+        TraversedSeg
         arclength
         
     end
@@ -92,7 +94,7 @@ classdef AirwaySkel
         
         function obj = CreateAirwayImage(obj, link_index)
             % Constructs perpendicular images as if travelling along an
-            % airway segment.
+            % airway segment in CT image and Segmentation.
             
             % * Compute whole Spline
             spline = ComputeSpline(obj, link_index);       
@@ -102,22 +104,28 @@ classdef AirwaySkel
             % loop along spline
             % TODO: auto calc 133
             TransAirwayImage = zeros(133,133,length(spline_points));
+            TransSegImage = zeros(133,133,length(spline_points));
             arc_length = zeros(length(spline_points),1);
             for i = 1:length(spline_points)
                 % * Compute Normal Vector per spline point
                 [normal, CT_point] = AirwaySkel.ComputeNormal(spline, spline_points(i));
                 % * Interpolate Perpendicular Slice per spline point
-                TransAirwayImage(:,:,i) = InterpolateCT(obj, normal, CT_point);
+                [TransAirwayImage(:,:,i), TransSegImage(:,:,i)] = ...
+                    InterpolateCT(obj, normal, CT_point);
                 % * Compute real arc_length at this spline point
                 arc_length(i) = Arc_length_to_point(spline_points(i),spline);
             end
+            % * Replace NaN entries in images with zero.            
+            TransAirwayImage(isnan(TransAirwayImage)) = 0;
+            TransSegImage(isnan(TransAirwayImage)) = 0;
             % * Save traversed image and arclength for each image
             obj.TraversedImage{link_index, 1} = TransAirwayImage;
+            obj.TraversedSeg{link_index, 1} = TransSegImage;
             obj.arclength{link_index, 1} = arc_length;
         end
         
         
-        function CT_plane = InterpolateCT(obj, normal, CT_point)
+        function [CT_plane, seg_plane] = InterpolateCT(obj, normal, CT_point)
             % Interpolates a CT plane of the image.
             % Based on original function by Kin Quan 2018
             
@@ -135,15 +143,22 @@ classdef AirwaySkel
             basis_vecs(:,2), CT_point, obj.physical_plane_length,...
             obj.physical_sampling_interval);
             
-            % * Execute cubic inperpolation
+            % * Execute cubic inperpolation on CT
             plane_intensities = interp3(x_domain,y_domain,z_domain,...
             obj.CT,plane_grid.y(:),plane_grid.x(:),...
+            plane_grid.z(:),'cubic');
+            
+            % * Execute cubic inperpolation on CT
+            seg_intensities = interp3(x_domain,y_domain,z_domain,...
+            double(obj.seg),plane_grid.y(:),plane_grid.x(:),...
             plane_grid.z(:),'cubic');
             
             % Reshape
             % TODO: Look at what these two lines do.
             plane_length = sqrt(length(plane_grid.y(:)));
             CT_plane = reshape(plane_intensities,...
+                [plane_length plane_length]);
+            seg_plane = reshape(seg_intensities,...
                 [plane_length plane_length]);
         end
         
