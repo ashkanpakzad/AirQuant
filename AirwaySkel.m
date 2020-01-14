@@ -222,12 +222,13 @@ classdef AirwaySkel
                     obj.TraversedSeg{link_index, 1}(:,:,k), center);
                 
                 % * Compute FWHM
+                [FWHMl, FWHMp, FWHMr] = AirwaySkel.computeFWHM(CT_rays, seg_rays, coords);
                 
                 % * Compute Ellipses
+                FWHMl_ellipse = ComputeEllipses(FWHMl);
+                FWHMp_ellipse = ComputeEllipses(FWHMp);
+                FWHMr_ellipse = ComputeEllipses(FWHMr);
                 
-                
-                [area_info_sturct_wall, area_info_sturct] =...
-                    Cross_sectional_FWHM_SL(plane_input_sturct);
                 try
                     %Recording the infomation
                     ellptical_info_cell = ...
@@ -321,44 +322,44 @@ classdef AirwaySkel
                 reshape(seg_rays,[size(y_component,1) size(y_component,2)]);
             coords = cat(3, x_component, y_component);
         end
-    
-    
-    %%% VISUALISATION %%%
-    function PlotTree(obj)
-    % Plot the airway tree with nodes and links
-    % Original Function by Ashkan Pakzad on 27th July 2019.
-    
-    X = [obj.Gnode.comy];
-    Y = [obj.Gnode.comx];
-    Z = [obj.Gnode.comz];
-    nums = string(1:length(X));
-    
-    isosurface(bwskel([obj.seg]));
-    hold on
-    plot3(X,Y,Z, 'r.', 'MarkerSize', 15);
-    text(X+1,Y+1,Z+1, nums)
-    axis([0 size(obj.CT, 1) 0 size(obj.CT, 2) 0 size(obj.CT, 3)])
-    view(80,0)
-    end
-    end
-
-methods (Static)
-    function [normal, CT_point] = ComputeNormal(spline, point)
-        % Based on original function by Kin Quan 2018
-        % * interperate real point on spline
-        CT_point = fnval(spline, point);
-        % * get tangent of point along spline
-        % differentiate along spline to get gradient
-        spline_1diff = fnder(spline,1);
-        tangent_vec = fnval(spline_1diff,point);
-        normal = tangent_vec/norm(tangent_vec,2);
+        
+        
+        %%% VISUALISATION %%%
+        function PlotTree(obj)
+            % Plot the airway tree with nodes and links
+            % Original Function by Ashkan Pakzad on 27th July 2019.
+            
+            X = [obj.Gnode.comy];
+            Y = [obj.Gnode.comx];
+            Z = [obj.Gnode.comz];
+            nums = string(1:length(X));
+            
+            isosurface(bwskel([obj.seg]));
+            hold on
+            plot3(X,Y,Z, 'r.', 'MarkerSize', 15);
+            text(X+1,Y+1,Z+1, nums)
+            axis([0 size(obj.CT, 1) 0 size(obj.CT, 2) 0 size(obj.CT, 3)])
+            view(80,0)
+        end
     end
     
-    
-            function [FWHMl, FWHMp, FWHMr] = computeFWHM(CT_rays, seg_rays, coords)
+    methods (Static)
+        function [normal, CT_point] = ComputeNormal(spline, point)
+            % Based on original function by Kin Quan 2018
+            % * interperate real point on spline
+            CT_point = fnval(spline, point);
+            % * get tangent of point along spline
+            % differentiate along spline to get gradient
+            spline_1diff = fnder(spline,1);
+            tangent_vec = fnval(spline_1diff,point);
+            normal = tangent_vec/norm(tangent_vec,2);
+        end
+        
+        
+        function [FWHMl, FWHMp, FWHMr] = computeFWHM(CT_rays, seg_rays, coords)
             %This is to perfrom the ray casting measurents - the input is in a sturct
             % as
-
+            
             % The basis of the code is base on the description - Virtual Bronchoscopy for Quantitative Airway Analysis
             % by A P Kiraly et al.
             
@@ -386,7 +387,7 @@ methods (Static)
                     seg_half = find(ind_ray,1);
                 end
                 
-                % * Find FWHM peak                                
+                % * Find FWHM peak
                 [max_int_array , max_location_array] = ...
                     findpeaks(CT_profile);
                 
@@ -415,7 +416,7 @@ methods (Static)
                     (CT_profile(FWHMp) + CT_profile(FWHMi))/2;
                 FWHMl = Finding_midpoint_stop(CT_profile,threshold_int_left,FHWMi,FWHMp);
                 
-                % * Compute FWHM on right side     
+                % * Compute FWHM on right side
                 % loop through profile from FWHM peak to distal
                 % find first minima from left to right.
                 for i = FWHMp:length(CT_profile)-1
@@ -431,12 +432,12 @@ methods (Static)
                 FWHMr = Finding_midpoint_stop_right(CT_profile,threshold_int_right,FWHMo,FWHMp);
                 
                 % concat points together
-                FWHMl_x = cat(1,FWHMl_x,coords(FWHMl,ray, 1));
-                FWHMl_y = cat(1,FWHMl_y,coords(FWHMl,ray, 2));
-                FWHMp_x = cat(1,FWHMp_x,coords(FWHMp,ray, 1));
-                FWHMp_y = cat(1,FWHMp_y,coords(FWHMp,ray, 2));
-                FWHMr_x = cat(1,FWHMr_x,coords(FWHMr,ray, 1));
-                FWHMr_y = cat(1,FWHMr_y,coords(FWHMr,ray, 2));  
+                FWHMl_x = cat(1,FWHMl_x,coords(FWHMl, ray, 1));
+                FWHMl_y = cat(1,FWHMl_y,coords(FWHMl, ray, 2));
+                FWHMp_x = cat(1,FWHMp_x,coords(FWHMp, ray, 1));
+                FWHMp_y = cat(1,FWHMp_y,coords(FWHMp, ray, 2));
+                FWHMr_x = cat(1,FWHMr_x,coords(FWHMr, ray, 1));
+                FWHMr_y = cat(1,FWHMr_y,coords(FWHMr, ray, 2));
             end
             
             FWHMl = cat(2, FWHMl_x, FWHMl_y);
@@ -445,19 +446,18 @@ methods (Static)
             
         end
         
-    
-    
-    function elliptical_sturct = ComputeEllipses(x_points, y_points)
+        
+        function elliptical_sturct = ComputeEllipses(FWHM_points)
             %Perform the Ellipitcal fitting
             %The output will be sturct containing the major and minor lengths as well
             %as all the stop points
             elliptical_sturct = struct;
-            elliptical_sturct.x_points = x_points;
-            elliptical_sturct.y_points = y_points;
+            elliptical_sturct.x_points = FWHM_points(:,1);
+            elliptical_sturct.y_points = FWHM_points(:,2);
             % Compute fitting
             elliptical_sturct.elliptical_info = Elliptical_fitting(elliptical_sturct.x_points ,elliptical_sturct.y_points);
             elliptical_sturct.area = elliptical_sturct.elliptical_info(3)*elliptical_sturct.elliptical_info(4)*pi;
         end
-    
-end
+        
+    end
 end
