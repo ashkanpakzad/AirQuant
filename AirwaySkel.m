@@ -440,6 +440,8 @@ classdef AirwaySkel
                     (CT_profile(FWHMp) + CT_profile(FWHMo))/2;
                 FWHMr = Finding_midpoint_stop_right(CT_profile,threshold_int_right,FWHMo,FWHMp);
                 
+                % TODO: add same anomaly detection as before.
+                
                 % concat points together
                 FWHMl_x = cat(1,FWHMl_x,coords(FWHMl, ray, 1));
                 FWHMl_y = cat(1,FWHMl_y,coords(FWHMl, ray, 2));
