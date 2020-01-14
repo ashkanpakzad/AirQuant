@@ -23,7 +23,7 @@ classdef AirwaySkel
         TraversedImage
         TraversedSeg
         arclength
-        
+        FWHMesl   
     end
     
     methods
@@ -53,6 +53,8 @@ classdef AirwaySkel
             % set up empty specs doubles
             obj.arclength = cell(length(obj.Glink),1);
             %obj.specs(length(obj.Glink)) = struct();
+            % set up empty cell for recording raycast/fwhmesl method
+            obj.FWHMesl = cell(length(obj.Glink),3);
         end
         
         
@@ -85,7 +87,7 @@ classdef AirwaySkel
                     continue
                 end
                 obj = CreateAirwayImage(obj, i);
-                disp(['Completed ', num2str(i), ' of ', num2str(total_branches)])
+                disp(['Traversing: Completed ', num2str(i), ' of ', num2str(total_branches)])
             end
         end
         
@@ -185,35 +187,43 @@ classdef AirwaySkel
         end
         
         %%% TAPERING MEASUREMENTS %%%
-        function FindAirwayBoundariesFWHM(obj, link_index)
+        function obj = raycast_FWHM(obj)
+            % analyse all airway segments except the trachea.
+            disp('Start computing FWHM boundaries of all airway segments')
+            total_branches = length(obj.Glink);
+            for i = 1:length(obj.Glink)
+                % skip the trachea
+                if i == obj.trachea_path
+                    continue
+                end
+                obj = FindAirwayBoundariesFWHM(obj, i);
+                disp(['FWHMesl: Completed ', num2str(i), ' of ', num2str(total_branches)])
+            end
+        end
+        
+        function raycast_FWHM = FindAirwayBoundariesFWHM(obj, link_index)
             %Based on function by Kin Quan 2018 that is based on Kiraly06
             
-            number_of_slice = size(tapering_image,3);
-            
-            % Getting the pixel size - this is to convert it into the phyical diamter
-            pixel_size = plane_input_sturct.physical_sampling_interval.^2;
+            slices_size = size(obj.TraversedImage{link_index, 1}, 3);
             
             % Prepping the outputs
-            ellptical_info_cell = {};
-            ellptical_info_cell_wall = {};
-            ellptical_area = [];
-            ellptical_area_wall = [];
-            slice_fail_case = [];
-            slice_fail_case_wall = [];
+            raycast_FWHM = cell(slices_size, 3);
             
-            for k = 1:size(obj.TraversedImage{link_index, 1}, 3)
-                
+            % For every traversed slice
+            for k = 1:slices_size
                 % * Compute airway centre
                 % Check that airway centre is slice centre
-                centre = ...
-                    Return_centre_pt_image(obj.TraversedSeg{link_index, 1}(:,:,k));
+                center = ...
+                    Return_centre_pt_image(...
+                    obj.TraversedSeg{link_index, 1}(:,:,k));
                 
                 % Recompute new centre if necessary
                 [centre_ind , new_centre] =  ...
-                    Check_centre_with_segmentation(obj.TraversedSeg{link_index, 1}(:,:,k),...
+                    Check_centre_with_segmentation(...
+                    obj.TraversedSeg{link_index, 1}(:,:,k),...
                     obj.TraversedImage{link_index, 1}(:,:,k));
                 if ~centre_ind
-                    centre = fliplr(new_centre);
+                    center = fliplr(new_centre);
                 end
                 
                 % * Raycast
@@ -222,69 +232,26 @@ classdef AirwaySkel
                     obj.TraversedSeg{link_index, 1}(:,:,k), center);
                 
                 % * Compute FWHM
-                [FWHMl, FWHMp, FWHMr] = AirwaySkel.computeFWHM(CT_rays, seg_rays, coords);
+                [FWHMl, FWHMp, FWHMr] = AirwaySkel.computeFWHM(CT_rays,...
+                    seg_rays, coords);
                 
                 % * Compute Ellipses
-                FWHMl_ellipse = ComputeEllipses(FWHMl);
-                FWHMp_ellipse = ComputeEllipses(FWHMp);
-                FWHMr_ellipse = ComputeEllipses(FWHMr);
+                FWHMl_ellipse = ComputeEllipses(obj, FWHMl);
+                FWHMp_ellipse = ComputeEllipses(obj, FWHMp);
+                FWHMr_ellipse = ComputeEllipses(obj, FWHMr);
                 
+                % * Record, catch incase a slice fails.
                 try
-                    %Recording the infomation
-                    ellptical_info_cell = ...
-                        cat(1,ellptical_info_cell,area_info_sturct);
-                    
-                    %Recording the area in phyical information
-                    single_area = (area_info_sturct.area)*pixel_size;
-                    ellptical_area = cat(1,ellptical_area,single_area);
-                    
+                    raycast_FWHM{k,1} = FWHMl_ellipse;
+                    raycast_FWHM{k,2} = FWHMp_ellipse;
+                    raycast_FWHM{k,3} = FWHMr_ellipse;
                 catch
-                    %This is the case when the ray casting fails
-                    area_info_sturct = NaN;
-                    ellptical_info_cell = ...
-                        cat(1,ellptical_info_cell,area_info_sturct);
-                    
-                    %Recording the area in phyical information
-                    single_area = NaN;
-                    ellptical_area = cat(1,ellptical_area,single_area);
-                    
-                    %Recroding the failed case
-                    slice_fail_case = cat(1,slice_fail_case,k);
-                    
+                    raycast_FWHM{k,1:3} = NaN;
                 end
-                % safety catch - wall
-                try
-                    
-                    %Recording the infomation
-                    ellptical_info_cell_wall = ...
-                        cat(1,ellptical_info_cell_wall,area_info_sturct_wall);
-                    
-                    single_area_wall = (area_info_sturct_wall.area)*pixel_size;
-                    ellptical_area_wall = cat(1,ellptical_area_wall,single_area_wall);
-                    
-                catch
-                    %This is the case when the ray casting fails
-                    area_info_sturct_wall = NaN;
-                    ellptical_info_cell_wall = ...
-                        cat(1,ellptical_info_cell_wall,area_info_sturct_wall);
-                    
-                    single_area_wall = NaN;
-                    ellptical_area_wall = cat(1,ellptical_area_wall,single_area_wall);
-                    
-                    %Recroding the failed case
-                    slice_fail_case_wall = cat(1,slice_fail_case_wall,k);
-                end
-                
             end
-            
-            % Getting the outputs
-            tapering_info_sturct = struct;
-            tapering_info_sturct.elliptical_info = ellptical_info_cell;
-            tapering_info_sturct.elliptical_info_wall = ellptical_info_cell_wall;
-            tapering_info_sturct.phyiscal_area = ellptical_area;
-            tapering_info_sturct.phyiscal_area_wall = ellptical_area_wall;
-            tapering_info_sturct.fail_cases = slice_fail_case;
-            tapering_info_sturct.fail_cases_wall = slice_fail_case_wall;
+            obj.FWHMesl{link_index, 1} = raycast_FWHM{:,1};
+            obj.FWHMesl{link_index, 2} = raycast_FWHM{:,2};
+            obj.FWHMesl{link_index, 3} = raycast_FWHM{:,3};
         end
         
         function [CT_rays, seg_rays, coords]= Raycast(obj, interpslice, interpseg, center)
@@ -323,6 +290,22 @@ classdef AirwaySkel
             coords = cat(3, x_component, y_component);
         end
         
+        function elliptical_sturct = ComputeEllipses(obj, FWHM_points)
+            %Perform the Ellipitcal fitting
+            %The output will be sturct containing the major and minor lengths as well
+            %as all the stop points
+            elliptical_sturct = struct;
+            elliptical_sturct.x_points = FWHM_points(:,1);
+            elliptical_sturct.y_points = FWHM_points(:,2);
+            % Compute fitting
+            elliptical_sturct.elliptical_info = ...
+                Elliptical_fitting(elliptical_sturct.x_points, ...
+                elliptical_sturct.y_points);
+            elliptical_sturct.area = ...
+                elliptical_sturct.elliptical_info(3)*...
+                elliptical_sturct.elliptical_info(4)*...
+                pi*obj.physical_sampling_interval.^2;
+        end
         
         %%% VISUALISATION %%%
         function PlotTree(obj)
@@ -340,6 +323,7 @@ classdef AirwaySkel
             text(X+1,Y+1,Z+1, nums)
             axis([0 size(obj.CT, 1) 0 size(obj.CT, 2) 0 size(obj.CT, 3)])
             view(80,0)
+            
         end
     end
     
@@ -443,21 +427,6 @@ classdef AirwaySkel
             FWHMl = cat(2, FWHMl_x, FWHMl_y);
             FWHMp = cat(2, FWHMp_x, FWHMp_y);
             FWHMr = cat(2, FWHMr_x, FWHMr_y);
-            
         end
-        
-        
-        function elliptical_sturct = ComputeEllipses(FWHM_points)
-            %Perform the Ellipitcal fitting
-            %The output will be sturct containing the major and minor lengths as well
-            %as all the stop points
-            elliptical_sturct = struct;
-            elliptical_sturct.x_points = FWHM_points(:,1);
-            elliptical_sturct.y_points = FWHM_points(:,2);
-            % Compute fitting
-            elliptical_sturct.elliptical_info = Elliptical_fitting(elliptical_sturct.x_points ,elliptical_sturct.y_points);
-            elliptical_sturct.area = elliptical_sturct.elliptical_info(3)*elliptical_sturct.elliptical_info(4)*pi;
-        end
-        
     end
 end
