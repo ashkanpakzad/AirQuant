@@ -9,9 +9,8 @@ classdef AirwaySkel
         physical_sampling_interval = 0.3;
         spline_sampling_interval = 0.25;
         % Ray params
-        rays = 50;
+        num_rays = 50;
         ray_interval = 0.2;
-        nan_replace_int = 0;
     end
     properties (SetAccess = private)
         % Graph Properties
@@ -42,9 +41,8 @@ classdef AirwaySkel
                 obj.physical_plane_length = params.physical_plane_length;
                 obj.physical_sampling_interval = params.physical_sampling_interval;
                 obj.spline_sampling_interval = params.spline_sampling_interval;
-                obj.rays = params.rays;
+                obj.num_rays = params.num_rays;
                 obj.ray_interval = params.ray_interval;
-                obj.nan_replace_int = params.nan_replace_int;
             end
             % graph airway skeleton
             obj = GenerateSkel(obj);
@@ -187,15 +185,15 @@ classdef AirwaySkel
         end
         
         %%% TAPERING MEASUREMENTS %%%
-        FindAirwayBoundariesFWHM(obj, link_index)
+        function FindAirwayBoundariesFWHM(obj, link_index)
         %Based on function by Kin Quan 2018 that is based on Kiraly06 
         
         number_of_slice = size(tapering_image,3);
         
-        %Getting the pixel size - this is to convert it into the phyical diamter
+        % Getting the pixel size - this is to convert it into the phyical diamter
         pixel_size = plane_input_sturct.physical_sampling_interval.^2;
         
-        %Getting the outputs
+        % Prepping the outputs
         ellptical_info_cell = {};
         ellptical_info_cell_wall = {};
         ellptical_area = [];
@@ -203,34 +201,31 @@ classdef AirwaySkel
         slice_fail_case = [];
         slice_fail_case_wall = [];
         
-        %% Perfroming the loop
         for k = 1:size(obj.TraversedImage{link_index, 1}, 3)
             
-            % * Check that airway centre is slice centre
+            % * Compute airway centre
+            % Check that airway centre is slice centre
+            centre = ...
+                Return_centre_pt_image(obj.TraversedSeg{link_index, 1}(:,:,k));
             
-            % Recompute centre if necessary
-            
-            
-            
-            
-            plane_input_sturct.cross_sectional_image = binary_tapering_seg(:,:,k);
-            plane_input_sturct.center = ...
-                Return_centre_pt_image(plane_input_sturct.cross_sectional_image);
-            %PLacing the raw image inorder to give a more
-            plane_input_sturct.raw_sectional_image = tapering_image(:,:,k);
-            
-            %% This is to look at the centre of the segmentation
+            % Recompute new centre if necessary
             [centre_ind , new_centre] =  ...
-                Check_centre_with_segmentation(plane_input_sturct.cross_sectional_image,...
-                binary_tapering_seg(:,:,k));
-            
+            Check_centre_with_segmentation(obj.TraversedSeg{link_index, 1}(:,:,k),...
+            obj.TraversedImage{link_index, 1}(:,:,k));      
             if ~centre_ind
-                plane_input_sturct.center = fliplr(new_centre);
+                centre = fliplr(new_centre);
             end
             
-            % Raycast to find the lumen boundary
+            % * Raycast
+            [CT_rays, seg_rays]= Raycast(obj, ...
+                obj.TraversedImage{link_index, 1}(:,:,k), ...
+                obj.TraversedSeg{link_index, 1}(:,:,k), center);
             
-            %Computing the area with the describeed method
+            % * Compute FWHM
+            
+            % * Compute Ellipses
+            
+            
             [area_info_sturct_wall, area_info_sturct] =...
                 Cross_sectional_FWHM_SL(plane_input_sturct);
             try
@@ -256,7 +251,7 @@ classdef AirwaySkel
                 slice_fail_case = cat(1,slice_fail_case,k);
                 
             end
-            %%  safety catch - wall
+            % safety catch - wall
             try
                 
                 %Recording the infomation
@@ -281,7 +276,7 @@ classdef AirwaySkel
             
         end
         
-        %% Getting the outputs
+        % Getting the outputs
         tapering_info_sturct = struct;
         tapering_info_sturct.elliptical_info = ellptical_info_cell;
         tapering_info_sturct.elliptical_info_wall = ellptical_info_cell_wall;
@@ -289,7 +284,124 @@ classdef AirwaySkel
         tapering_info_sturct.phyiscal_area_wall = ellptical_area_wall;
         tapering_info_sturct.fail_cases = slice_fail_case;
         tapering_info_sturct.fail_cases_wall = slice_fail_case_wall;
+        end
         
+        
+                function [elipllical_sturct] = computeFWHM(obj, rays)
+            %This is to perfrom the ray casting measurents - the input is in a sturct
+            % as
+            %     input_parameters
+            %     input_parameters.cross_sectional_image
+            %     input_parameters.rays
+            %     input_parameters.center
+            %     input_parameters.ray_interval
+            %     input_parameters.nan_replace_int
+            % The basis of the code is base on the description - Virtual Bronchoscopy for Quantitative Airway Analysis
+            % by A P Kiraly et al.
+            
+            %The output will be sturct containing the major and minor lengths as well
+            %as all the stop points
+            elipllical_sturct = struct;
+            % elipllical_sturct.x_stop
+            % elipllical_sturct.y_stop
+            % elipllical_sturct.elipllical_info
+            % elipllical_sturct.area
+                        
+
+            % We will now implememnt the FHWM
+            
+            %Need to find the length of the ray - this need a loop
+            number_of_rays = size(y_component,2);
+            x_stop = [];
+            y_stop = [];
+            stop_point_array = [];
+            
+            %performing a loop
+            for ray = 1:number_of_rays
+                
+                ray_profile = plain_intensity(:,ray);
+                ray_pro_raw = raw_intensity(:,ray);
+                
+                %Where the
+                point_stop = FWHM_SL_single_ray(ray_profile);
+                
+                if isempty(point_stop)
+                    %This will skip the loop if no point is found
+                    continue
+                end
+                
+                %Need to the get a use the information of the raw imformation
+                point_stop = Find_nearest_FHWM_from_pt(ray_pro_raw,point_stop);
+                
+                if isempty(point_stop)
+                    %This will skip the loop if no point is found
+                    continue
+                end
+                
+                stop_point_array = cat(1,stop_point_array,point_stop);
+                %getting the coords - we will be using cncentration
+                x_point = x_component(point_stop,ray);
+                y_point = y_component(point_stop,ray);
+                
+                %Adding the points together
+                x_stop = cat(1,x_stop,x_point);
+                y_stop = cat(1,y_stop,y_point);
+                
+            end
+            
+            % Need ot remove the outilers
+            
+            %[~, non_outlier_index ] =  Remove_Outliers(stop_point_array,0);
+            
+            %Perform the Ellipitcal fitting:
+            elipllical_sturct.x_stop = x_stop;
+            elipllical_sturct.y_stop = y_stop;
+            %elipllical_sturct.radial_map = raw_intensity;
+            
+            elipllical_sturct.elipllical_info = Elliptical_fitting(elipllical_sturct.x_stop ,elipllical_sturct.y_stop);
+            elipllical_sturct.area = elipllical_sturct.elipllical_info(3)*elipllical_sturct.elipllical_info(4)*pi;
+            
+        end
+        
+        function [CT_rays, seg_rays]= Raycast(obj, interpslice, interpseg, center)
+            % * Compute Rays      
+            % Getting the range limit of the ray which will be the shortest 
+            % distance from the centre to the bounadry Need to find the 
+            % limits of the raw
+            image_size = size(interpslice);
+            limit_row = abs(image_size(1) - center(1));
+            limit_col = abs(image_size(2) - center(2));
+            ray_length_limit = min(limit_row, limit_col);
+            
+            %Compute rays in polar coords 
+            ray_angle_interval = 2*pi/obj.num_rays;
+            radial = 0:obj.ray_interval:ray_length_limit;
+            theata = 0:ray_angle_interval:2*pi;
+            
+            %Convert rays to cartesian coords
+            x_component = radial'*cos(theata) + center(1);
+            y_component = radial'*sin(theata) + center(2);
+            
+            % * Cast rays
+            interpslice = double(interpslice);
+            
+            CT_rays = interp2(interpseg, x_component(:),...
+                y_component(:));
+            
+            seg_rays = interp2(interpslice, x_component(:),...
+                y_component(:));
+            
+            %Need to reshape
+            CT_rays = ...
+                reshape(CT_rays,[size(y_component,1) size(y_component,2)]);
+            seg_rays = ...
+                reshape(seg_rays,[size(y_component,1) size(y_component,2)]);
+        end
+        
+        
+        
+        end
+
         
         
         %%% VISUALISATION %%%
@@ -325,7 +437,6 @@ classdef AirwaySkel
             tangent_vec = fnval(spline_1diff,point);
             normal = tangent_vec/norm(tangent_vec,2);
         end
-        
         
     end
 end
