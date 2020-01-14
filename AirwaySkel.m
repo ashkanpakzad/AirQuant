@@ -186,194 +186,117 @@ classdef AirwaySkel
         
         %%% TAPERING MEASUREMENTS %%%
         function FindAirwayBoundariesFWHM(obj, link_index)
-        %Based on function by Kin Quan 2018 that is based on Kiraly06 
-        
-        number_of_slice = size(tapering_image,3);
-        
-        % Getting the pixel size - this is to convert it into the phyical diamter
-        pixel_size = plane_input_sturct.physical_sampling_interval.^2;
-        
-        % Prepping the outputs
-        ellptical_info_cell = {};
-        ellptical_info_cell_wall = {};
-        ellptical_area = [];
-        ellptical_area_wall = [];
-        slice_fail_case = [];
-        slice_fail_case_wall = [];
-        
-        for k = 1:size(obj.TraversedImage{link_index, 1}, 3)
+            %Based on function by Kin Quan 2018 that is based on Kiraly06
             
-            % * Compute airway centre
-            % Check that airway centre is slice centre
-            centre = ...
-                Return_centre_pt_image(obj.TraversedSeg{link_index, 1}(:,:,k));
+            number_of_slice = size(tapering_image,3);
             
-            % Recompute new centre if necessary
-            [centre_ind , new_centre] =  ...
-            Check_centre_with_segmentation(obj.TraversedSeg{link_index, 1}(:,:,k),...
-            obj.TraversedImage{link_index, 1}(:,:,k));      
-            if ~centre_ind
-                centre = fliplr(new_centre);
-            end
+            % Getting the pixel size - this is to convert it into the phyical diamter
+            pixel_size = plane_input_sturct.physical_sampling_interval.^2;
             
-            % * Raycast
-            [CT_rays, seg_rays]= Raycast(obj, ...
-                obj.TraversedImage{link_index, 1}(:,:,k), ...
-                obj.TraversedSeg{link_index, 1}(:,:,k), center);
+            % Prepping the outputs
+            ellptical_info_cell = {};
+            ellptical_info_cell_wall = {};
+            ellptical_area = [];
+            ellptical_area_wall = [];
+            slice_fail_case = [];
+            slice_fail_case_wall = [];
             
-            % * Compute FWHM
-            
-            % * Compute Ellipses
-            
-            
-            [area_info_sturct_wall, area_info_sturct] =...
-                Cross_sectional_FWHM_SL(plane_input_sturct);
-            try
-                %Recording the infomation
-                ellptical_info_cell = ...
-                    cat(1,ellptical_info_cell,area_info_sturct);
+            for k = 1:size(obj.TraversedImage{link_index, 1}, 3)
                 
-                %Recording the area in phyical information
-                single_area = (area_info_sturct.area)*pixel_size;
-                ellptical_area = cat(1,ellptical_area,single_area);
+                % * Compute airway centre
+                % Check that airway centre is slice centre
+                centre = ...
+                    Return_centre_pt_image(obj.TraversedSeg{link_index, 1}(:,:,k));
                 
-            catch
-                %This is the case when the ray casting fails
-                area_info_sturct = NaN;
-                ellptical_info_cell = ...
-                    cat(1,ellptical_info_cell,area_info_sturct);
-                
-                %Recording the area in phyical information
-                single_area = NaN;
-                ellptical_area = cat(1,ellptical_area,single_area);
-                
-                %Recroding the failed case
-                slice_fail_case = cat(1,slice_fail_case,k);
-                
-            end
-            % safety catch - wall
-            try
-                
-                %Recording the infomation
-                ellptical_info_cell_wall = ...
-                    cat(1,ellptical_info_cell_wall,area_info_sturct_wall);
-                
-                single_area_wall = (area_info_sturct_wall.area)*pixel_size;
-                ellptical_area_wall = cat(1,ellptical_area_wall,single_area_wall);
-                
-            catch
-                %This is the case when the ray casting fails
-                area_info_sturct_wall = NaN;
-                ellptical_info_cell_wall = ...
-                    cat(1,ellptical_info_cell_wall,area_info_sturct_wall);
-                
-                single_area_wall = NaN;
-                ellptical_area_wall = cat(1,ellptical_area_wall,single_area_wall);
-                
-                %Recroding the failed case
-                slice_fail_case_wall = cat(1,slice_fail_case_wall,k);
-            end
-            
-        end
-        
-        % Getting the outputs
-        tapering_info_sturct = struct;
-        tapering_info_sturct.elliptical_info = ellptical_info_cell;
-        tapering_info_sturct.elliptical_info_wall = ellptical_info_cell_wall;
-        tapering_info_sturct.phyiscal_area = ellptical_area;
-        tapering_info_sturct.phyiscal_area_wall = ellptical_area_wall;
-        tapering_info_sturct.fail_cases = slice_fail_case;
-        tapering_info_sturct.fail_cases_wall = slice_fail_case_wall;
-        end
-        
-        
-                function [elipllical_sturct] = computeFWHM(obj, rays)
-            %This is to perfrom the ray casting measurents - the input is in a sturct
-            % as
-            %     input_parameters
-            %     input_parameters.cross_sectional_image
-            %     input_parameters.rays
-            %     input_parameters.center
-            %     input_parameters.ray_interval
-            %     input_parameters.nan_replace_int
-            % The basis of the code is base on the description - Virtual Bronchoscopy for Quantitative Airway Analysis
-            % by A P Kiraly et al.
-            
-            %The output will be sturct containing the major and minor lengths as well
-            %as all the stop points
-            elipllical_sturct = struct;
-            % elipllical_sturct.x_stop
-            % elipllical_sturct.y_stop
-            % elipllical_sturct.elipllical_info
-            % elipllical_sturct.area
-                        
-
-            % We will now implememnt the FHWM
-            
-            %Need to find the length of the ray - this need a loop
-            number_of_rays = size(y_component,2);
-            x_stop = [];
-            y_stop = [];
-            stop_point_array = [];
-            
-            %performing a loop
-            for ray = 1:number_of_rays
-                
-                ray_profile = plain_intensity(:,ray);
-                ray_pro_raw = raw_intensity(:,ray);
-                
-                %Where the
-                point_stop = FWHM_SL_single_ray(ray_profile);
-                
-                if isempty(point_stop)
-                    %This will skip the loop if no point is found
-                    continue
+                % Recompute new centre if necessary
+                [centre_ind , new_centre] =  ...
+                    Check_centre_with_segmentation(obj.TraversedSeg{link_index, 1}(:,:,k),...
+                    obj.TraversedImage{link_index, 1}(:,:,k));
+                if ~centre_ind
+                    centre = fliplr(new_centre);
                 end
                 
-                %Need to the get a use the information of the raw imformation
-                point_stop = Find_nearest_FHWM_from_pt(ray_pro_raw,point_stop);
+                % * Raycast
+                [CT_rays, seg_rays]= Raycast(obj, ...
+                    obj.TraversedImage{link_index, 1}(:,:,k), ...
+                    obj.TraversedSeg{link_index, 1}(:,:,k), center);
                 
-                if isempty(point_stop)
-                    %This will skip the loop if no point is found
-                    continue
+                % * Compute FWHM
+                
+                % * Compute Ellipses
+                
+                
+                [area_info_sturct_wall, area_info_sturct] =...
+                    Cross_sectional_FWHM_SL(plane_input_sturct);
+                try
+                    %Recording the infomation
+                    ellptical_info_cell = ...
+                        cat(1,ellptical_info_cell,area_info_sturct);
+                    
+                    %Recording the area in phyical information
+                    single_area = (area_info_sturct.area)*pixel_size;
+                    ellptical_area = cat(1,ellptical_area,single_area);
+                    
+                catch
+                    %This is the case when the ray casting fails
+                    area_info_sturct = NaN;
+                    ellptical_info_cell = ...
+                        cat(1,ellptical_info_cell,area_info_sturct);
+                    
+                    %Recording the area in phyical information
+                    single_area = NaN;
+                    ellptical_area = cat(1,ellptical_area,single_area);
+                    
+                    %Recroding the failed case
+                    slice_fail_case = cat(1,slice_fail_case,k);
+                    
                 end
-                
-                stop_point_array = cat(1,stop_point_array,point_stop);
-                %getting the coords - we will be using cncentration
-                x_point = x_component(point_stop,ray);
-                y_point = y_component(point_stop,ray);
-                
-                %Adding the points together
-                x_stop = cat(1,x_stop,x_point);
-                y_stop = cat(1,y_stop,y_point);
+                % safety catch - wall
+                try
+                    
+                    %Recording the infomation
+                    ellptical_info_cell_wall = ...
+                        cat(1,ellptical_info_cell_wall,area_info_sturct_wall);
+                    
+                    single_area_wall = (area_info_sturct_wall.area)*pixel_size;
+                    ellptical_area_wall = cat(1,ellptical_area_wall,single_area_wall);
+                    
+                catch
+                    %This is the case when the ray casting fails
+                    area_info_sturct_wall = NaN;
+                    ellptical_info_cell_wall = ...
+                        cat(1,ellptical_info_cell_wall,area_info_sturct_wall);
+                    
+                    single_area_wall = NaN;
+                    ellptical_area_wall = cat(1,ellptical_area_wall,single_area_wall);
+                    
+                    %Recroding the failed case
+                    slice_fail_case_wall = cat(1,slice_fail_case_wall,k);
+                end
                 
             end
             
-            % Need ot remove the outilers
-            
-            %[~, non_outlier_index ] =  Remove_Outliers(stop_point_array,0);
-            
-            %Perform the Ellipitcal fitting:
-            elipllical_sturct.x_stop = x_stop;
-            elipllical_sturct.y_stop = y_stop;
-            %elipllical_sturct.radial_map = raw_intensity;
-            
-            elipllical_sturct.elipllical_info = Elliptical_fitting(elipllical_sturct.x_stop ,elipllical_sturct.y_stop);
-            elipllical_sturct.area = elipllical_sturct.elipllical_info(3)*elipllical_sturct.elipllical_info(4)*pi;
-            
+            % Getting the outputs
+            tapering_info_sturct = struct;
+            tapering_info_sturct.elliptical_info = ellptical_info_cell;
+            tapering_info_sturct.elliptical_info_wall = ellptical_info_cell_wall;
+            tapering_info_sturct.phyiscal_area = ellptical_area;
+            tapering_info_sturct.phyiscal_area_wall = ellptical_area_wall;
+            tapering_info_sturct.fail_cases = slice_fail_case;
+            tapering_info_sturct.fail_cases_wall = slice_fail_case_wall;
         end
         
-        function [CT_rays, seg_rays]= Raycast(obj, interpslice, interpseg, center)
-            % * Compute Rays      
-            % Getting the range limit of the ray which will be the shortest 
-            % distance from the centre to the bounadry Need to find the 
+        function [CT_rays, seg_rays, coords]= Raycast(obj, interpslice, interpseg, center)
+            % * Compute Rays
+            % Getting the range limit of the ray which will be the shortest
+            % distance from the centre to the bounadry Need to find the
             % limits of the raw
             image_size = size(interpslice);
             limit_row = abs(image_size(1) - center(1));
             limit_col = abs(image_size(2) - center(2));
             ray_length_limit = min(limit_row, limit_col);
             
-            %Compute rays in polar coords 
+            %Compute rays in polar coords
             ray_angle_interval = 2*pi/obj.num_rays;
             radial = 0:obj.ray_interval:ray_length_limit;
             theata = 0:ray_angle_interval:2*pi;
@@ -396,47 +319,145 @@ classdef AirwaySkel
                 reshape(CT_rays,[size(y_component,1) size(y_component,2)]);
             seg_rays = ...
                 reshape(seg_rays,[size(y_component,1) size(y_component,2)]);
+            coords = cat(3, x_component, y_component);
         end
-        
-        
-        
-        end
+    
+    
+    %%% VISUALISATION %%%
+    function PlotTree(obj)
+    % Plot the airway tree with nodes and links
+    % Original Function by Ashkan Pakzad on 27th July 2019.
+    
+    X = [obj.Gnode.comy];
+    Y = [obj.Gnode.comx];
+    Z = [obj.Gnode.comz];
+    nums = string(1:length(X));
+    
+    isosurface(bwskel([obj.seg]));
+    hold on
+    plot3(X,Y,Z, 'r.', 'MarkerSize', 15);
+    text(X+1,Y+1,Z+1, nums)
+    axis([0 size(obj.CT, 1) 0 size(obj.CT, 2) 0 size(obj.CT, 3)])
+    view(80,0)
+    end
+    end
 
-        
-        
-        %%% VISUALISATION %%%
-        function PlotTree(obj)
-            % Plot the airway tree with nodes and links
-            % Original Function by Ashkan Pakzad on 27th July 2019.
-            
-            X = [obj.Gnode.comy];
-            Y = [obj.Gnode.comx];
-            Z = [obj.Gnode.comz];
-            nums = string(1:length(X));
-            
-            isosurface(bwskel([obj.seg]));
-            hold on
-            plot3(X,Y,Z, 'r.', 'MarkerSize', 15);
-            text(X+1,Y+1,Z+1, nums)
-            axis([0 size(obj.CT, 1) 0 size(obj.CT, 2) 0 size(obj.CT, 3)])
-            view(80,0)
-        end
-        
-        
+methods (Static)
+    function [normal, CT_point] = ComputeNormal(spline, point)
+        % Based on original function by Kin Quan 2018
+        % * interperate real point on spline
+        CT_point = fnval(spline, point);
+        % * get tangent of point along spline
+        % differentiate along spline to get gradient
+        spline_1diff = fnder(spline,1);
+        tangent_vec = fnval(spline_1diff,point);
+        normal = tangent_vec/norm(tangent_vec,2);
     end
     
     
-    methods (Static)
-        function [normal, CT_point] = ComputeNormal(spline, point)
-            % Based on original function by Kin Quan 2018
-            % * interperate real point on spline
-            CT_point = fnval(spline, point);
-            % * get tangent of point along spline
-            % differentiate along spline to get gradient
-            spline_1diff = fnder(spline,1);
-            tangent_vec = fnval(spline_1diff,point);
-            normal = tangent_vec/norm(tangent_vec,2);
+            function [FWHMl, FWHMp, FWHMr] = computeFWHM(CT_rays, seg_rays, coords)
+            %This is to perfrom the ray casting measurents - the input is in a sturct
+            % as
+
+            % The basis of the code is base on the description - Virtual Bronchoscopy for Quantitative Airway Analysis
+            % by A P Kiraly et al.
+            
+            %Need to find the length of the ray - this need a loop
+            number_of_rays = size(CT_rays,2);
+            FWHMl_x = [];
+            FWHMl_y = [];
+            FWHMp_x = [];
+            FWHMp_y = [];
+            FWHMr_x = [];
+            FWHMr_y = [];
+            
+            %performing a loop
+            for ray = 1:number_of_rays
+                
+                CT_profile = CT_rays(:,ray);
+                seg_profile = seg_rays(:,ray);
+                
+                % * Find the edge of the interpolated segmentation.
+                if seg_profile(1) < 0.5
+                    continue % skip if seg edge does not exist
+                else
+                    % Identify the last vaule that is above the 0.5
+                    ind_ray = (seg_profile < 0.5);
+                    seg_half = find(ind_ray,1);
+                end
+                
+                % * Find FWHM peak                                
+                [max_int_array , max_location_array] = ...
+                    findpeaks(CT_profile);
+                
+                if isempty(max_int_array)
+                    continue % skip ray if peak does not exist
+                end
+                
+                % identify the peak closest to seg half point
+                index_diff = abs(max_location_array - seg_half);
+                [~,closest_max] = min(index_diff);
+                % ensure the point is unique
+                FWHMp = max_location_array(closest_max(1));
+                
+                % * Compute FWHM on left side
+                % loop through profile from FWHM peak to centre
+                % find first minima from right to left.
+                for i = FWHMp:-1:2
+                    if ~(CT_profile(i) >= CT_profile(i - 1))
+                        break
+                    end
+                    i = 1; % incase inner is at beginning of profile
+                end
+                FWHMi = i; % inner FWHM curve
+                
+                threshold_int_left = ...
+                    (CT_profile(FWHMp) + CT_profile(FWHMi))/2;
+                FWHMl = Finding_midpoint_stop(CT_profile,threshold_int_left,FHWMi,FWHMp);
+                
+                % * Compute FWHM on right side     
+                % loop through profile from FWHM peak to distal
+                % find first minima from left to right.
+                for i = FWHMp:length(CT_profile)-1
+                    if CT_profile(local_min_index) <= CT_profile(local_min_index + 1)
+                        break
+                    end
+                    i = length(ray_profile);
+                end
+                FWHMo = i;  % outer FWHM curve
+                % TODO: move threshold calculation into function.
+                threshold_int_right = ...
+                    (CT_profile(FWHMp) + CT_profile(FWHMo))/2;
+                FWHMr = Finding_midpoint_stop_right(CT_profile,threshold_int_right,FWHMo,FWHMp);
+                
+                % concat points together
+                FWHMl_x = cat(1,FWHMl_x,coords(FWHMl,ray, 1));
+                FWHMl_y = cat(1,FWHMl_y,coords(FWHMl,ray, 2));
+                FWHMp_x = cat(1,FWHMp_x,coords(FWHMp,ray, 1));
+                FWHMp_y = cat(1,FWHMp_y,coords(FWHMp,ray, 2));
+                FWHMr_x = cat(1,FWHMr_x,coords(FWHMr,ray, 1));
+                FWHMr_y = cat(1,FWHMr_y,coords(FWHMr,ray, 2));  
+            end
+            
+            FWHMl = cat(2, FWHMl_x, FWHMl_y);
+            FWHMp = cat(2, FWHMp_x, FWHMp_y);
+            FWHMr = cat(2, FWHMr_x, FWHMr_y);
+            
         end
         
-    end
+    
+    
+    function elliptical_sturct = ComputeEllipses(x_points, y_points)
+            %Perform the Ellipitcal fitting
+            %The output will be sturct containing the major and minor lengths as well
+            %as all the stop points
+            elliptical_sturct = struct;
+            elliptical_sturct.x_points = x_points;
+            elliptical_sturct.y_points = y_points;
+            % Compute fitting
+            elliptical_sturct.elliptical_info = Elliptical_fitting(elliptical_sturct.x_points ,elliptical_sturct.y_points);
+            elliptical_sturct.area = elliptical_sturct.elliptical_info(3)*elliptical_sturct.elliptical_info(4)*pi;
+        end
+    
+end
 end
