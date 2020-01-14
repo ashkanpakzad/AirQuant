@@ -23,7 +23,8 @@ classdef AirwaySkel
         TraversedImage
         TraversedSeg
         arclength
-        FWHMesl   
+        FWHMesl
+        Specs
     end
     
     methods
@@ -52,7 +53,7 @@ classdef AirwaySkel
             obj.TraversedImage = cell(length(obj.Glink),1);
             % set up empty specs doubles
             obj.arclength = cell(length(obj.Glink),1);
-            %obj.specs(length(obj.Glink)) = struct();
+            obj.Specs = struct();
             % set up empty cell for recording raycast/fwhmesl method
             obj.FWHMesl = cell(length(obj.Glink),3);
         end
@@ -91,7 +92,23 @@ classdef AirwaySkel
             end
         end
         
-        %%%
+        
+        function obj = FindFWHMall(obj)
+            % analyse all airway segments except the trachea.
+            disp('Start computing FWHM boundaries of all airway segments')
+            total_branches = length(obj.Glink);
+            for i = 1:length(obj.Glink)
+                % skip the trachea
+                if i == obj.trachea_path
+                    continue
+                end
+                obj = FindAirwayBoundariesFWHM(obj, i);
+                obj = ComputeTaperValues(obj, i);
+                disp(['FWHMesl: Completed ', num2str(i), ' of ', num2str(total_branches)])
+            end
+        end
+        
+        %%% TRAVERSING AIRWAYS %%%
         function obj = CreateAirwayImage(obj, link_index)
             % Constructs perpendicular images as if travelling along an
             % airway segment in CT image and Segmentation.
@@ -187,20 +204,6 @@ classdef AirwaySkel
         end
         
         %%% TAPERING MEASUREMENTS %%%
-        function obj = raycast_FWHM(obj)
-            % analyse all airway segments except the trachea.
-            disp('Start computing FWHM boundaries of all airway segments')
-            total_branches = length(obj.Glink);
-            for i = 1:length(obj.Glink)
-                % skip the trachea
-                if i == obj.trachea_path
-                    continue
-                end
-                obj = FindAirwayBoundariesFWHM(obj, i);
-                disp(['FWHMesl: Completed ', num2str(i), ' of ', num2str(total_branches)])
-            end
-        end
-        
         function raycast_FWHM = FindAirwayBoundariesFWHM(obj, link_index)
             %Based on function by Kin Quan 2018 that is based on Kiraly06
             
@@ -254,7 +257,7 @@ classdef AirwaySkel
             obj.FWHMesl{link_index, 3} = raycast_FWHM{:,3};
         end
         
-        function [CT_rays, seg_rays, coords]= Raycast(obj, interpslice, interpseg, center)
+        function [CT_rays, seg_rays, coords] = Raycast(obj, interpslice, interpseg, center)
             % * Compute Rays
             % Getting the range limit of the ray which will be the shortest
             % distance from the centre to the bounadry Need to find the
@@ -307,6 +310,22 @@ classdef AirwaySkel
                 pi*obj.physical_sampling_interval.^2;
         end
         
+        function obj = ComputeTaperValues(obj, link_index)
+            obj.specs(link_index).FWHMl_logtaper = ...
+                AirwaySkel.ComputeTaperRate(...
+                obj.arclength{link_index, 1}, ...
+                [obj.FWHMesl{link_index, 1}.area]);
+            obj.specs(link_index).FWHMp_logtaper = ...
+                AirwaySkel.ComputeTaperRate(...
+                obj.arclength{link_index, 1}, ...
+                [obj.FWHMesl{link_index, 2}.area]);
+            obj.specs(link_index).FWHMr_logtaper = ...
+                AirwaySkel.ComputeTaperRate(...
+                obj.arclength{link_index, 1}, ...
+                [obj.FWHMesl{link_index, 3}.area]);
+        end
+
+        
         %%% VISUALISATION %%%
         function PlotTree(obj)
             % Plot the airway tree with nodes and links
@@ -337,6 +356,12 @@ classdef AirwaySkel
             spline_1diff = fnder(spline,1);
             tangent_vec = fnval(spline_1diff,point);
             normal = tangent_vec/norm(tangent_vec,2);
+        end
+        
+        
+        function logtaperrate = ComputeTaperRate(arclength, area)        
+        p_coeff = polyfit(arclength,log(area),1);
+        logtaperrate = p_coeff(1);                   
         end
         
         
