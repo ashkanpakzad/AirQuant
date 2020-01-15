@@ -211,7 +211,9 @@ classdef AirwaySkel
             slices_size = size(obj.TraversedImage{link_index, 1}, 3);
             
             % Prepping the outputs
-            raycast_FWHM = cell(slices_size, 3);
+            raycast_FWHMl = cell(slices_size, 1);
+            raycast_FWHMp = cell(slices_size, 1);
+            raycast_FWHMr = cell(slices_size, 1);
             
             % For every traversed slice
             for k = 1:slices_size
@@ -246,7 +248,6 @@ classdef AirwaySkel
                 FWHMr_ellipse = ComputeEllipses(obj, FWHMr);
                 
                 % * Record, catch incase a slice fails.
-                
                     raycast_FWHMl{k,1} = FWHMl_ellipse;
                     raycast_FWHMp{k,1} = FWHMp_ellipse;
                     raycast_FWHMr{k,1} = FWHMr_ellipse;
@@ -344,9 +345,12 @@ classdef AirwaySkel
                     cum_area = [cum_area; obj.FWHMesl{i, 1}{1, 1}.area] ;
                 end
                 for j = 2:length(obj.arclength{i,1})
-                    cum_arclength = [cum_arclength; cum_arclength(end) + obj.arclength{i,1}(j, 1)];
-                    cum_area = [cum_area; [obj.FWHMesl{i, 1}{j, 1}.area]];
-
+                    cum_arclength = [cum_arclength; cum_arclength(end)+obj.arclength{i,1}(j, 1)];
+                    try 
+                        cum_area = [cum_area; obj.FWHMesl{i, 1}{j, 1}.area];
+                    catch
+                    	cum_area = [cum_area; NaN];
+                    end
                 end
             end
             logtaperrate = AirwaySkel.ComputeTaperRate(cum_arclength, cum_area);
