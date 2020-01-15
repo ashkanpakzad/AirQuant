@@ -68,7 +68,7 @@ classdef AirwaySkel
         
         
         function obj = FindTracheaCarina(obj)
-            % Identify the Trachea path and the carina node.
+            % Identify the Trachea path and the carina node.FindFWHMall
             % Assumes trachea fully segmented and towards greater Z.
             
             % Smoothen
@@ -230,7 +230,7 @@ classdef AirwaySkel
                 end
                 
                 % * Raycast
-                [CT_rays, seg_rays]= Raycast(obj, ...
+                [CT_rays, seg_rays, coords]= Raycast(obj, ...
                     obj.TraversedImage{link_index, 1}(:,:,k), ...
                     obj.TraversedSeg{link_index, 1}(:,:,k), center);
                 
@@ -325,6 +325,25 @@ classdef AirwaySkel
                 [obj.FWHMesl{link_index, 3}.area]);
         end
 
+        function [logtaperrate, cum_arclength, cum_area, path] = ConstructTaperPath(obj, terminal_link_idx)
+            G = graph(obj.Gadj);
+            % TODO: remove trachea node?
+            path = shortestpath(G, obj.carina_node, terminal_link_idx);
+            cum_arclength = [];
+            cum_area = [];
+            for i = path
+                % skip the first of each link except the first one
+                if i == path(1)
+                    cum_arclength = [cum_arclength; obj.arclength{i,1}(1, 1)];
+                end
+                for j = 2:length(obj.arclength{i,1})
+                    cum_arclength = [cum_arclength; cum_arclength(end) + obj.arclength{i,1}(j, 1)];
+                end
+                cum_area = [cum_area; [obj.FWHMesl{i, 1}.area]];
+            end
+            logtaperrate = AirwaySkel.ComputeTaperRate(cum_arclength, cum_area);
+            end
+            
         
         %%% VISUALISATION %%%
         function PlotTree(obj)
@@ -344,7 +363,7 @@ classdef AirwaySkel
             view(80,0)
             
         end
-    end
+end
     
     methods (Static)
         function [normal, CT_point] = ComputeNormal(spline, point)
@@ -423,16 +442,16 @@ classdef AirwaySkel
                 
                 threshold_int_left = ...
                     (CT_profile(FWHMp) + CT_profile(FWHMi))/2;
-                FWHMl = Finding_midpoint_stop(CT_profile,threshold_int_left,FHWMi,FWHMp);
+                FWHMl = Finding_midpoint_stop(CT_profile,threshold_int_left,FWHMi,FWHMp);
                 
                 % * Compute FWHM on right side
                 % loop through profile from FWHM peak to distal
                 % find first minima from left to right.
                 for i = FWHMp:length(CT_profile)-1
-                    if CT_profile(local_min_index) <= CT_profile(local_min_index + 1)
+                    if CT_profile(i) <= CT_profile(i + 1)
                         break
                     end
-                    i = length(ray_profile);
+                    i = length(CT_profile);
                 end
                 FWHMo = i;  % outer FWHM curve
                 % TODO: move threshold calculation into function.
