@@ -336,16 +336,23 @@ classdef AirwaySkel
             G = graph(obj.Gadj);
             % TODO: remove trachea node?
             path = shortestpath(G, obj.carina_node, terminal_link_idx);
-            cum_arclength = [];
+            cum_arclength = 0;
             cum_area = [];
             for i = path
                 % skip the first of each link except the first one
                 if i == path(1)
-                    cum_arclength = [cum_arclength; obj.arclength{i,1}(1, 1)];
-                    cum_area = [cum_area; obj.FWHMesl{i, 1}{1, 1}.area] ;
+                    cum_area = [cum_area; obj.FWHMesl{i, 1}{1, 1}.area];
                 end
+                max_current_arclength = max(cum_arclength);
+                cum_arclength = [cum_arclength; max_current_arclength+obj.arclength{i,1}(2:end, 1)];
+
                 for j = 2:length(obj.arclength{i,1})
-                    cum_arclength = [cum_arclength; cum_arclength(end)+obj.arclength{i,1}(j, 1)];
+                    if j ==2
+                        
+                    else
+                    current_arclength = current_arclength + abs(cum_arclength(end)-obj.arclength{i,1}(j, 1));
+                    end
+                    cum_arclength = [cum_arclength; current_arclength];
                     try 
                         cum_area = [cum_area; obj.FWHMesl{i, 1}{j, 1}.area];
                     catch
