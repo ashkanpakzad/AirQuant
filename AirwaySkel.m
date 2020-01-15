@@ -99,11 +99,12 @@ classdef AirwaySkel
             total_branches = length(obj.Glink);
             for i = 1:length(obj.Glink)
                 % skip the trachea
-                if i == obj.trachea_path
+                %if i == obj.trachea_path
+                % TODO: CHANGE THIS!
+                if i == 58
                     continue
                 end
                 obj = FindAirwayBoundariesFWHM(obj, i);
-                obj = ComputeTaperValues(obj, i);
                 disp(['FWHMesl: Completed ', num2str(i), ' of ', num2str(total_branches)])
             end
         end
@@ -204,7 +205,7 @@ classdef AirwaySkel
         end
         
         %%% TAPERING MEASUREMENTS %%%
-        function raycast_FWHM = FindAirwayBoundariesFWHM(obj, link_index)
+        function obj = FindAirwayBoundariesFWHM(obj, link_index)
             %Based on function by Kin Quan 2018 that is based on Kiraly06
             
             slices_size = size(obj.TraversedImage{link_index, 1}, 3);
@@ -214,6 +215,7 @@ classdef AirwaySkel
             
             % For every traversed slice
             for k = 1:slices_size
+                try
                 % * Compute airway centre
                 % Check that airway centre is slice centre
                 center = ...
@@ -244,17 +246,21 @@ classdef AirwaySkel
                 FWHMr_ellipse = ComputeEllipses(obj, FWHMr);
                 
                 % * Record, catch incase a slice fails.
-                try
-                    raycast_FWHM{k,1} = FWHMl_ellipse;
-                    raycast_FWHM{k,2} = FWHMp_ellipse;
-                    raycast_FWHM{k,3} = FWHMr_ellipse;
+                
+                    raycast_FWHMl{k,1} = FWHMl_ellipse;
+                    raycast_FWHMp{k,1} = FWHMp_ellipse;
+                    raycast_FWHMr{k,1} = FWHMr_ellipse;
                 catch
-                    raycast_FWHM{k,1:3} = NaN;
+                    % TODO: Look at airway 7 when it failed.
+                    warning('Fail recorded')
+                    raycast_FWHMl{k,1} = NaN;
+                    raycast_FWHMp{k,1} = NaN;
+                    raycast_FWHMr{k,1} = NaN;                
                 end
             end
-            obj.FWHMesl{link_index, 1} = raycast_FWHM{:,1};
-            obj.FWHMesl{link_index, 2} = raycast_FWHM{:,2};
-            obj.FWHMesl{link_index, 3} = raycast_FWHM{:,3};
+            obj.FWHMesl{link_index, 1} = raycast_FWHMl;
+            obj.FWHMesl{link_index, 2} = raycast_FWHMp;
+            obj.FWHMesl{link_index, 3} = raycast_FWHMp;
         end
         
         function [CT_rays, seg_rays, coords] = Raycast(obj, interpslice, interpseg, center)
@@ -335,11 +341,13 @@ classdef AirwaySkel
                 % skip the first of each link except the first one
                 if i == path(1)
                     cum_arclength = [cum_arclength; obj.arclength{i,1}(1, 1)];
+                    cum_area = [cum_area; obj.FWHMesl{i, 1}{1, 1}.area] ;
                 end
                 for j = 2:length(obj.arclength{i,1})
                     cum_arclength = [cum_arclength; cum_arclength(end) + obj.arclength{i,1}(j, 1)];
+                    cum_area = [cum_area; [obj.FWHMesl{i, 1}{j, 1}.area]];
+
                 end
-                cum_area = [cum_area; [obj.FWHMesl{i, 1}.area]];
             end
             logtaperrate = AirwaySkel.ComputeTaperRate(cum_arclength, cum_area);
             end
@@ -350,15 +358,27 @@ classdef AirwaySkel
             % Plot the airway tree with nodes and links
             % Original Function by Ashkan Pakzad on 27th July 2019.
             
-            X = [obj.Gnode.comy];
-            Y = [obj.Gnode.comx];
-            Z = [obj.Gnode.comz];
-            nums = string(1:length(X));
-            
             isosurface(bwskel([obj.seg]));
             hold on
-            plot3(X,Y,Z, 'r.', 'MarkerSize', 15);
-            text(X+1,Y+1,Z+1, nums)
+            
+            % edges
+            ind = zeros(length(obj.Glink), 1);
+            for i = 1:length(obj.Glink)
+            ind(i) = obj.Glink(i).point(ceil(end/2));
+            end
+            [Y, X, Z] = ind2sub(size(obj.seg),ind);
+            nums_link = string(1:length(obj.Glink));
+            %plot3(X,Y,Z, 'b.', 'MarkerFaceColor', 'none');
+            text(X+1,Y+1,Z+1, nums_link, 'Color', [0, 0.3, 0])
+            
+            % nodes
+            X_node = [obj.Gnode.comy];
+            Y_node = [obj.Gnode.comx];
+            Z_node = [obj.Gnode.comz];
+            nums_node = string(1:length(obj.Gnode));
+            plot3(X_node,Y_node,Z_node, 'r.', 'MarkerSize', 15, 'Color', 'r');
+            text(X_node+1,Y_node+1,Z_node+1, nums_node, 'Color', [0.8, 0, 0])
+            
             axis([0 size(obj.CT, 1) 0 size(obj.CT, 2) 0 size(obj.CT, 3)])
             view(80,0)
             
