@@ -3,7 +3,7 @@ classdef AirwaySkel
         CT
         CTinfo
         seg
-        branch_threshold = 3;
+        branch_threshold = 2;
         % CT Properties/resampling params
         physical_plane_length = 40;
         physical_sampling_interval = 0.3;
@@ -364,7 +364,7 @@ classdef AirwaySkel
             % Plot the airway tree with nodes and links
             % Original Function by Ashkan Pakzad on 27th July 2019.
             
-            isosurface(bwskel([obj.seg]));
+            isosurface(bwskel(obj.seg, 'MinBranchLength', obj.branch_threshold));
             hold on
             
             % edges
@@ -382,7 +382,7 @@ classdef AirwaySkel
             Y_node = [obj.Gnode.comx];
             Z_node = [obj.Gnode.comz];
             nums_node = string(1:length(obj.Gnode));
-            plot3(X_node,Y_node,Z_node, 'r.', 'MarkerSize', 15, 'Color', 'r');
+            plot3(X_node,Y_node,Z_node, 'r.', 'MarkerSize', 18, 'Color', 'r');
             text(X_node+1,Y_node+1,Z_node+1, nums_node, 'Color', [0.8, 0, 0])
             
             axis([0 size(obj.CT, 1) 0 size(obj.CT, 2) 0 size(obj.CT, 3)])
