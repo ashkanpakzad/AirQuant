@@ -29,6 +29,7 @@ classdef AirwaySkel
     end
     
     methods
+%% INITIALISATION METHODS
         function obj = AirwaySkel(CTimage, CTinfo, segimage, params)
             % Initialise the AirwaySkel class.
             obj.CT = CTimage;
@@ -125,7 +126,7 @@ classdef AirwaySkel
             end
         end
         
-        
+%% HIGH LEVEL METHODS    
         function obj = AirwayImageAll(obj)
             % Traverse all airway segments except the trachea.
             disp('Start traversing all airway segments')
@@ -157,7 +158,7 @@ classdef AirwaySkel
             end
         end
         
-        %%% TRAVERSING AIRWAYS %%%
+%% TRAVERSING AIRWAYS METHODS %%%
         function obj = CreateAirwayImage(obj, link_index)
             % Constructs perpendicular images as if travelling along an
             % airway segment in CT image and Segmentation.
@@ -252,7 +253,7 @@ classdef AirwaySkel
             spline = cscvn(smooth_data_points);
         end
         
-        %%% TAPERING MEASUREMENTS %%%
+%% TAPERING MEASUREMENT METHODS
         function obj = FindAirwayBoundariesFWHM(obj, link_index)
             %Based on function by Kin Quan 2018 that is based on Kiraly06
             
@@ -407,7 +408,7 @@ classdef AirwaySkel
             end
             
         
-        %%% VISUALISATION %%%
+%% VISUALISATION METHODS
         function PlotTree(obj)
             % Plot the airway tree with nodes and links
             % Original Function by Ashkan Pakzad on 27th July 2019.
@@ -438,7 +439,7 @@ classdef AirwaySkel
             
         end
 end
-    
+%% STATIC METHODS    
     methods (Static)
         function [normal, CT_point] = ComputeNormal(spline, point)
             % Based on original function by Kin Quan 2018
