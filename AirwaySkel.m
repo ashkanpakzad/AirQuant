@@ -17,6 +17,7 @@ classdef AirwaySkel
         Gadj
         Gnode
         Glink
+        Gdigraph
         trachea_path
         carina_node
         % Resampled image slices along graph paths/airway segments.
@@ -49,6 +50,8 @@ classdef AirwaySkel
             obj = GenerateSkel(obj);
             % identify trachea and carina
             obj = FindTracheaCarina(obj);
+            % Convert into digraph
+            obj = AirwayDigraph(obj);
             % set up empty cell for traversed images
             obj.TraversedImage = cell(length(obj.Glink),1);
             % set up empty specs doubles
@@ -64,6 +67,7 @@ classdef AirwaySkel
             skel = bwskel(obj.seg,'MinBranchLength', obj.branch_threshold);
             [obj.Gadj,obj.Gnode,obj.Glink] =...
                 Skel2Graph3D(skel,0);
+
         end
         
         
@@ -75,6 +79,50 @@ classdef AirwaySkel
             [~, maxind] = max([obj.Gnode.comz]);
             obj.trachea_path = obj.Gnode(maxind).links;
             obj.carina_node = obj.Gnode(maxind).conn;
+        end
+        
+        
+        function obj = AirwayDigraph(obj)
+            % To convert the Airway graph into a digraph from carina to
+            % distal.
+            
+            % TODO: consider identifying trachea node and working out
+            % carina by connectivity of the digraph.
+            
+            % Create digraph with edges in both directions, loop through
+            % and remove if found later in the BF search.
+            G = digraph(obj.Gadj);
+            % BF search from carina node to distal.
+            node_discovery = bfsearch(G,obj.carina_node);
+            % half of the edges will be removed
+            removal = zeros(height(G.Edges)/2 , 1);
+            j = 1;
+            for i = 1:height(G.Edges)
+                % identify the rank in order of discovery
+                rank1 = find(~(node_discovery-G.Edges.EndNodes(i,1)));
+                rank2 = find(~(node_discovery-G.Edges.EndNodes(i,2)));
+                if rank1 > rank2
+                    % record if not central-->distal
+                    removal(j) = i;
+                    j = j + 1;
+                end      
+            end
+            G = rmedge(G,removal);
+            obj.Gdigraph = G;
+            
+            % Need to ensure directions in Glink are also in the correct
+            % direction. Swap over if not.
+            for i = 1:length(obj.Glink)
+                glink_nodes = [obj.Glink(i).n1, obj.Glink(i).n2];
+                % if not central-->distal
+                if ~ismember(glink_nodes, G.Edges.EndNodes, 'rows')
+                    % Swap round node assignments
+                    obj.Glink(i).n1 = glink_nodes(2);
+                    obj.Glink(i).n2 = glink_nodes(1);
+                    % Swap round path order
+                    obj.Glink(i).point = fliplr(obj.Glink(i).point);
+                end
+            end
         end
         
         
@@ -185,8 +233,8 @@ classdef AirwaySkel
             % Computes a smooth spline of a single graph edge.
             % Based on original function by Kin Quan 2018
             
-            %The input is the list of ordered index
-            %The output is the smooth spline as a matlab sturct
+            % The input is the list of ordered index
+            % The output is the smooth spline as a matlab sturct
             
             %Convert into 3d Points
             [x_point, y_point, z_point] = ind2sub(size(obj.CT),obj.Glink(link_index).point);
