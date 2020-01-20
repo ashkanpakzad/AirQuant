@@ -438,6 +438,58 @@ classdef AirwaySkel
             view(80,0)
             
         end
+        
+        function Airway3D(obj, link_index)
+            % Plot resampled airway slices overlayed with FWHMesl ray cast 
+            % points and fitted ellipse
+            f = figure;
+
+            b = uicontrol('Parent',f,'Style','slider','Position',[81,54,419,23],...
+                'value',slide, 'min',1, 'max',size(obj.TraversedImage{link_index,1}, 3));
+            bgcolor = f.Color;
+            bl1 = uicontrol('Parent',f,'Style','text','Position',[50,54,23,23],...
+                'String', '1','BackgroundColor',bgcolor);
+            bl2 = uicontrol('Parent',f,'Style','text','Position',[500,54,23,23],...
+                'String',size(obj.TraversedImage{link_index,1}, 3),'BackgroundColor',bgcolor);
+            bl3 = uicontrol('Parent',f,'Style','text','Position',[240,25,100,23],...
+                'String','Slide','BackgroundColor',bgcolor);
+            
+            b.Callback = @(es,ed) updateSystem(h,tf(wn^2,[1,2*(es.Value)*wn,wn^2])); 
+            
+        end
+        
+        function Airway2D(obj, link_index, slide)
+            % display image
+            imagesc(obj.TraversedImage{link_index, 1}(:,:,slide))
+            hold on
+            colormap gray
+            
+            % plot ray cast results
+            try
+            plot(obj.FWHMesl{link_index, 1}.x_points, obj.FWHMesl{link_index, 1}.y_points,'r.')
+            plot(obj.FWHMesl{link_index, 2}.x_points, obj.FWHMesl{link_index, 2}.y_points,'c.')
+            plot(obj.FWHMesl{link_index, 3}.x_points, obj.FWHMesl{link_index, 3}.y_points,'y.')
+
+            % plot ellipse fitting
+            % TODO: look at ellipse struct to determine coding of this.
+            ellipse(lumen_ellipses{i,1}(3),lumen_ellipses{i,1}(4),...
+                lumen_ellipses{i,1}(5),lumen_ellipses{i,1}(1),...
+                lumen_ellipses{i,1}(2),'m')
+            
+            ellipse(wall_ellipses{i,1}(3),wall_ellipses{i,1}(4),...
+                wall_ellipses{i,1}(5),wall_ellipses{i,1}(1),...
+                wall_ellipses{i,1}(2),'b')
+            catch
+            end
+            
+            % display area measurements
+            dim = [.15 .85 .24 .05];
+            %a = annotation('textbox',dim,'String',str,'FitBoxToText','on','BackgroundColor','y');
+            a = rectangle('Position',[0,0,133,10],'FaceColor','y','LineWidth',2);
+            ax = gca;
+            text(ax, 1,5,sprintf('Arc Length = %4.1f mm; Inner area = %4.2f mm^2; Peak area = %4.2f mm^2; Outer area = %4.2f mm^2; %3.0i of %3.0i', ...
+                obj.arclength{link_index, 1}(slide), obj.FWHMesl{link_index, 1}{slide, 1}.area, obj.FWHMesl{link_index, 2}{slide, 1}.area ,obj.FWHMesl{link_index, 3}{slide, 1}.area, slide, size(obj.TraversedImage{link_index, 1},3)));
+        end
 end
 %% STATIC METHODS    
     methods (Static)
