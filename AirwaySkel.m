@@ -442,19 +442,25 @@ classdef AirwaySkel
         function Airway3D(obj, link_index)
             % Plot resampled airway slices overlayed with FWHMesl ray cast 
             % points and fitted ellipse
-            f = figure;
+            f = figure('Position',  [100, 100, 850, 600]);
+            slide = 1;
+            Airway2D(obj, link_index, slide)
+            numSteps = size(obj.TraversedImage{link_index,1}, 3);
 
-            b = uicontrol('Parent',f,'Style','slider','Position',[81,54,419,23],...
-                'value',slide, 'min',1, 'max',size(obj.TraversedImage{link_index,1}, 3));
+            b = uicontrol('Parent',f,'Style','slider','Position',[50,10,750,23],...
+                'value',slide, 'min',1, 'max',numSteps, 'SliderStep', [1/(numSteps-1) , 1/(numSteps-1)]);
             bgcolor = f.Color;
-            bl1 = uicontrol('Parent',f,'Style','text','Position',[50,54,23,23],...
+            uicontrol('Parent',f,'Style','text','Position',[25,10,23,23],...
                 'String', '1','BackgroundColor',bgcolor);
-            bl2 = uicontrol('Parent',f,'Style','text','Position',[500,54,23,23],...
-                'String',size(obj.TraversedImage{link_index,1}, 3),'BackgroundColor',bgcolor);
-            bl3 = uicontrol('Parent',f,'Style','text','Position',[240,25,100,23],...
-                'String','Slide','BackgroundColor',bgcolor);
+            uicontrol('Parent',f,'Style','text','Position',[800,10,23,23],...
+                'String',numSteps,'BackgroundColor',bgcolor);
             
-            b.Callback = @(es,ed) updateSystem(h,tf(wn^2,[1,2*(es.Value)*wn,wn^2])); 
+            b.Callback = @sliderselect; 
+            
+            function sliderselect(src,event)
+                val=round(b.Value);
+                Airway2D(obj, link_index, val);
+            end
             
         end
         
@@ -490,7 +496,8 @@ classdef AirwaySkel
             end
             
             % display area measurements
-            dim = [.15 .85 .24 .05];
+            % TODO: is this needed?
+            %dim = [.15 .85 .24 .05];
             %a = annotation('textbox',dim,'String',str,'FitBoxToText','on','BackgroundColor','y');
             a = rectangle('Position',[0,0,133,10],'FaceColor','y','LineWidth',2);
             ax = gca;
