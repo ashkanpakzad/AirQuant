@@ -439,12 +439,12 @@ classdef AirwaySkel
             
         end
         
-        function Airway3D(obj, link_index)
+        function PlotAirway3(obj, link_index)
             % Plot resampled airway slices overlayed with FWHMesl ray cast 
             % points and fitted ellipse
             f = figure('Position',  [100, 100, 850, 600]);
             slide = 1;
-            Airway2D(obj, link_index, slide)
+            PlotAirway(obj, link_index, slide)
             numSteps = size(obj.TraversedImage{link_index,1}, 3);
 
             b = uicontrol('Parent',f,'Style','slider','Position',[50,10,750,23],...
@@ -459,12 +459,12 @@ classdef AirwaySkel
             
             function sliderselect(src,event)
                 val=round(b.Value);
-                Airway2D(obj, link_index, val);
+                PlotAirway(obj, link_index, val);
             end
             
         end
         
-        function Airway2D(obj, link_index, slide)
+        function PlotAirway(obj, link_index, slide)
             % display image
             imagesc(obj.TraversedImage{link_index, 1}(:,:,slide))
             hold on
