@@ -464,22 +464,29 @@ classdef AirwaySkel
             hold on
             colormap gray
             
+            try % try block incase FWHMesl has not been executed.
             % plot ray cast results
-            try
-            plot(obj.FWHMesl{link_index, 1}.x_points, obj.FWHMesl{link_index, 1}.y_points,'r.')
-            plot(obj.FWHMesl{link_index, 2}.x_points, obj.FWHMesl{link_index, 2}.y_points,'c.')
-            plot(obj.FWHMesl{link_index, 3}.x_points, obj.FWHMesl{link_index, 3}.y_points,'y.')
+
+            plot(obj.FWHMesl{link_index, 1}{slide, 1}.x_points, obj.FWHMesl{link_index, 1}{slide, 1}.y_points,'r.')
+            plot(obj.FWHMesl{link_index, 2}{slide, 1}.x_points, obj.FWHMesl{link_index, 2}{slide, 1}.y_points,'c.')
+            plot(obj.FWHMesl{link_index, 3}{slide, 1}.x_points, obj.FWHMesl{link_index, 3}{slide, 1}.y_points,'y.')
 
             % plot ellipse fitting
-            % TODO: look at ellipse struct to determine coding of this.
-            ellipse(lumen_ellipses{i,1}(3),lumen_ellipses{i,1}(4),...
-                lumen_ellipses{i,1}(5),lumen_ellipses{i,1}(1),...
-                lumen_ellipses{i,1}(2),'m')
+            ellipse(obj.FWHMesl{link_index, 1}{slide, 1}.elliptical_info(3),obj.FWHMesl{link_index, 1}{slide, 1}.elliptical_info(4),...
+                obj.FWHMesl{link_index, 1}{slide, 1}.elliptical_info(5),obj.FWHMesl{link_index, 1}{slide, 1}.elliptical_info(1),...
+                obj.FWHMesl{link_index, 1}{slide, 1}.elliptical_info(2),'m');
             
-            ellipse(wall_ellipses{i,1}(3),wall_ellipses{i,1}(4),...
-                wall_ellipses{i,1}(5),wall_ellipses{i,1}(1),...
-                wall_ellipses{i,1}(2),'b')
+            ellipse(obj.FWHMesl{link_index, 2}{slide, 1}.elliptical_info(3),obj.FWHMesl{link_index, 2}{slide, 1}.elliptical_info(4),...
+                obj.FWHMesl{link_index, 2}{slide, 1}.elliptical_info(5),obj.FWHMesl{link_index, 2}{slide, 1}.elliptical_info(1),...
+                obj.FWHMesl{link_index, 2}{slide, 1}.elliptical_info(2),'b');
+            
+            ellipse(obj.FWHMesl{link_index, 3}{slide, 1}.elliptical_info(3),obj.FWHMesl{link_index, 3}{slide, 1}.elliptical_info(4),...
+                obj.FWHMesl{link_index, 3}{slide, 1}.elliptical_info(5),obj.FWHMesl{link_index, 3}{slide, 1}.elliptical_info(1),...
+                obj.FWHMesl{link_index, 3}{slide, 1}.elliptical_info(2),'y');
+            %TODO: set third colour more appropiately
+            
             catch
+                warning('No FWHMesl data, showing slices without elliptical information.')
             end
             
             % display area measurements
