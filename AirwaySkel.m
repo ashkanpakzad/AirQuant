@@ -53,8 +53,9 @@ classdef AirwaySkel
             obj = FindTracheaCarina(obj);
             % Convert into digraph
             obj = AirwayDigraph(obj);
-            % set up empty cell for traversed images
+            % set up empty cell for traversed CT and segmentation
             obj.TraversedImage = cell(length(obj.Glink),1);
+            obj.TraversedSeg = cell(length(obj.Glink),1);
             % set up empty specs doubles
             obj.arclength = cell(length(obj.Glink),1);
             obj.Specs = struct();
@@ -381,17 +382,35 @@ classdef AirwaySkel
                 [obj.FWHMesl{link_index, 3}.area]);
         end
 
-        function [logtaperrate, cum_arclength, cum_area, path] = ConstructTaperPath(obj, terminal_link_idx)
-            G = graph(obj.Gadj);
+        function [logtaperrate, cum_arclength, cum_area, edgepath] = ConstructTaperPath(obj, terminal_link_idx)
             % TODO: remove trachea node?
-            path = shortestpath(G, obj.carina_node, terminal_link_idx);
+            G = digraph(obj);
+            [path,~,~] = shortestpath(G, obj.carina_node, terminal_link_idx);
+            
+            % construct edgepath from graph2skel NB: MATLAB graph object
+            % does not work.
+            nodelist = [[obj.Glink(:).n1]', [obj.Glink(:).n2]'];
+            edgepath = zeros(length(path)-1, 1);
+            for i = 1:length(path)-1
+                nodepair = [path(i), path(i+1)];
+                [~,edgepath(i)] = ismember(nodepair, nodelist,'rows');
+            end
             cum_arclength = 0;
             cum_area = [];
-            for i = path
+            k = 1;
+            for q = 1:length(edgepath)
+                i = edgepath(q);
                 % skip the first of each link except the first one
-                if i == path(1)
-                    cum_area = [cum_area; obj.FWHMesl{i, 1}{1, 1}.area];
+                if k == 1
+                    try 
+                        cum_area = [cum_area; obj.FWHMesl{i, 1}{1, 1}.area];
+                        k=0;
+                    catch
+                    	cum_area = [cum_area; NaN];
+                        k=0;
+                    end
                 end
+                % Appending arclengths
                 max_current_arclength = max(cum_arclength);
                 current_arclength_array = max_current_arclength+obj.arclength{i,1}(2:end);
                 cum_arclength = [cum_arclength; current_arclength_array];
@@ -405,9 +424,25 @@ classdef AirwaySkel
                 end
             end
             logtaperrate = AirwaySkel.ComputeTaperRate(cum_arclength, cum_area);
-            end
             
-        
+            % TODO: consider using graph and edge highlight for another
+            % applications.
+            %h = plot(G);
+            %highlight(h,'Edges',edgepath,'EdgeColor','r','LineWidth',1.5)
+        end
+            
+            
+        %% UTILITIES
+        function G = digraph(obj)
+            % compute edge weights
+            weights = zeros(length(obj.Glink), 1);
+            for i = 1:length(obj.Glink)
+                weights(i) = length(obj.Glink(i).point);
+            end
+            % add edges
+            G = digraph([obj.Glink(:).n1],[obj.Glink(:).n2], weights);
+        end
+
 %% VISUALISATION METHODS
         function PlotTree(obj)
             % Plot the airway tree with nodes and links
