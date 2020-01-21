@@ -143,6 +143,8 @@ classdef AirwaySkel
         
         
         function obj = FindFWHMall(obj)
+            % Clear all FWHMesl cells
+            obj.FWHMesl = cell(length(obj.Glink),3);
             % analyse all airway segments except the trachea.
             disp('Start computing FWHM boundaries of all airway segments')
             total_branches = length(obj.Glink);
@@ -275,9 +277,8 @@ classdef AirwaySkel
                 
                 % Recompute new centre if necessary
                 [centre_ind , new_centre] =  ...
-                    Check_centre_with_segmentation(...
-                    obj.TraversedSeg{link_index, 1}(:,:,k),...
-                    obj.TraversedImage{link_index, 1}(:,:,k));
+                    Check_centre_with_segmentation(obj.TraversedImage{link_index, 1}(:,:,k), ...
+                    obj.TraversedSeg{link_index, 1}(:,:,k));
                 if ~centre_ind
                     center = fliplr(new_centre);
                 end
@@ -301,7 +302,6 @@ classdef AirwaySkel
                     raycast_FWHMp{k,1} = FWHMp_ellipse;
                     raycast_FWHMr{k,1} = FWHMr_ellipse;
                 catch
-                    % TODO: Look at airway 7 when it failed.
                     warning('Fail recorded')
                     raycast_FWHMl{k,1} = NaN;
                     raycast_FWHMp{k,1} = NaN;
@@ -335,10 +335,10 @@ classdef AirwaySkel
             % * Cast rays
             interpslice = double(interpslice);
             
-            CT_rays = interp2(interpseg, x_component(:),...
+            CT_rays = interp2(interpslice, x_component(:),...
                 y_component(:));
             
-            seg_rays = interp2(interpslice, x_component(:),...
+            seg_rays = interp2(interpseg, x_component(:),...
                 y_component(:));
             
             %Need to reshape
