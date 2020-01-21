@@ -151,9 +151,7 @@ classdef AirwaySkel
             total_branches = length(obj.Glink);
             for i = 1:length(obj.Glink)
                 % skip the trachea
-                %if i == obj.trachea_path
-                % TODO: CHANGE THIS!
-                if i == 58
+                if i == obj.trachea_path
                     continue
                 end
                 obj = FindAirwayBoundariesFWHM(obj, i);
@@ -256,7 +254,7 @@ classdef AirwaySkel
             spline = cscvn(smooth_data_points);
         end
         
-%% TAPERING MEASUREMENT METHODS
+%% MEASUREMENT METHODS
         function obj = FindAirwayBoundariesFWHM(obj, link_index)
             %Based on function by Kin Quan 2018 that is based on Kiraly06
             
@@ -431,8 +429,7 @@ classdef AirwaySkel
             %highlight(h,'Edges',edgepath,'EdgeColor','r','LineWidth',1.5)
         end
             
-            
-        %% UTILITIES
+%% UTILITIES
         function G = digraph(obj)
             % compute edge weights
             weights = zeros(length(obj.Glink), 1);
@@ -554,8 +551,12 @@ end
         end
         
         
-        function logtaperrate = ComputeTaperRate(arclength, area)        
-        p_coeff = polyfit(arclength,log(area),1);
+        function logtaperrate = ComputeTaperRate(arclength, area)
+            
+        % identify NaN data points
+        idx = isnan(area);
+        % compute logtaperrate, ignoring nan values
+        p_coeff = polyfit(arclength(~idx),log(area(~idx)),1);
         logtaperrate = p_coeff(1);                   
         end
         
