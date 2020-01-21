@@ -310,7 +310,7 @@ classdef AirwaySkel
             end
             obj.FWHMesl{link_index, 1} = raycast_FWHMl;
             obj.FWHMesl{link_index, 2} = raycast_FWHMp;
-            obj.FWHMesl{link_index, 3} = raycast_FWHMp;
+            obj.FWHMesl{link_index, 3} = raycast_FWHMr;
         end
         
         function [CT_rays, seg_rays, coords] = Raycast(obj, interpslice, interpseg, center)
