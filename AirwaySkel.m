@@ -175,6 +175,7 @@ classdef AirwaySkel
             TransSegImage = zeros(133,133,length(spline_points));
             arc_length = zeros(length(spline_points),1);
             for i = 1:length(spline_points)
+                try
                 % * Compute Normal Vector per spline point
                 [normal, CT_point] = AirwaySkel.ComputeNormal(spline, spline_points(i));
                 % * Interpolate Perpendicular Slice per spline point
@@ -182,6 +183,14 @@ classdef AirwaySkel
                     InterpolateCT(obj, normal, CT_point);
                 % * Compute real arc_length at this spline point
                 arc_length(i) = Arc_length_to_point(spline_points(i),spline);
+                catch
+                    % TODO identify why arc_length cannot be calculated in
+                    % some cases.
+                    warning('Failed to interpolate slice/identify arclength')
+                    TransAirwayImage(:,:,i) = zeros(133);
+                    TransSegImage(:,:,i) = zeros(133);
+                    arc_length(i) = NaN;
+                end
             end
             % * Replace NaN entries in images with zero.
             TransAirwayImage(isnan(TransAirwayImage)) = 0;
@@ -533,9 +542,17 @@ classdef AirwaySkel
             %a = annotation('textbox',dim,'String',str,'FitBoxToText','on','BackgroundColor','y');
             a = rectangle('Position',[0,0,133,10],'FaceColor','y','LineWidth',2);
             ax = gca;
+            try
             text(ax, 1,5,sprintf('Arc Length = %4.1f mm; Inner area = %4.2f mm^2; Peak area = %4.2f mm^2; Outer area = %4.2f mm^2; %3.0i of %3.0i', ...
-                obj.arclength{link_index, 1}(slide), obj.FWHMesl{link_index, 1}{slide, 1}.area, obj.FWHMesl{link_index, 2}{slide, 1}.area ,obj.FWHMesl{link_index, 3}{slide, 1}.area, slide, size(obj.TraversedImage{link_index, 1},3)));
+                obj.arclength{link_index, 1}(slide), obj.FWHMesl{link_index, 1}{slide, 1}.area, obj.FWHMesl{link_index, 2}{slide, 1}.area ,...
+                obj.FWHMesl{link_index, 3}{slide, 1}.area, slide, size(obj.TraversedImage{link_index, 1},3)));
+            catch 
+                text(ax, 1,5,sprintf('Arc Length = %4.1f mm; %3.0i of %3.0i', ...
+                obj.arclength{link_index, 1}(slide), slide, size(obj.TraversedImage{link_index, 1},3)));
+            end
         end
+        
+
 end
 %% STATIC METHODS    
     methods (Static)
