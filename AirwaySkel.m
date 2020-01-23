@@ -374,19 +374,20 @@ classdef AirwaySkel
                 pi*obj.physical_sampling_interval.^2;
         end
         
-        function obj = ComputeTaperValues(obj, link_index)
-            obj.specs(link_index).FWHMl_logtaper = ...
-                AirwaySkel.ComputeTaperRate(...
-                obj.arclength{link_index, 1}, ...
-                [obj.FWHMesl{link_index, 1}.area]);
-            obj.specs(link_index).FWHMp_logtaper = ...
-                AirwaySkel.ComputeTaperRate(...
-                obj.arclength{link_index, 1}, ...
-                [obj.FWHMesl{link_index, 2}.area]);
-            obj.specs(link_index).FWHMr_logtaper = ...
-                AirwaySkel.ComputeTaperRate(...
-                obj.arclength{link_index, 1}, ...
-                [obj.FWHMesl{link_index, 3}.area]);
+        function obj = ComputeTaperValues(obj)
+            for i = 1:length(obj.TraversedImage)
+                cum_area = [];
+                for j = 1:length(obj.arclength{i,1})
+                    try
+                        cum_area = [cum_area; obj.FWHMesl{i, 1}{j, 1}.area];
+                    catch
+                        cum_area = [cum_area; NaN];
+                    end
+                end
+                obj.Specs(i).FWHMl_logtaper = ...
+                    AirwaySkel.ComputeTaperRate(...
+                    obj.arclength{i, 1}, cum_area);
+            end
         end
 
         function [logtaperrate, cum_arclength, cum_area, edgepath] = ConstructTaperPath(obj, terminal_link_idx)
@@ -480,6 +481,62 @@ classdef AirwaySkel
             
         end
         
+        
+        function branch_seg = ClassifySegmentation(obj)
+            % Set up list of classifications for skeleton
+            
+            % Find linear indicies of skeleton
+            skel_ind = find(bwskel(obj.seg,'MinBranchLength', ...
+                obj.branch_threshold) == 1);
+            classed_skel = zeros(size(skel_ind));
+            % for each skeleton branch
+            for j = 1:length(obj.Glink)
+                % get list of points in branch
+                for m = 1:length(obj.Glink(j).point)
+                    % put edge number by skeleton index
+                    ind = find(skel_ind == obj.Glink(j).point(m));
+                    classed_skel(ind) = j;
+                end
+            end
+            
+            % get list of everypoint on segmentation
+            [XPQ, YPQ, ZPQ] = ind2sub(size(obj.seg),find(obj.seg == 1));
+            PQ = [XPQ,YPQ,ZPQ];
+            % get list of everypoint on skeleton
+            [XP, YP, ZP] = ind2sub(size(obj.seg), skel_ind);
+            P = [XP, YP, ZP];
+            % find nearest seg point to it on skeleton
+            k = dsearchn(P,PQ);
+            % find that skeleton point's edge assignment
+            branch_seg = zeros(size(obj.seg));
+            for i = 1:length(PQ)
+                branch_seg(PQ(i,1),PQ(i,2),PQ(i,3)) = classed_skel(k(i));
+            end
+
+        end
+        
+        
+        function PlotMap(obj, clims)
+            axis([0 size(obj.CT, 1) 0 size(obj.CT, 2) 0 size(obj.CT, 3)])
+            
+            % generating the color data
+            cdata = zeros(size(obj.seg));
+            branch_seg = ClassifySegmentation(obj);
+            for i = 1:length(obj.Specs)
+             cdata(branch_seg == i) = obj.Specs(i).FWHMl_logtaper*-1;
+            end
+            
+            % producing the plot
+            p = patch(isosurface(obj.seg));
+            [x,y,z] = meshgrid(1:size(obj.seg, 1),1:size(obj.seg, 2),1:size(obj.seg, 3));
+            isocolors(x,y,z, cdata, p);
+            p.FaceColor = 'interp';
+            p.EdgeColor = 'none';
+            colormap hot
+            colorbar
+            caxis(clims)
+        end
+        
         function PlotAirway3(obj, link_index)
             % Plot resampled airway slices overlayed with FWHMesl ray cast 
             % points and fitted ellipse
@@ -552,7 +609,6 @@ classdef AirwaySkel
             end
         end
         
-
 end
 %% STATIC METHODS    
     methods (Static)
