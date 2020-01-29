@@ -3,15 +3,37 @@ CT_name = 'github_demo_raw.nii.gz';
 seg_name = 'github_demo_seg.nii.gz';
 params = [];
 
-%% Load data
+% Load data
 meta = niftiinfo(CT_name);
 CT = double(niftiread(meta));
 
 %Getting the segmented image
 S = logical(niftiread(seg_name));
 
-%% create airway skeleton class
+% create airway skeleton class
 AS = AirwaySkel(CT, meta, S, params);
+
+%% plot
+figure
+PlotTree(AS)
+hold on
+D = logical(niftiread('github_demo_dital_point.nii'));
+se = strel('sphere',4);
+D = imdilate(D, se);
+patch(isosurface(D),'FaceColor','none','EdgeColor',[0 1 0]);
+
+
+%% traverse all airway
+tic;
+AS = AirwayImageAll(AS)
+time = toc;
+save('CompletedAirway2')
+
+%% compute area of all airways
+AS = FindFWHMall(AS)
+
+%% Construct taper rate path to compute
+[logtaperrate, cum_arclength, cum_area, path] = ConstructTaperPath(obj, terminal_link_idx); 
 
 %% Construct spline, find traversed image for first point
 spline = ComputeSpline(AS, 1);
@@ -27,5 +49,36 @@ for i = 1:4
     TransAirwayImage(:,:,i) = InterpolateCT(AS, normal, CT_point);
 end
 
-%% traverse one airway
-AS = CreateAirwayImage(AS, 1);
+%% have a go at slider
+sliderchanging(AS, 1)
+%%
+% function sliderchanging(AS, link)
+% % Create figure window and components
+% 
+% figure
+% sld = uicontrol('style','slider','units','pixel','position',[20 20 300 20]);
+% 
+%                'ValueChangingFcn',@(sld,event) sliderMoving(event,AS,link));
+% sld.Limits = [1 size(AS.TraversedImage{link,1}, 3)];
+% sld.Value = 1;
+% 
+% end
+% 
+% % Create ValueChangingFcn callback
+% function sliderMoving(event,AS,link)
+% val = round(event.Value);
+% imshow(AS.TraversedImage{link,1}(:,:,val), [])
+% title(['Traversed link = ', num2str(link),...
+%     ' arclength = ', num2str(AS.spline_sampling_interval*val - 0.25)])
+% drawnow;
+% end
+% 
+% function myslider
+% x = 1:10;
+% hplot = plot(x,0*x);
+% 
+% 
+% 
+% 
+
+

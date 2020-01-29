@@ -1,17 +1,17 @@
 % MIT License
-% 
+%
 % Copyright (c) 2019 Kin Quan
-% 
+%
 % Permission is hereby granted, free of charge, to any person obtaining a copy
 % of this software and associated documentation files (the "Software"), to deal
 % in the Software without restriction, including without limitation the rights
 % to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 % copies of the Software, and to permit persons to whom the Software is
 % furnished to do so, subject to the following conditions:
-% 
+%
 % The above copyright notice and this permission notice shall be included in all
 % copies or substantial portions of the Software.
-% 
+%
 % THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 % IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 % FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -51,12 +51,12 @@ diff_struct = fnder(matlab_spline_sturct);
 total_arclength = 0;
 
 for i = 1:(number_of_pieces - 2)
-    
+
     %We will be intergarting each of the spline speratlate;
-    
+
     %Consider the first interval
     interval_upper_bound = break_points(i+1) - break_points(i);
-    
+
     %Getting the coeff
     coeff_index = 3*i - [2 1 0];
     coeff_array_index = coeff_array(coeff_index,:);
@@ -65,13 +65,13 @@ for i = 1:(number_of_pieces - 2)
         (coeff_array_index(1,1)*x.^2 + coeff_array_index(1,2)*x + coeff_array_index(1,3)).^2 + ...
         (coeff_array_index(2,1)*x.^2 + coeff_array_index(2,2)*x + coeff_array_index(2,3)).^2 + ...
         (coeff_array_index(3,1)*x.^2 + coeff_array_index(3,2)*x + coeff_array_index(3,3)).^2 );
-    
-    
+
+
     %Perfroming the intergration
     intergated_interval = integral(intergate_function,0,interval_upper_bound);
-    
+
     total_arclength = total_arclength + intergated_interval;
-    
+
 end
 
 %% Finding the incompetle interval
@@ -95,4 +95,3 @@ arclength_distance = total_arclength + ...
 
 
 end
-
