@@ -1,8 +1,11 @@
 AirwaySkel is a MATLAB class for extracting airway measurements from a fully segmented chest CT of the desired airways.
 
 ## Dependencies
-* MATLAB
-* MATLAB Signal Processing toolbox
+* MATLAB (9.7)
+* MATLAB Signal Processing Toolbox (8.3)
+* MATLAB Image Processing Toolbox (11.0)
+* MATLAB Curve Fitting Toolbox (3.5.10)
+(Denotes known working versions)
 
 ## Install
 * In Terminal:
