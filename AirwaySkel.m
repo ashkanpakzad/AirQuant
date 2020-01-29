@@ -490,7 +490,17 @@ classdef AirwaySkel
         end
 
 %% VISUALISATION METHODS
-        function PlotTree(obj)
+function plot(obj)
+    % Only show graph for airways from carina to distal.
+    G = rmedge(obj.Gdigraph, obj.trachea_path);
+    %G = rmnode(G, find(~indegree(G)==0 & outdegree(G)==0))
+    h = plot(G);
+    h.NodeColor = 'r';
+    h.EdgeColor = 'k';
+%    labeledge(h, obj.Gdigraph.Edges(:,{'EndNodes'}),obj.Gdigraph.Edges(:,{'Label'}));
+end
+
+function PlotTree(obj)
             % Plot the airway tree with nodes and links
             % Original Function by Ashkan Pakzad on 27th July 2019.
             
