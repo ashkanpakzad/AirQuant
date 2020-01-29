@@ -84,15 +84,9 @@ classdef AirwaySkel
             obj.trachea_path = obj.Gnode(obj.trachea_node).links;
         end
         
-        function obj = FindCarina(obj)
-            [~, obj.carina_node] = max(centrality(obj.digraph,'outcloseness'));
-            % Check if there are any paths between carina and trachea paths
-            % due to skeletonisation error (trachea is prone to
-            % skeletonisation errors)
-        end
         
         function obj = AirwayDigraph(obj)
-            % To convert the Airway graph into a digraph from carina to
+            % To convert the Airway graph into a digraph from trachea to
             % distal.
             
             % TODO: consider identifying trachea node and working out
@@ -117,7 +111,6 @@ classdef AirwaySkel
                 end      
             end
             G = rmedge(G,removal);
-            obj.Gdigraph = G;
             
             % Need to ensure directions in Glink are also in the correct
             % direction. Swap over if not.
@@ -132,8 +125,47 @@ classdef AirwaySkel
                     obj.Glink(i).point = fliplr(obj.Glink(i).point);
                 end
             end
+            
+            % Copy over Glink to create digraph with same edge order
+            edges = [[obj.Glink.n1]', [obj.Glink.n2]'];
+            weights = zeros(length(obj.Glink),1);
+            for i = 1:length(obj.Glink)
+                weights(i) = length(obj.Glink(i).point);
+            end
+            labels = [1:length(obj.Glink)]';
+            Edgetable = table(edges,weights,labels,'VariableNames',{'EndNodes', 'Weight', 'Label'});
+            
+            obj.Gdigraph = digraph(Edgetable);
         end
         
+        
+        function obj = FindCarina(obj)
+            % Finds the carina node by analysis of the directed graph
+            % produced by a breadth first search from the trachea node.
+            [~, obj.carina_node] = max(centrality(obj.digraph,'outcloseness'));
+        end
+        
+        function obj = FindTracheaPaths(obj)
+            % Check if there are any edges between carina and trachea
+            % due to skeletonisation error (trachea is prone to
+            % skeletonisation errors)
+            
+            % identify outgoing nodes from carina
+            [eid, nid] = outedges(obj.Gdigraph,obj.carina_node);
+            % identify their importance and sort in that order
+            outcloseness = centrality(obj.digraph,'outcloseness');
+            [~, I_sort] = sort(outcloseness(nid),'descend');
+            % remove most important === bronchi.
+            G = rmedge(obj.Gdigraph,eid(I_sort(1:2)));
+            % identify smallest connected graph corresponding to trachea.
+            [bin,binsize] = conncomp(G,'Type','weak');
+            idx = binsize(bin) == min(binsize);
+            % idx corresponds to nodes in trachea group
+            SG = subgraph(G, idx);
+            % identify labels
+            obj.trachea_path=SG.edges({'Label'});
+        end
+                
 %% HIGH LEVEL METHODS    
         function obj = AirwayImageAll(obj)
             % Traverse all airway segments except the trachea.
