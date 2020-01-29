@@ -18,6 +18,7 @@ classdef AirwaySkel
         Gnode
         Glink
         Gdigraph
+        trachea_node
         trachea_path
         carina_node
         % Resampled image slices along graph paths/airway segments.
@@ -49,10 +50,12 @@ classdef AirwaySkel
             end
             % graph airway skeleton
             obj = GenerateSkel(obj);
-            % identify trachea and carina
-            obj = FindTracheaCarina(obj);
+            % Identify trachea
+            obj = FindTrachea(obj);
             % Convert into digraph
             obj = AirwayDigraph(obj);
+            % Identify Carina
+            obj = FindCarina(obj);
             % set up empty cell for traversed CT and segmentation
             obj.TraversedImage = cell(length(obj.Glink),1);
             obj.TraversedSeg = cell(length(obj.Glink),1);
@@ -73,16 +76,20 @@ classdef AirwaySkel
         end
         
         
-        function obj = FindTracheaCarina(obj)
-            % Identify the Trachea path and the carina node.FindFWHMall
+        function obj = FindTrachea(obj)
+            % Identify the Trachea node. FindFWHMall
             % Assumes trachea fully segmented and towards greater Z.
-            
             % Smoothen
-            [~, maxind] = max([obj.Gnode.comz]);
-            obj.trachea_path = obj.Gnode(maxind).links;
-            obj.carina_node = obj.Gnode(maxind).conn;
+            [~, obj.trachea_node] = max([obj.Gnode.comz]);
+            obj.trachea_path = obj.Gnode(obj.trachea_node).links;
         end
         
+        function obj = FindCarina(obj)
+            [~, obj.carina_node] = max(centrality(obj.digraph,'outcloseness'));
+            % Check if there are any paths between carina and trachea paths
+            % due to skeletonisation error (trachea is prone to
+            % skeletonisation errors)
+        end
         
         function obj = AirwayDigraph(obj)
             % To convert the Airway graph into a digraph from carina to
@@ -95,7 +102,7 @@ classdef AirwaySkel
             % and remove if found later in the BF search.
             G = digraph(obj.Gadj);
             % BF search from carina node to distal.
-            node_discovery = bfsearch(G,obj.carina_node);
+            node_discovery = bfsearch(G,obj.trachea_node);
             % half of the edges will be removed
             removal = zeros(height(G.Edges)/2 , 1);
             j = 1;
