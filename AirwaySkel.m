@@ -478,6 +478,7 @@ classdef AirwaySkel
             
             axis([0 size(obj.CT, 1) 0 size(obj.CT, 2) 0 size(obj.CT, 3)])
             view(80,0)
+            axis vis3d
             
         end
         
@@ -535,6 +536,7 @@ classdef AirwaySkel
             colormap hot
             colorbar
             caxis(clims)
+            axis vis3d
         end
         
         function PlotAirway3(obj, link_index)
