@@ -56,6 +56,8 @@ classdef AirwaySkel
             obj = AirwayDigraph(obj);
             % Identify Carina
             obj = FindCarina(obj);
+            % Identify paths that belong to trachea
+            obj = FindTracheaPaths(obj);
             % set up empty cell for traversed CT and segmentation
             obj.TraversedImage = cell(length(obj.Glink),1);
             obj.TraversedSeg = cell(length(obj.Glink),1);
@@ -81,7 +83,7 @@ classdef AirwaySkel
             % Assumes trachea fully segmented and towards greater Z.
             % Smoothen
             [~, obj.trachea_node] = max([obj.Gnode.comz]);
-            obj.trachea_path = obj.Gnode(obj.trachea_node).links;
+            %obj.trachea_path = obj.Gnode(obj.trachea_node).links;
         end
         
         
@@ -163,7 +165,7 @@ classdef AirwaySkel
             % idx corresponds to nodes in trachea group
             SG = subgraph(G, idx);
             % identify labels
-            obj.trachea_path=SG.edges({'Label'});
+            obj.trachea_path=table2array(SG.Edges(:, {'Label'}));
         end
                 
 %% HIGH LEVEL METHODS    
@@ -492,13 +494,25 @@ classdef AirwaySkel
 %% VISUALISATION METHODS
 function plot(obj)
     % Only show graph for airways from carina to distal.
+    x = [obj.Gnode.comx];
+    y = [obj.Gnode.comy];
+    z = [obj.Gnode.comz];
+
+    
     G = rmedge(obj.Gdigraph, obj.trachea_path);
-    %G = rmnode(G, find(~indegree(G)==0 & outdegree(G)==0))
-    h = plot(G);
+    node_remove_idx = find(indegree(G)==0 & outdegree(G)==0);
+    G = rmnode(G, node_remove_idx);
+    x(node_remove_idx)=[];
+    y(node_remove_idx)=[];
+    z(node_remove_idx)=[];
+
+    %h = plot(G,'EdgeLabel',G.Edges.Label);
+    h = plot(G,'EdgeLabel',G.Edges.Label,'XData',x,'YData',y,'ZData',z);
     h.NodeColor = 'r';
     h.EdgeColor = 'k';
-%    labeledge(h, obj.Gdigraph.Edges(:,{'EndNodes'}),obj.Gdigraph.Edges(:,{'Label'}));
+    %labeledge(h,1:numedges(G),table2array(G.Edges(:,{'Label'})));
 end
+
 
 function PlotTree(obj)
             % Plot the airway tree with nodes and links
