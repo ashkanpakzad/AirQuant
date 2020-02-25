@@ -1,38 +1,40 @@
 classdef AirwaySkel
     properties
-        CT
-        CTinfo
-        seg
-        branch_threshold = 2;
+        CT % CT image
+        CTinfo % CT metadata
+        seg % binary airway segmentation
+        branch_threshold = 2; % Check bwskel docs
         % CT Properties/resampling params
-        physical_plane_length = 40;
-        physical_sampling_interval = 0.3;
-        spline_sampling_interval = 0.25;
+        physical_plane_length = 40;% check methods
+        physical_sampling_interval = 0.3;% check methods
+        spline_sampling_interval = 0.25;% check methods
         % Ray params
-        num_rays = 50;
-        ray_interval = 0.2;
+        num_rays = 50; % check methods
+        ray_interval = 0.2; % check methods
     end
     properties (SetAccess = private)
         % Graph Properties
-        Gadj
-        Gnode
-        Glink
-        Gdigraph
-        trachea_node
-        trachea_path
-        carina_node
+        Gadj % undirected Graph Adjacency matrix
+        Gnode % Graph node info
+        Glink % Graph edge info
+        Gdigraph % digraph object
+        trachea_node % node corresponding to top of trachea
+        trachea_path % edges that form a connect subgraph above the carina
+        carina_node % node that corresponds to the carina
         % Resampled image slices along graph paths/airway segments.
-        TraversedImage
-        TraversedSeg
-        arclength
-        FWHMesl
-        Specs
+        TraversedImage % perpendicular CT slices of all airways
+        TraversedSeg % perpendicular segmentation slices of all airways
+        arclength % corresponding arclength measurement traversed slices
+        FWHMesl % FWHMesl algorithm results for every airway
+        Specs % Airway specs
     end
     
     methods
 %% INITIALISATION METHODS
         function obj = AirwaySkel(CTimage, CTinfo, segimage, params)
-            % Initialise the AirwaySkel class.
+            % Initialise the AirwaySkel class object.
+            % if using default settings, set params structure to empty.
+            
             obj.CT = CTimage;
             % TODO: consider preprocess segmentation to keep largest
             % connected component.
@@ -494,23 +496,11 @@ classdef AirwaySkel
 %% VISUALISATION METHODS
 function plot(obj)
     % Only show graph for airways from carina to distal.
-    x = [obj.Gnode.comx];
-    y = [obj.Gnode.comy];
-    z = [obj.Gnode.comz];
-
-    
     G = rmedge(obj.Gdigraph, obj.trachea_path);
-    node_remove_idx = find(indegree(G)==0 & outdegree(G)==0);
-    G = rmnode(G, node_remove_idx);
-    x(node_remove_idx)=[];
-    y(node_remove_idx)=[];
-    z(node_remove_idx)=[];
-
-    %h = plot(G,'EdgeLabel',G.Edges.Label);
-    h = plot(G,'EdgeLabel',G.Edges.Label,'XData',x,'YData',y,'ZData',z);
+    G = rmnode(G, find(indegree(G)==0 & outdegree(G)==0));
+    h = plot(G,'EdgeLabel',G.Edges.Label, 'Layout', 'force');
     h.NodeColor = 'r';
     h.EdgeColor = 'k';
-    %labeledge(h,1:numedges(G),table2array(G.Edges(:,{'Label'})));
 end
 
 
@@ -519,6 +509,7 @@ function PlotTree(obj)
             % Original Function by Ashkan Pakzad on 27th July 2019.
             
             isosurface(bwskel(obj.seg, 'MinBranchLength', obj.branch_threshold));
+            alpha(0.7)
             hold on
             
             % edges
@@ -596,7 +587,7 @@ function PlotTree(obj)
             isocolors(x,y,z, cdata, p);
             p.FaceColor = 'interp';
             p.EdgeColor = 'none';
-            colormap hot
+            colormap cool
             colorbar
             caxis(clims)
             axis vis3d
