@@ -101,10 +101,18 @@ dist = abs(px-qx)+abs(py-qy);
 
 SC = dist/(epsilon+(LSF1+LSF2)^2);
 
-%% find lowest step cost
+%% %% find lowest step cost by computing all steps
 % 
-startx= 296;
-starty= 273;
+startx= 288;
+starty= 269;
+stopx=286;
+stopy=197;
+
+
+%% find lowest step cost on the fly
+% 
+startx= 288;
+starty= 269;
 stopx=286;
 stopy=197;
 
