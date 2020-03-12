@@ -36,8 +36,8 @@ while candidatemax > 0
     nb = neighbors(X,Y);
     nbind = sub2ind(size(DTmap),nb(:,2),nb(:,1));
     nbDT = DTmap(nbind);
-    largercount = find(nbDT > candidatemax);
-    if length(largercount) > 2
+    neighbor_compare = 2*(nbDT-candidatemax)./(proj(I)+ proj(nbind));
+    if any(neighbor_compare >= 1)
         iscmb = 0;
         % if this statement is true, then not a CMB
     end
