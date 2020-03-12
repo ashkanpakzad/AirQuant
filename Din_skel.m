@@ -29,31 +29,29 @@ while candidatemax > 0
     % get current max
     [candidatemax, I] = max(DTmapscan,[],'all','linear');
     [Y, X] = ind2sub(size(DTmapscan), I);
-    
-    % check if touching boundary at two points
-    cunit = round(circlepoints(Y,X,candidatemax));
-    count = 0;
-    for i = 1:length(cunit)
-        for j = 1:length(B)
-            if cunit(i,:) == B(j,:)
-                count = count+1;
-            end
-        end
-    end
-    if count < 2
-        iscmb = 0;
-        break
-    end
 
-    % check if inside an established CMB
     iscmb = 1;
-    for i = 1:size(T)
-        d = sqrt((X-T.X(i))^2 + (Y-T.Y(i))^2);
-        if candidatemax == 0 || T.radius(i) > d + candidatemax 
-            iscmb = 0;
-            break % if this statement is true, then not a CMB
-        end
+    
+    % check if neighbor has a larger value
+    nb = neighbors(X,Y);
+    nbind = sub2ind(size(DTmap),nb(:,2),nb(:,1));
+    nbDT = DTmap(nbind);
+    largercount = find(nbDT > candidatemax);
+    if length(largercount) > 2
+        iscmb = 0;
+        % if this statement is true, then not a CMB
     end
+    
+    % check if inside an established CMB
+%     if iscmb == 1
+%         for i = 1:size(T)
+%             d = sqrt((X-T.X(i))^2 + (Y-T.Y(i))^2);
+%             if candidatemax == 0 || T.radius(i) > d + candidatemax
+%                 iscmb = 0;
+%                 break % if this statement is true, then not a CMB
+%             end
+%         end
+%     end
     
     % Add to cmb table
     if iscmb == 1
@@ -66,22 +64,23 @@ end
 
 %% show all cmbs
 figure
-imagesc(DTmap)
+subplot(1,2,1)
+imagesc(proj)
 colormap gray
 hold on
 for i = 1:size(T, 1)
 circle(T.X(i), T.Y(i), T.radius(i));
 end
-hold on
-plot(B(:,2), B(:,1), 'g', 'LineWidth', 2)
-hold off
 
-CMBmap = zeros(size(DTmap));
-CMBmap(T.linear) = 1;
-
-figure
-imagesc(CMBmap)
+% CMBmap = zeros(size(DTmap));
+% CMBmap(T.linear) = 1;
+subplot(1,2,2)
+imagesc(DTmap)
 colormap gray
+hold on
+plot(T.X, T.Y,'r.')
+plot(B(:,2), B(:,1), 'g', 'LineWidth', 2)
+
 
 %% Computing LSF of all CMB
 allLSF = zeros(size(T, 1),1);
