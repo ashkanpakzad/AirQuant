@@ -62,26 +62,6 @@ while candidatemax > 0
     [candidatemax, I] = max(DTmapscan,[],'all','linear');
 end
 
-%% show all cmbs
-figure
-subplot(1,2,1)
-imagesc(proj)
-colormap gray
-hold on
-for i = 1:size(T, 1)
-circle(T.X(i), T.Y(i), T.radius(i));
-end
-
-% CMBmap = zeros(size(DTmap));
-% CMBmap(T.linear) = 1;
-subplot(1,2,2)
-imagesc(DTmap)
-colormap gray
-hold on
-plot(T.X, T.Y,'r.')
-plot(B(:,2), B(:,1), 'g', 'LineWidth', 2)
-
-
 %% Computing LSF of all CMB
 allLSF = zeros(size(T, 1),1);
 for j = 1:size(T, 1)
@@ -107,6 +87,35 @@ else
 end
 allLSF(j) = LSF;
 end
+T.LSF = allLSF;
+
+%% show all cmbs
+figure
+subplot(1,2,1)
+imagesc(proj)
+colormap gray
+hold on
+for i = 1:size(T, 1)
+circle(T.X(i), T.Y(i), T.radius(i));
+end
+
+subplot(1,2,2)
+imagesc(DTmap)
+colormap gray
+hold on
+plot(B(:,2), B(:,1), 'g', 'LineWidth', 2)
+plot(T.X, T.Y,'c.')
+strongCMB = find(T.LSF >= 0.5);
+plot(T.X(strongCMB), T.Y(strongCMB),'r.')
+legend('Object Boundary', 'weak CMB', 'Strong CMB')
+
+
+%% Show all 'strong' CMBs 
+
+
+plot(B(:,2), B(:,1), 'g', 'LineWidth', 2)
+
+
 
 %% Work out step cost
 py= 285;
