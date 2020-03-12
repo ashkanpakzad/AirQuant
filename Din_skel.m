@@ -8,7 +8,7 @@ S = logical(niftiread(seg_name));
 %% create a projection to get a 2d binary image
 proj = sum(S(:,:,86:90),3);
 proj(proj~=0)=1;
-
+proj = proj(150:300,220:330);
 imshow(proj,[])
 
 %% Get Distance Transform
@@ -21,17 +21,35 @@ T = table('Size',[0 4],'VariableTypes',{'double','double','double','double'});
 T.Properties.VariableNames = {'radius', 'linear','X', 'Y'};
 DTmapscan = DTmap;
 
-candidatemax = 2; % to initialise
-while candidatemax > 1
+candidatemax = 1; % to initialise
+
+B = bwboundaries(proj); % find boundaries
+B = B{1,1};
+while candidatemax > 0
     % get current max
     [candidatemax, I] = max(DTmapscan,[],'all','linear');
     [Y, X] = ind2sub(size(DTmapscan), I);
+    
+    % check if touching boundary at two points
+    cunit = round(circlepoints(Y,X,candidatemax));
+    count = 0;
+    for i = 1:length(cunit)
+        for j = 1:length(B)
+            if cunit(i,:) == B(j,:)
+                count = count+1;
+            end
+        end
+    end
+    if count < 2
+        iscmb = 0;
+        break
+    end
 
     % check if inside an established CMB
     iscmb = 1;
     for i = 1:size(T)
         d = sqrt((X-T.X(i))^2 + (Y-T.Y(i))^2);
-        if T.radius(i) > d || candidatemax == 0
+        if candidatemax == 0 || T.radius(i) > d + candidatemax 
             iscmb = 0;
             break % if this statement is true, then not a CMB
         end
@@ -54,6 +72,9 @@ hold on
 for i = 1:size(T, 1)
 circle(T.X(i), T.Y(i), T.radius(i));
 end
+hold on
+plot(B(:,2), B(:,1), 'g', 'LineWidth', 2)
+hold off
 
 CMBmap = zeros(size(DTmap));
 CMBmap(T.linear) = 1;
@@ -72,11 +93,11 @@ px= T.Y(j);
 nb = [Qx(:),Qy(:)];
 nb(5,:) = [];
 
-inequalityvals = zeros(length(neighbors),1);
-for i = 1:length(neighbors)
-    dist = abs(px-neighbors(i,1))+abs(py-neighbors(i,2));
-    upper = DTmap(neighbors(i,1), neighbors(i,2)) - DTmap(px, py);
-    lower = 0.5*(proj(px, py)+proj(neighbors(i,1), neighbors(i,2)))*dist;
+inequalityvals = zeros(length(nb),1);
+for i = 1:length(nb)
+    dist = abs(px-nb(i,1))+abs(py-nb(i,2));
+    upper = DTmap(nb(i,1), nb(i,2)) - DTmap(px, py);
+    lower = 0.5*(proj(px, py)+proj(nb(i,1), nb(i,2)))*dist;
     inequalityvals(i) = upper/lower;
 end
 output = abs(max(inequalityvals(:)));
@@ -141,13 +162,18 @@ path(g.Nodes.PixelIndex(P)) = 1;
 [pathX,pathY] = ind2sub(size(proj), g.Nodes.PixelIndex(P));
 
 %% plot
+% sx = 288;
+% sy = 269;
+% tx = 286;
+% tx =187;
+[pathX,pathY,cost] = mincostpath(sx, sy, tx, ty, proj, DTmap);
 imagesc(DTmap)
 colormap gray
 hold on
 plot(pathY,pathX, 'y.')
 %plot start and stop
-plot(startx,starty, 'g.')
-plot(stopx,stopy, 'g.')
+plot(sx,sy, 'g.')
+plot(tx,tx, 'g.')
 
 %% find lowest step cost on the fly
 % 
@@ -200,7 +226,6 @@ while stop == 0
     pause(0.5)
 end
 
-
 %% functions
 function h = circle(x,y,r)
 hold on
@@ -209,6 +234,14 @@ xunit = r * cos(th) + x;
 yunit = r * sin(th) + y;
 h = plot(xunit, yunit, 'r');
 hold off
+end
+
+function cunit = circlepoints(x,y,r)
+th = 0:pi/16:2*pi;
+xunit = [r * cos(th) + x]';
+yunit = [r * sin(th) + y]';
+cunit = [xunit, yunit];
+cunit(end,:) = [];
 end
 
 function LSF = sigfactor(px, py, object, DTmap)
@@ -273,8 +306,8 @@ stopnode = find(g.Nodes.PixelIndex == stopind);
 
 % display
 % get image of path
-path = zeros(size(object));
-path(g.Nodes.PixelIndex(P)) = 1;
+%path = zeros(size(object));
+%path(g.Nodes.PixelIndex(P)) = 1;
 
 % get coords
 [pathX,pathY] = ind2sub(size(object), g.Nodes.PixelIndex(P));
