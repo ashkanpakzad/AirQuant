@@ -110,18 +110,11 @@ plot(T.X(strongCMB), T.Y(strongCMB),'r.')
 legend('Object Boundary', 'weak CMB', 'Strong CMB')
 
 
-%% Show all 'strong' CMBs 
-
-
-plot(B(:,2), B(:,1), 'g', 'LineWidth', 2)
-
-
-
 %% Work out step cost
-py= 285;
-px= 248;
-qy= 284;
-qx= 248;
+px= 50;
+py= 50;
+qx= 62;
+qy= 64;
 
 epsilon = 0.01;
 LSF1 = sigfactor(px, py, proj, DTmap);
@@ -132,17 +125,17 @@ SC = dist/(epsilon+(LSF1+LSF2)^2);
 
 %% %% find lowest step cost by computing all steps
 % 
-startx= 288;
-starty= 269;
-stopx=286;
-stopy=197;
+startx= 72;
+starty= 75;
+stopx=67;
+stopy=50;
 
 startind = sub2ind(size(proj), starty, startx);
 stopind = sub2ind(size(proj), stopy, stopx);
 
 % convert image grid to graph
 g = binaryImageGraph(proj);
-plotImageGraph(g)
+%plotImageGraph(g)
 
 % compute step cost across grid
 for i = 1:height(g.Edges)
@@ -169,70 +162,53 @@ path(g.Nodes.PixelIndex(P)) = 1;
 % get coords
 [pathX,pathY] = ind2sub(size(proj), g.Nodes.PixelIndex(P));
 
-%% plot
-% sx = 288;
-% sy = 269;
-% tx = 286;
-% tx =187;
+%% compute mincostpath by function
+sx= 121;
+sy= 71;
+tx=37;
+ty=31;
 [pathX,pathY,cost] = mincostpath(sx, sy, tx, ty, proj, DTmap);
+
+figure
 imagesc(DTmap)
 colormap gray
 hold on
 plot(pathY,pathX, 'y.')
 %plot start and stop
-plot(sx,sy, 'g.')
-plot(tx,tx, 'g.')
+plot(sy,sx, 'g.')
+plot(ty,tx, 'g.')
 
-%% find lowest step cost on the fly
-% 
-startx= 288;
-starty= 269;
-stopx=286;
-stopy=197;
+%% intialise and find furthest CMB 
 
+sx= 121;
+sy= 71;
+
+% //identify furthest CMB
+Sxy = ones(height(T),2);
+Sxy(:,1) = sx;
+Sxy(:,2) = sy;
+
+% compute euclidean distances
+CMB_dist = sqrt((Sxy(:,2)-T.Y).^2 + (Sxy(:,1)-T.X).^2);
+[~, CMB_far_I] = max(CMB_dist);
+ty=T.X(CMB_far_I);
+tx=T.Y(CMB_far_I);
+
+% // compute min cost path
+[pathX,pathY,cost] = mincostpath(sx, sy, tx, ty, proj, DTmap);
+
+% // display result
 figure
-h = imagesc(DTmap);
+imagesc(DTmap)
 colormap gray
 hold on
-
+plot(pathY,pathX, 'y.')
 %plot start and stop
-plot(startx,starty, 'g.')
-plot(stopx,stopy, 'g.')
+plot(sy,sx, 'g.')
+plot(ty,tx, 'g.')
 
-stop = 0;
-j = 0;
-totalSC = [];
-while stop == 0
-    if j == 0
-        currentx = startx;
-        currenty = starty;
-    end
-    j = j + 1;
-    
-    % plot
-    plot(currentx, currenty, 'r.')
-    
-    % identify neighbors
-    nb = neighbors(currentx, currenty);
-    candidatecost = zeros(length(nb),1);
-    for i = 1:length(nb)
-        % compute step cost to each neighbor
-        candidatecost(i) = stepcost(currentx,currenty,nb(i,1),nb(i,2),proj,DTmap);
-    end
-    % identify lowest cost neighbor
-    [lowestSC,I] = min(candidatecost(:));
-    
-    % set new point as lowest cost neighbor.
-    currentx = nb(I,1);
-    currenty = nb(I,2);
-    
-    totalSC = [totalSC; lowestSC];
-    
-    if currentx == stopx && currenty == stopy
-        stop = 1;
-    end
-    pause(0.5)
-end
+%% dialate fill
+
 
 %% functions
 function h = circle(x,y,r)
@@ -244,21 +220,14 @@ h = plot(xunit, yunit, 'r');
 hold off
 end
 
-function cunit = circlepoints(x,y,r)
-th = 0:pi/16:2*pi;
-xunit = [r * cos(th) + x]';
-yunit = [r * sin(th) + y]';
-cunit = [xunit, yunit];
-cunit(end,:) = [];
-end
-
 function LSF = sigfactor(px, py, object, DTmap)
 nb = neighbors(px, py);
 
 inequalityvals = zeros(length(nb),1);
 for i = 1:length(nb)
     dist = abs(px-nb(i,1))+abs(py-nb(i,2));
-    upper = DTmap(nb(i,1), nb(i,2)) - DTmap(px, py);
+    DTval = DTmap(px, py);
+    upper = DTmap(nb(i,1), nb(i,2)) - DTval;
     lower = 0.5*(object(px, py)+object(nb(i,1), nb(i,2)))*dist;
     inequalityvals(i) = upper/lower;
 end
@@ -288,21 +257,21 @@ end
 
 function [pathX,pathY,cost] = mincostpath(sx, sy, tx, ty, object, DTmap)
 
-startind = sub2ind(size(object), sy, sx);
-stopind = sub2ind(size(object), ty, tx);
+startind = sub2ind(size(object), sx, sy);
+stopind = sub2ind(size(object), tx, ty);
 
 % convert image grid to graph
 g = binaryImageGraph(object);
-plotImageGraph(g)
+%plotImageGraph(g)
 
 % compute step cost across grid
 for i = 1:height(g.Edges)
     pnode = g.Edges.EndNodes(i,1);
     qnode = g.Edges.EndNodes(i,2);
-    px = g.Nodes.x(pnode);
-    py = g.Nodes.y(pnode);
-    qx = g.Nodes.x(qnode);
-    qy = g.Nodes.y(qnode);
+    py = g.Nodes.x(pnode);
+    px = g.Nodes.y(pnode);
+    qy = g.Nodes.x(qnode);
+    qx = g.Nodes.y(qnode);
     g.Edges.Weight(i) = stepcost(px,py,qx,qy,object,DTmap);
 end
 
@@ -311,11 +280,6 @@ startnode = find(g.Nodes.PixelIndex == startind);
 stopnode = find(g.Nodes.PixelIndex == stopind);
 
 [P, cost] = shortestpath(g, startnode, stopnode);
-
-% display
-% get image of path
-%path = zeros(size(object));
-%path(g.Nodes.PixelIndex(P)) = 1;
 
 % get coords
 [pathX,pathY] = ind2sub(size(object), g.Nodes.PixelIndex(P));
