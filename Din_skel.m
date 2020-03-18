@@ -265,11 +265,53 @@ while ~isequal(DSmapnew, DSmapprev) % while there is no change
 end
 
 dilatefill = (DSmapnew >= 0 & proj == 1);
+Omarked = dilatefill;
 figure
 imagesc(dilatefill)
 colormap gray
 hold on
 plot(B(:,2), B(:,1), 'g', 'LineWidth', 2)
+
+%% identifying new branches
+% subtract to get unmarked O
+Ounmarked = zeros(size(Omarked));
+Ounmarked(proj == 1 & Omarked == 0) = 1;
+
+% identify potential branches by connectivity
+CC_unmarked = bwconncomp(Ounmarked);
+
+% identify if any branches are significant
+% loop through all unmarked components
+B_potential = [];
+for i = 1:length(CC_unmarked.PixelIdxList)
+    CMBinCC = 0;
+    % identify if any strong CMB in unmarked components
+    for j = 1:length(strongCMB)
+        if ~isempty(find(cell2mat(CC_unmarked.PixelIdxList(i))==T.linear(strongCMB(j)),1))
+            % mark CMB in current CC
+            CMBinCC = 1;
+        end
+    end
+    if CMBinCC == 1
+        B_potential = [B_potential; i];
+    else
+        % if no strong CMB mark components
+        Omarked(cell2mat(CC_unmarked.PixelIdxList(i))) = 1;
+    end
+end
+
+figure
+imagesc(Omarked)
+colormap gray
+hold on
+plot(B(:,2), B(:,1), 'g', 'LineWidth', 2)
+
+% find skeleton of new significant branches
+
+
+%% add new branches to current skeleton
+
+% mark volume again
 
 %% functions
 function h = circle(x,y,r)
@@ -344,4 +386,57 @@ stopnode = find(g.Nodes.PixelIndex == stopind);
 
 % get coords
 [pathX,pathY] = ind2sub(size(object), g.Nodes.PixelIndex(P));
+end
+
+
+function Bmarked = adaptivefill(Bskel, object, DTmap);
+% Bskel = skeleton of branch only
+
+% identify object but not skeleton voxels.
+nonskel = zeros(size(object));
+nonskel(object == 1 & skel == 0) = 1;
+
+% initialise with Dilation Scale map
+DSmap = zeros(size(object));
+DSmap(pathI) = DTmap(pathI);
+DSmap(nonskel == 1) = -1*max(DSmap(:));
+
+% identify all p part of object but not the skeleton
+allp = find(nonskel == 1);
+[allpx, allpy] = ind2sub(size(nonskel), allp);
+
+%copy DSmap
+DSmapprev = DSmap;
+DSmapnew = zeros(size(DSmap)); % holder!
+k = 0;
+while ~isequal(DSmapnew, DSmapprev) % while there is no change
+    % dummy on very first iteration
+    if k == 0
+        DSmapnew = DSmap;
+    end
+    %update iteration
+    k = k+1;
+    % shift current to previous
+    DSmapprev = DSmapnew;
+    % loop through all voxels in object but not in skel
+    for j = 1:length(allp)
+        
+        px = allpx(j);
+        py = allpy(j);
+        
+        % identify neighbor
+        nb = neighbors(px, py);
+        
+        dsvals = zeros(length(nb),1);
+        for i = 1:length(nb)
+            %dist = abs(px-nb(i,1))+abs(py-nb(i,2));
+            dist = sqrt((px-nb(i,1))^2+(py-nb(i,2))^2);
+            dsvals(i) = DSmapprev(nb(i,1), nb(i,2)) - dist;
+        end
+        % update DSmap
+        DSmapnew(px,py) = max(dsvals(:));
+    end
+end
+
+Bmarked = (DSmapnew >= 0 & object == 1);
 end
