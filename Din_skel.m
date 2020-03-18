@@ -65,27 +65,27 @@ end
 %% Computing LSF of all CMB
 allLSF = zeros(size(T, 1),1);
 for j = 1:size(T, 1)
-py= T.X(j);
-px= T.Y(j);
-
-[Qx, Qy] = ndgrid(px-1:px+1, py-1:py+1);
-nb = [Qx(:),Qy(:)];
-nb(5,:) = [];
-
-inequalityvals = zeros(length(nb),1);
-for i = 1:length(nb)
-    dist = abs(px-nb(i,1))+abs(py-nb(i,2));
-    upper = DTmap(nb(i,1), nb(i,2)) - DTmap(px, py);
-    lower = 0.5*(proj(px, py)+proj(nb(i,1), nb(i,2)))*dist;
-    inequalityvals(i) = upper/lower;
-end
-output = abs(max(inequalityvals(:)));
-if output > 0
-    LSF = 1- output;
-else
-    LSF = 1;
-end
-allLSF(j) = LSF;
+    py= T.X(j);
+    px= T.Y(j);
+    
+    [Qx, Qy] = ndgrid(px-1:px+1, py-1:py+1);
+    nb = [Qx(:),Qy(:)];
+    nb(5,:) = [];
+    
+    inequalityvals = zeros(length(nb),1);
+    for i = 1:length(nb)
+        dist = abs(px-nb(i,1))+abs(py-nb(i,2));
+        upper = DTmap(nb(i,1), nb(i,2)) - DTmap(px, py);
+        lower = 0.5*(proj(px, py)+proj(nb(i,1), nb(i,2)))*dist;
+        inequalityvals(i) = upper/lower;
+    end
+    output = abs(max(inequalityvals(:)));
+    if output > 0
+        LSF = 1- output;
+    else
+        LSF = 1;
+    end
+    allLSF(j) = LSF;
 end
 T.LSF = allLSF;
 
@@ -207,8 +207,69 @@ plot(pathY,pathX, 'y.')
 plot(sy,sx, 'g.')
 plot(ty,tx, 'g.')
 
-%% dialate fill
+%% add branch to skel
+skel = zeros(size(proj));
 
+pathI = sub2ind(size(skel), pathX, pathY);
+skel(pathI) = 1;
+
+figure
+imagesc(skel)
+colormap gray
+
+%% dialate fill
+% identify object but not skeleton voxels.
+nonskel = zeros(size(proj));
+nonskel(proj == 1 & skel == 0) = 1;
+
+% initialise with Dilation Scale map
+DSmap = zeros(size(proj));
+DSmap(pathI) = DTmap(pathI);
+DSmap(nonskel == 1) = -1*max(DSmap(:));
+
+% identify all p part of object but not the skeleton
+allp = find(nonskel == 1);
+[allpx, allpy] = ind2sub(size(nonskel), allp);
+
+%copy DSmap
+DSmapprev = DSmap;
+DSmapnew = zeros(size(DSmap)); % holder!
+k = 0;
+while ~isequal(DSmapnew, DSmapprev) % while there is no change
+    % dummy on very first iteration
+    if k == 0
+        DSmapnew = DSmap;
+    end
+    %update iteration
+    k = k+1;
+    % shift current to previous
+    DSmapprev = DSmapnew;
+    % loop through all voxels in object but not in skel
+    for j = 1:length(allp)
+        
+        px = allpx(j);
+        py = allpy(j);
+        
+        % identify neighbor
+        nb = neighbors(px, py);
+        
+        dsvals = zeros(length(nb),1);
+        for i = 1:length(nb)
+            %dist = abs(px-nb(i,1))+abs(py-nb(i,2));
+            dist = sqrt((px-nb(i,1))^2+(py-nb(i,2))^2);
+            dsvals(i) = DSmapprev(nb(i,1), nb(i,2)) - dist;
+        end
+        % update DSmap
+        DSmapnew(px,py) = max(dsvals(:));
+    end
+end
+
+dilatefill = (DSmapnew >= 0 & proj == 1);
+figure
+imagesc(dilatefill)
+colormap gray
+hold on
+plot(B(:,2), B(:,1), 'g', 'LineWidth', 2)
 
 %% functions
 function h = circle(x,y,r)
