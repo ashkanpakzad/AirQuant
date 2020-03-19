@@ -306,7 +306,42 @@ colormap gray
 hold on
 plot(B(:,2), B(:,1), 'g', 'LineWidth', 2)
 
-% find skeleton of new significant branches
+%% Find furthest CMB in a subtree to Omarked
+subtree_ind = cell2mat(CC_unmarked.PixelIdxList(B_potential(1)));
+Omarked = Omarked;
+CMB_list= T.linear;
+
+% get boundary voxels of Omarked
+Omarked_boundcell = bwboundaries(Omarked);
+Omarked_bound = Omarked_boundcell{1,1};
+
+% get subset of CMB in subtree
+commonCMBind = intersect(CMB_list, subtree_ind);
+
+% compute distances of all Omarked boundary to all CMB in T_i
+[commonCMBlinY, commonCMBlinX]= ind2sub(size(Omarked), commonCMBind);
+
+disti = zeros(length(commonCMBind),1);
+for i = 1:length(commonCMBind)
+    distj = zeros(length(Omarked_bound),1);
+    for j = 1:length(Omarked_bound)
+        distj(j,1) = sqrt((commonCMBlinX(i,1) - Omarked_bound(j,1))^2 + (commonCMBlinY(i,1) - Omarked_bound(j,2))^2);
+    end
+    [disti(i,1)] = max(distj(:));
+end
+        
+% extract max distance and return furthest CMB
+[~,furthestCMBcommon] = max(disti);
+furthestCMBX = commonCMBlinX(furthestCMBcommon);
+furthestCMBY = commonCMBlinY(furthestCMBcommon);
+
+figure
+imagesc(Omarked)
+colormap gray
+hold on
+plot(B(:,2), B(:,1), 'g', 'LineWidth', 2)
+plot(furthestCMBX,furthestCMBY, 'r.', 'MarkerSize', 10)
+%% find skeleton of new significant branches
 
 
 %% add new branches to current skeleton
@@ -439,4 +474,38 @@ while ~isequal(DSmapnew, DSmapprev) % while there is no change
 end
 
 Bmarked = (DSmapnew >= 0 & object == 1);
+end
+
+function [furthestCMBX, furthestCMBY] = furthestCMB(Omarked,CMB_list, subtree_ind)
+% subtree_ind = cell2mat(CC_unmarked.PixelIdxList(B_potential(1)));
+% Omarked = Omarked;
+% CMB_list= T.linear;
+
+% subtree_ind = list of linear indicies in the subtree
+% Omarked = marked volume of skel algorithm
+% CMB_list = list linear indicies of Central Maximal Balls
+
+% get boundary voxels of Omarked
+Omarked_boundcell = bwboundaries(Omarked);
+Omarked_bound = Omarked_boundcell{1,1};
+
+% get subset of CMB in subtree
+commonCMBind = intersect(CMB_list, subtree_ind);
+
+% compute distances of all Omarked boundary to all CMB in T_i
+[commonCMBlinY, commonCMBlinX]= ind2sub(size(Omarked), commonCMBind);
+
+disti = zeros(length(commonCMBind),1);
+for i = 1:length(commonCMBind)
+    distj = zeros(length(Omarked_bound),1);
+    for j = 1:length(Omarked_bound)
+        distj(j,1) = sqrt((commonCMBlinX(i,1) - Omarked_bound(j,1))^2 + (commonCMBlinY(i,1) - Omarked_bound(j,2))^2);
+    end
+    [disti(i,1)] = max(distj(:));
+end
+        
+% extract max distance and return furthest CMB
+[~,furthestCMBcommon] = max(disti);
+furthestCMBX = commonCMBlinX(furthestCMBcommon);
+furthestCMBY = commonCMBlinY(furthestCMBcommon);
 end
