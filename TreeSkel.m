@@ -90,9 +90,9 @@ for i = 1:height(g.Edges)
 end
 
 %%% while loop for as long as new branches found
-
+branchit = 0;
 while ~isequal(Omarked, object)
-    
+    branchit = branchit + 1;
     % detect potential subtree
     [subtrees, Tmarked] = subtree(object, Omarked, strongCMB);
     
@@ -112,10 +112,30 @@ while ~isequal(Omarked, object)
         % convert to linear indicies and extract branch
         newskelI = sub2ind(size(object), pathX, pathY);
         Bi = setdiff(newskelI,skelpath);
-        % TODO: check significance
-        
+        % check significance
+        % add up LSF values along branch path to get LSFBi.
+        Bi_LSF = zeros(size(Bi));
+        for i = 1:length(Bi)
+            [px, py] = ind2sub(size(object), Bi(i));
+            Bi_LSF(i) = sigfactor(px, py, object, DTmap);
+        end
+        % compute DT value of CMB that branches the new skel to get DT_CMBv.
+        if branchit ~= 1
+            branch_v = newskelI(end-length(Bi)+1,1);
+            DT_branchv = DTmap(branch_v);
+            % assume not sig
+            Bi_sig = 0;
+            % significant branch if this condition met
+            if sum(Bi_LSF) > 3+0.5*(DT_branchv)
+                Bi_sig = 1;
+            end
+        else
+            Bi_sig = 1;
+        end
         % add branch to skel if sig
-        skelpath = [skelpath; Bi];
+        if Bi_sig == 1
+            skelpath = [skelpath; Bi];
+        end
         % mark volume of new branch
         Bmarked = adaptivefill(Bi, object, DTmap);
         % update marked volume
