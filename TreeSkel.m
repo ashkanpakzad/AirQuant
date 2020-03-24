@@ -208,7 +208,7 @@ Skel(skelpath) = 1;
         
         % initialise with Dilation Scale map
         DSmap = zeros(size(object));
-        DSmap(Bskel) = DTmap(Bskel);
+        DSmap(Bskel) = 2*DTmap(Bskel);
         DSmap(nonskel == 1) = -1*max(DSmap(:));
         
         % identify all p part of object but not the skeleton
