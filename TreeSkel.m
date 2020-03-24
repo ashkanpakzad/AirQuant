@@ -115,18 +115,20 @@ while ~isequal(Omarked, object)
         % check significance
         % add up LSF values along branch path to get LSFBi.
         Bi_LSF = zeros(size(Bi));
-        for i = 1:length(Bi)
-            [px, py] = ind2sub(size(object), Bi(i));
-            Bi_LSF(i) = sigfactor(px, py, object, DTmap);
+        for k = 1:length(Bi)
+            [px, py] = ind2sub(size(object), Bi(k));
+            Bi_LSF(k) = sigfactor(px, py, object, DTmap);
         end
         % compute DT value of CMB that branches the new skel to get DT_CMBv.
         if branchit ~= 1
-            branch_v = newskelI(end-length(Bi)+1,1);
+            branch_v = newskelI(end-length(Bi),1);
             DT_branchv = DTmap(branch_v);
             % assume not sig
             Bi_sig = 0;
             % significant branch if this condition met
-            if sum(Bi_LSF) > 3+0.5*(DT_branchv)
+            sig_value = sum(Bi_LSF);
+            adaptive_threshold = 3+0.5*(DT_branchv);
+            if sig_value > adaptive_threshold
                 Bi_sig = 1;
             end
         else
