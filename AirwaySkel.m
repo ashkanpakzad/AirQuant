@@ -11,6 +11,7 @@ classdef AirwaySkel
         % Ray params
         num_rays = 50; % check methods
         ray_interval = 0.2; % check methods
+        skel % skeleton based on segementation
     end
     properties (SetAccess = private)
         % Graph Properties
@@ -73,9 +74,13 @@ classdef AirwaySkel
         
         function obj = GenerateSkel(obj)
             % Generate the airway skeleton
-            skel = bwskel(obj.seg,'MinBranchLength', obj.branch_threshold);
+            % if skeleton not provided, generate one.
+            if isempty(obj.skel)
+                obj.skel = Skeleton3D(obj.seg);
+            end
+            % create graph from skeleton.
             [obj.Gadj,obj.Gnode,obj.Glink] =...
-                Skel2Graph3D(skel,0);
+                Skel2Graph3D(obj.skel,0);
 
         end
         
