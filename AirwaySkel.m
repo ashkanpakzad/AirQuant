@@ -3,7 +3,6 @@ classdef AirwaySkel
         CT % CT image
         CTinfo % CT metadata
         seg % binary airway segmentation
-        branch_threshold = 2; % Check bwskel docs
         % CT Properties/resampling params
         physical_plane_length = 40;% check methods
         physical_sampling_interval = 0.3;% check methods
@@ -44,7 +43,6 @@ classdef AirwaySkel
             obj.CTinfo = CTinfo;
             % set params
             if ~isempty(params)
-                obj.branch_threshold = params.branch_threshold;
                 obj.physical_plane_length = params.physical_plane_length;
                 obj.physical_sampling_interval = params.physical_sampling_interval;
                 obj.spline_sampling_interval = params.spline_sampling_interval;
@@ -513,7 +511,7 @@ function PlotTree(obj)
             % Plot the airway tree with nodes and links
             % Original Function by Ashkan Pakzad on 27th July 2019.
             
-            isosurface(bwskel(obj.seg, 'MinBranchLength', obj.branch_threshold));
+            isosurface(obj.skel);
             alpha(0.7)
             hold on
             
@@ -546,8 +544,7 @@ function PlotTree(obj)
             % Set up list of classifications for skeleton
             
             % Find linear indicies of skeleton
-            skel_ind = find(bwskel(obj.seg,'MinBranchLength', ...
-                obj.branch_threshold) == 1);
+            skel_ind = find(obj.skel == 1);
             classed_skel = zeros(size(skel_ind));
             % for each skeleton branch
             for j = 1:length(obj.Glink)
