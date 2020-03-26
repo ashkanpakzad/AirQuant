@@ -31,7 +31,7 @@ classdef AirwaySkel
     
     methods
 %% INITIALISATION METHODS
-        function obj = AirwaySkel(CTimage, CTinfo, segimage, params)
+        function obj = AirwaySkel(CTimage, CTinfo, segimage,skel, params)
             % Initialise the AirwaySkel class object.
             % if using default settings, set params structure to empty.
             
@@ -50,7 +50,7 @@ classdef AirwaySkel
                 obj.ray_interval = params.ray_interval;
             end
             % graph airway skeleton
-            obj = GenerateSkel(obj);
+            obj = GenerateSkel(obj,skel);
             % Identify trachea
             obj = FindTrachea(obj);
             % Convert into digraph
@@ -70,11 +70,13 @@ classdef AirwaySkel
         end
         
         
-        function obj = GenerateSkel(obj)
+        function obj = GenerateSkel(obj, skel)
             % Generate the airway skeleton
             % if skeleton not provided, generate one.
-            if isempty(obj.skel)
+            if isempty(skel)
                 obj.skel = Skeleton3D(obj.seg);
+            else
+                obj.skel = skel;
             end
             % create graph from skeleton.
             [obj.Gadj,obj.Gnode,obj.Glink] =...
