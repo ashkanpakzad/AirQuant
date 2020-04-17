@@ -49,7 +49,7 @@ classdef AirwaySkel
                 obj.num_rays = params.num_rays;
                 obj.ray_interval = params.ray_interval;
             end
-            % graph airway skeleton
+            % graph airway skeleton 
             obj = GenerateSkel(obj,skel);
             % Identify trachea
             obj = FindTrachea(obj);
@@ -95,11 +95,9 @@ classdef AirwaySkel
         
         
         function obj = AirwayDigraph(obj)
-            % To convert the Airway graph into a digraph from trachea to
-            % distal.
-            
-            % TODO: consider identifying trachea node and working out
-            % carina by connectivity of the digraph.
+            % Converts the output from skel2graph into a digraph tree 
+            % network, such that there are no loops and edges point from 
+            % the trachea distally outwards.
             
             % Create digraph with edges in both directions, loop through
             % and remove if found later in the BF search.
@@ -501,7 +499,9 @@ classdef AirwaySkel
 %% VISUALISATION METHODS
 function plot(obj)
     % Only show graph for airways from carina to distal.
-    G = rmedge(obj.Gdigraph, obj.trachea_path);
+    G = obj.Gdigraph;
+    trachea_edges = find(G.Edges.Label == obj.trachea_path);
+    G = rmedge(G, trachea_edges);
     G = rmnode(G, find(indegree(G)==0 & outdegree(G)==0));
     h = plot(G,'EdgeLabel',G.Edges.Label, 'Layout', 'force');
     h.NodeColor = 'r';
