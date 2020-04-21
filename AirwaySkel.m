@@ -1,34 +1,34 @@
-classdef AirwaySkel
-    properties
-        CT % CT image
-        CTinfo % CT metadata
-        seg % binary airway segmentation
-        % CT Properties/resampling params
-        physical_plane_length = 40;% check methods
-        physical_sampling_interval = 0.3;% check methods
-        spline_sampling_interval = 0.25;% check methods
-        % Ray params
-        num_rays = 50; % check methods
-        ray_interval = 0.2; % check methods
-        skel % skeleton based on segementation
-    end
-    properties (SetAccess = private)
-        % Graph Properties
-        Gadj % undirected Graph Adjacency matrix
-        Gnode % Graph node info
-        Glink % Graph edge info
-        Gdigraph % digraph object
-        trachea_node % node corresponding to top of trachea
-        trachea_path % edges that form a connect subgraph above the carina
-        carina_node % node that corresponds to the carina
-        % Resampled image slices along graph paths/airway segments.
-        TraversedImage % perpendicular CT slices of all airways
-        TraversedSeg % perpendicular segmentation slices of all airways
-        arclength % corresponding arclength measurement traversed slices
-        FWHMesl % FWHMesl algorithm results for every airway
-        Specs % Airway specs
-    end
-    
+    classdef AirwaySkel
+        properties
+            CT % CT image
+            CTinfo % CT metadata
+            seg % binary airway segmentation
+            % CT Properties/resampling params
+            physical_plane_length = 40;% check methods
+            physical_sampling_interval = 0.3;% check methods
+            spline_sampling_interval = 0.25;% check methods
+            % Ray params
+            num_rays = 50; % check methods
+            ray_interval = 0.2; % check methods
+            skel % skeleton based on segementation
+        end
+        properties (SetAccess = private)
+            % Graph Properties
+            Gadj % undirected Graph Adjacency matrix
+            Gnode % Graph node info
+            Glink % Graph edge info
+            Gdigraph % digraph object
+            trachea_node % node corresponding to top of trachea
+            trachea_path % edges that form a connect subgraph above the carina
+            carina_node % node that corresponds to the carina
+            % Resampled image slices along graph paths/airway segments.
+            TraversedImage % perpendicular CT slices of all airways
+            TraversedSeg % perpendicular segmentation slices of all airways
+            arclength % corresponding arclength measurement traversed slices
+            FWHMesl % FWHMesl algorithm results for every airway
+            Specs % Airway specs
+        end
+
     methods
 %% INITIALISATION METHODS
         function obj = AirwaySkel(CTimage, CTinfo, segimage,skel, params)
@@ -173,6 +173,92 @@ classdef AirwaySkel
             obj.trachea_path=table2array(SG.Edges(:, {'Label'}));
         end
                 
+        function [debugseg, debugskel] = DebugGraph(obj)
+            % First check for multiple 'inedges' to all nodes.
+            multiinedgenodes = cell(height(obj.Gdigraph.Edges),1);
+            j = 1;
+            for i = 1:height(obj.Gdigraph.Nodes)
+                eid = inedges(obj.Gdigraph,i);
+                if length(eid) > 1
+                    multiinedgenodes{j} = eid;
+                    j = j + 1;
+                end
+            end          
+            multiinedgenodes(j:end)=[];
+            % convert cell of different shapes to vector, by Wolfie on
+            % stackoverflow.
+            
+            % 1. Get maximum size of T elements
+            %    Pad all elements of T up to maxn values with NaN
+            maxn = max(cellfun( @numel, multiinedgenodes ));
+            Tpadded = cellfun( @(x) [x; NaN(maxn-numel(x))], multiinedgenodes, 'uni', 0);
+            % 2. Convert to array.
+            Tpadded = cat(2, Tpadded{:} );
+            % 3. Reshape to be one row and remove NaNs
+            Trow = reshape( Tpadded.', 1, [] );
+            erroredge = Trow(~isnan(Trow));
+            
+            % return empty debug if no errors found.
+            if isempty(erroredge)
+               debugseg = [];
+               debugskel = [];
+            else
+                warning([int2str(length(multiinedgenodes)) ' errors found in seg/skel. Check output of AirwaySkel.DebugGraph'])
+                % identify edge indices in Glink
+                Glink_ind = obj.Gdigraph.Edges.Label(erroredge);
+                % get branch labelled segmentation
+                branch_seg = ClassifySegmentation(obj);
+                % copy over segmentation
+                debugseg = double(obj.seg);
+                % identify voxels of error branch in seg
+                errorvox = ismember(branch_seg, Glink_ind);
+                debugseg(errorvox == 1) = 2;            
+                % identify voxels in skel of 'error' branches
+                errorvox = [obj.Glink(Glink_ind).point];
+                %copy skel and relabel 'error' branches
+                debugskel = double(obj.skel);
+                debugskel(errorvox) = 2;
+                % also show debug graph plot
+                G = obj.Gdigraph;
+                h = plot(G,'EdgeLabel',G.Edges.Label, 'Layout','layered');
+                h.NodeColor = 'k';
+                h.EdgeColor = 'k';
+                highlight(h,'Edges',erroredge,'EdgeColor','r')
+               
+            end
+        end
+        
+        function branch_seg = ClassifySegmentation(obj)
+            % label every branch in segmentation to AS branch index.
+            
+            % Find linear indicies of skeleton
+            skel_ind = find(obj.skel == 1);
+            classed_skel = zeros(size(skel_ind));
+            % for each skeleton branch
+            for j = 1:length(obj.Glink)
+                % get list of points in branch
+                for m = 1:length(obj.Glink(j).point)
+                    % put edge number by skeleton index
+                    ind = find(skel_ind == obj.Glink(j).point(m));
+                    classed_skel(ind) = j;
+                end
+            end
+            
+            % get list of everypoint on segmentation
+            [XPQ, YPQ, ZPQ] = ind2sub(size(obj.seg),find(obj.seg == 1));
+            PQ = [XPQ,YPQ,ZPQ];
+            % get list of everypoint on skeleton
+            [XP, YP, ZP] = ind2sub(size(obj.seg), skel_ind);
+            P = [XP, YP, ZP];
+            % find nearest seg point to it on skeleton
+            k = dsearchn(P,PQ);
+            % find that skeleton point's edge assignment
+            branch_seg = zeros(size(obj.seg));
+            for i = 1:length(PQ)
+                branch_seg(PQ(i,1),PQ(i,2),PQ(i,3)) = classed_skel(k(i));
+            end
+
+        end
 %% HIGH LEVEL METHODS    
         function obj = AirwayImageAll(obj)
             % Traverse all airway segments except the trachea.
@@ -485,8 +571,15 @@ classdef AirwaySkel
             %highlight(h,'Edges',edgepath,'EdgeColor','r','LineWidth',1.5)
         end
             
-%% UTILITIES
+%% Graph Methods
+        function loopbetweentwopoints(obj)
+            % used to ensure loops between two points do not exist due to
+            % segmentation errors. Amends the skeleton and graph but not
+            % segmentation
+        end
+
         function G = digraph(obj)
+            % TODO: REDUNDANT FUNCTION?
             % compute edge weights
             weights = zeros(length(obj.Glink), 1);
             for i = 1:length(obj.Glink)
@@ -497,13 +590,13 @@ classdef AirwaySkel
         end
 
 %% VISUALISATION METHODS
-function plot(obj)
+function h = plot(obj)
     % Only show graph for airways from carina to distal.
     G = obj.Gdigraph;
     trachea_edges = find(G.Edges.Label == obj.trachea_path);
     G = rmedge(G, trachea_edges);
     G = rmnode(G, find(indegree(G)==0 & outdegree(G)==0));
-    h = plot(G,'EdgeLabel',G.Edges.Label, 'Layout', 'force');
+    h = plot(G,'EdgeLabel',G.Edges.Label, 'Layout', 'layered');
     h.NodeColor = 'r';
     h.EdgeColor = 'k';
 end
@@ -539,41 +632,7 @@ function PlotTree(obj)
             view(80,0)
             axis vis3d
             
-        end
-        
-        
-        function branch_seg = ClassifySegmentation(obj)
-            % Set up list of classifications for skeleton
-            
-            % Find linear indicies of skeleton
-            skel_ind = find(obj.skel == 1);
-            classed_skel = zeros(size(skel_ind));
-            % for each skeleton branch
-            for j = 1:length(obj.Glink)
-                % get list of points in branch
-                for m = 1:length(obj.Glink(j).point)
-                    % put edge number by skeleton index
-                    ind = find(skel_ind == obj.Glink(j).point(m));
-                    classed_skel(ind) = j;
-                end
-            end
-            
-            % get list of everypoint on segmentation
-            [XPQ, YPQ, ZPQ] = ind2sub(size(obj.seg),find(obj.seg == 1));
-            PQ = [XPQ,YPQ,ZPQ];
-            % get list of everypoint on skeleton
-            [XP, YP, ZP] = ind2sub(size(obj.seg), skel_ind);
-            P = [XP, YP, ZP];
-            % find nearest seg point to it on skeleton
-            k = dsearchn(P,PQ);
-            % find that skeleton point's edge assignment
-            branch_seg = zeros(size(obj.seg));
-            for i = 1:length(PQ)
-                branch_seg(PQ(i,1),PQ(i,2),PQ(i,3)) = classed_skel(k(i));
-            end
-
-        end
-        
+end
         
         function PlotMap(obj, clims)
             axis([0 size(obj.CT, 1) 0 size(obj.CT, 2) 0 size(obj.CT, 3)])
