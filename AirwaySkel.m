@@ -172,7 +172,32 @@
             % identify labels
             obj.trachea_path=table2array(SG.Edges(:, {'Label'}));
         end
-                
+        
+        function obj = ComputeAirwayGen(obj)
+            % loop through graph nodes
+            G = obj.Gdigraph;
+            gens = zeros(length(obj.Glink),1);
+            gens(obj.trachea_path) = 0;
+            for i = 1:height(G.Nodes)
+                if i == obj.trachea_path
+                    break
+                end
+                % get path from carina to current node
+                path = shortestpath(G, obj.carina_node, i);
+                % edges out of carina, gen = 1
+                generation = length(path);
+                edge_idx = outedges(G, i);
+                % assign generation from number of nodes traversed to out
+                % edges.
+                gens(G.Edges.Label(edge_idx)) = generation;
+            end
+            % add gens field to glink
+            gens = num2cell(gens);
+            [obj.Glink(:).generation] = gens{:};
+        end
+        
+        
+%% UTILITIES                
         function [debugseg, debugskel] = DebugGraph(obj)
             % First check for multiple 'inedges' to all nodes.
             multiinedgenodes = cell(height(obj.Gdigraph.Edges),1);
@@ -202,6 +227,7 @@
             if isempty(erroredge)
                debugseg = [];
                debugskel = [];
+               disp('No errors found in skeleton/segmentation')
             else
                 warning([int2str(length(multiinedgenodes)) ' errors found in seg/skel. Check output of AirwaySkel.DebugGraph'])
                 % identify edge indices in Glink
@@ -219,6 +245,7 @@
                 debugskel = double(obj.skel);
                 debugskel(errorvox) = 2;
                 % also show debug graph plot
+                figure
                 G = obj.Gdigraph;
                 h = plot(G,'EdgeLabel',G.Edges.Label, 'Layout','layered');
                 h.NodeColor = 'k';
@@ -259,6 +286,7 @@
             end
 
         end
+        
 %% HIGH LEVEL METHODS    
         function obj = AirwayImageAll(obj)
             % Traverse all airway segments except the trachea.
@@ -590,15 +618,30 @@
         end
 
 %% VISUALISATION METHODS
-function h = plot(obj)
+function h = plot(obj, varargin)
     % Only show graph for airways from carina to distal.
     G = obj.Gdigraph;
-    trachea_edges = find(G.Edges.Label == obj.trachea_path);
-    G = rmedge(G, trachea_edges);
-    G = rmnode(G, find(indegree(G)==0 & outdegree(G)==0));
-    h = plot(G,'EdgeLabel',G.Edges.Label, 'Layout', 'layered');
+
+%     trachea_edges = find(G.Edges.Label == obj.trachea_path);
+%     G = rmedge(G, trachea_edges);
+%     G = rmnode(G, find(indegree(G)==0 & outdegree(G)==0));
+    
+    if nargin > 1
+        edgelabels = varargin{1};
+    else
+        edgelabels = G.Edges.Label;
+    end
+    h = plot(G,'EdgeLabel',edgelabels, 'Layout', 'layered');
     h.NodeColor = 'r';
     h.EdgeColor = 'k';
+end
+
+function h = plotgenlabels(obj)
+AS = ComputeAirwayGen(AS);
+gens = [AS.Glink(:).generation];
+G = AS.Gdigraph;
+genslabels = gens(AS.Gdigraph.Edges.Label);
+h = plot(G,'EdgeLabel',genslabels, 'Layout', 'layered');
 end
 
 
