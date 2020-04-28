@@ -210,7 +210,7 @@ classdef AirwaySkel
             % Set up lobe store vector
             lobes = cell(length(obj.Glink),1);
             % Assign trachea to itself
-            lobes{obj.trachea_path} = 'T';
+            lobes{obj.trachea_path} = 'B';
             
             % % Identify left and right lung nodes first
             lungN = successors(G, obj.carina_node);
@@ -223,8 +223,8 @@ classdef AirwaySkel
             end
             
             % assign labels to major bronchi
-            classedgenonlobes(obj.carina_node, leftN, 'L')
-            classedgenonlobes(obj.carina_node, rightN, 'R')
+            classedgenonlobes(obj.carina_node, leftN, 'B')
+            classedgenonlobes(obj.carina_node, rightN, 'B')
                         
             % % Identify node of upper and lower left lobe 'LL'
             LlungN = successors(G, leftN);
@@ -283,8 +283,11 @@ classdef AirwaySkel
             RLL_endpath = flip(shortestpath(G,obj.carina_node, RLL_end));
             [~, I] = intersect(RML_endpath, RLL_endpath);
             RML_RLLN = RML_endpath(min(I));
+            % assign bronchi edges between right node and bifurcating node.
+            classedgenonlobes(rightN, RML_RLLN, 'B')
+            % identify RML node
             RMLN = RML_endpath(min(I)-1);
-            % % assign labels to RM edges, not RL
+            % assign labels to RM edges, not RL
             classedgelobes(RMLN, 'RM')
             
 %             % % check for remaining non-lobe branches if they exist.
@@ -318,7 +321,7 @@ classdef AirwaySkel
             end
             
             function classedgenonlobes(s, t, label)
-            [~, E] = shortestpath(G, s, t);
+            [~, ~, E] = shortestpath(G, s, t);
             lobes(G.Edges.Label(E)) = {label};
             end
         end
@@ -808,25 +811,60 @@ classdef AirwaySkel
             
         end
         
-        function PlotMap(obj, clims)
+        function PlotMap3D(obj, mode)
+            % mode = 'TaperGradient', 'generation', 'lobes'
             axis([0 size(obj.CT, 1) 0 size(obj.CT, 2) 0 size(obj.CT, 3)])
             
             % generating the color data
             cdata = zeros(size(obj.seg));
             branch_seg = ClassifySegmentation(obj);
-            for i = 1:length(obj.Specs)
-                cdata(branch_seg == i) = obj.Specs(i).FWHMl_logtaper*-1;
+            switch mode 
+                case 'TaperGradient'
+                    for i = 1:length(obj.Specs)
+                        cdata(branch_seg == i) = obj.Specs(i).FWHMl_logtaper*-1;
+                    end
+                case 'Generation'
+                    for i = 1:length(obj.Glink)
+                        cdata(branch_seg == i) = obj.Glink(i).generation;
+                    end
+                    map = linspecer(max(cdata(:))+1);
+                    clims = [0 max(cdata(:))];
+                    colorbarstring = 'Generation Number';
+                case 'Lobe'
+                    % convert lobe id to number
+                    lobeid = {'B','RU','RM','RL','LU','LL'};
+                    for i = 1:length(obj.Glink)
+                        cdata(branch_seg == i) = find(strcmp(lobeid, obj.Glink(i).lobe))-1;
+                    end
+                    map = linspecer(max(cdata(:)));
+                    clims = [0 max(cdata(:))+1];
+                    colorbarstring = 'Lobe';
+                    
+                otherwise
+                    error('Choose appropiate mode.')
             end
-            
             % producing the plot
             p = patch(isosurface(obj.seg));
-            [x,y,z] = meshgrid(1:size(obj.seg, 1),1:size(obj.seg, 2),1:size(obj.seg, 3));
-            isocolors(x,y,z, cdata, p);
+            %[x,y,z] = meshgrid(1:size(obj.seg, 1),1:size(obj.seg, 2),1:size(obj.seg, 3));
+            %isocolors(x,y,z, cdata, p);
+            % map cdata scale to p
+            isocolors(cdata, p);
+            % % Reassign colors to real values
+            Vertcolour = p.FaceVertexCData;
+            vcolours = unique(Vertcolour);
+            colourind = unique(cdata);
+            for i = 1:length(vcolours)
+                Vertcolour(Vertcolour==vcolours(i)) = colourind(i);
+            end
+            p.FaceVertexCData = Vertcolour;
+            
             p.FaceColor = 'interp';
             p.EdgeColor = 'none';
-            colormap cool
-            colorbar
+            colormap(map)
+            c = colorbar;
+            c.Label.String = colorbarstring;
             caxis(clims)
+            view(80,0)
             axis vis3d
         end
         
