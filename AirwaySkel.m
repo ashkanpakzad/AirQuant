@@ -1,36 +1,36 @@
-    classdef AirwaySkel
-        properties
-            CT % CT image
-            CTinfo % CT metadata
-            seg % binary airway segmentation
-            % CT Properties/resampling params
-            physical_plane_length = 40;% check methods
-            physical_sampling_interval = 0.3;% check methods
-            spline_sampling_interval = 0.25;% check methods
-            % Ray params
-            num_rays = 50; % check methods
-            ray_interval = 0.2; % check methods
-            skel % skeleton based on segementation
-        end
-        properties (SetAccess = private)
-            % Graph Properties
-            Gadj % undirected Graph Adjacency matrix
-            Gnode % Graph node info
-            Glink % Graph edge info
-            Gdigraph % digraph object
-            trachea_node % node corresponding to top of trachea
-            trachea_path % edges that form a connect subgraph above the carina
-            carina_node % node that corresponds to the carina
-            % Resampled image slices along graph paths/airway segments.
-            TraversedImage % perpendicular CT slices of all airways
-            TraversedSeg % perpendicular segmentation slices of all airways
-            arclength % corresponding arclength measurement traversed slices
-            FWHMesl % FWHMesl algorithm results for every airway
-            Specs % Airway specs
-        end
-
+classdef AirwaySkel
+    properties
+        CT % CT image
+        CTinfo % CT metadata
+        seg % binary airway segmentation
+        % CT Properties/resampling params
+        physical_plane_length = 40;% check methods
+        physical_sampling_interval = 0.3;% check methods
+        spline_sampling_interval = 0.25;% check methods
+        % Ray params
+        num_rays = 50; % check methods
+        ray_interval = 0.2; % check methods
+        skel % skeleton based on segementation
+    end
+    properties (SetAccess = private)
+        % Graph Properties
+        Gadj % undirected Graph Adjacency matrix
+        Gnode % Graph node info
+        Glink % Graph edge info
+        Gdigraph % digraph object
+        trachea_node % node corresponding to top of trachea
+        trachea_path % edges that form a connect subgraph above the carina
+        carina_node % node that corresponds to the carina
+        % Resampled image slices along graph paths/airway segments.
+        TraversedImage % perpendicular CT slices of all airways
+        TraversedSeg % perpendicular segmentation slices of all airways
+        arclength % corresponding arclength measurement traversed slices
+        FWHMesl % FWHMesl algorithm results for every airway
+        Specs % Airway specs
+    end
+    
     methods
-%% INITIALISATION METHODS
+        %% INITIALISATION METHODS
         function obj = AirwaySkel(CTimage, CTinfo, segimage,skel, params)
             % Initialise the AirwaySkel class object.
             % if using default settings, set params structure to empty.
@@ -49,7 +49,7 @@
                 obj.num_rays = params.num_rays;
                 obj.ray_interval = params.ray_interval;
             end
-            % graph airway skeleton 
+            % graph airway skeleton
             obj = GenerateSkel(obj,skel);
             % Identify trachea
             obj = FindTrachea(obj);
@@ -59,6 +59,8 @@
             obj = FindCarina(obj);
             % Identify paths that belong to trachea
             obj = FindTracheaPaths(obj);
+            % classify airway generations
+            obj = ComputeAirwayGen(obj);
             % set up empty cell for traversed CT and segmentation
             obj.TraversedImage = cell(length(obj.Glink),1);
             obj.TraversedSeg = cell(length(obj.Glink),1);
@@ -81,7 +83,7 @@
             % create graph from skeleton.
             [obj.Gadj,obj.Gnode,obj.Glink] =...
                 Skel2Graph3D(obj.skel,0);
-
+            
         end
         
         
@@ -95,8 +97,8 @@
         
         
         function obj = AirwayDigraph(obj)
-            % Converts the output from skel2graph into a digraph tree 
-            % network, such that there are no loops and edges point from 
+            % Converts the output from skel2graph into a digraph tree
+            % network, such that there are no loops and edges point from
             % the trachea distally outwards.
             
             % Create digraph with edges in both directions, loop through
@@ -115,7 +117,7 @@
                     % record if not central-->distal
                     removal(j) = i;
                     j = j + 1;
-                end      
+                end
             end
             G = rmedge(G,removal);
             
@@ -143,8 +145,14 @@
             Edgetable = table(edges,weights,labels,'VariableNames',{'EndNodes', 'Weight', 'Label'});
             
             obj.Gdigraph = digraph(Edgetable);
+            % add node properties from Gnode
+            obj.Gdigraph.Nodes.comx(:) = [obj.Gnode(:).comx];
+            obj.Gdigraph.Nodes.comy(:) = [obj.Gnode(:).comy];
+            obj.Gdigraph.Nodes.comz(:) = [obj.Gnode(:).comz];
+            obj.Gdigraph.Nodes.ep(:) = [obj.Gnode(:).ep];
+            obj.Gdigraph.Nodes.label(:) = [1:length(obj.Gnode)]';
+            
         end
-        
         
         function obj = FindCarina(obj)
             % Finds the carina node by analysis of the directed graph
@@ -196,9 +204,129 @@
             [obj.Glink(:).generation] = gens{:};
         end
         
+        function obj = ComputeAirwayLobes(obj)
+            % Get airway graph
+            G = obj.Gdigraph;
+            % Set up lobe store vector
+            lobes = cell(length(obj.Glink),1);
+            % Assign trachea to itself
+            lobes{obj.trachea_path} = 'T';
+            
+            % % Identify left and right lung nodes first
+            lungN = successors(G, obj.carina_node);
+            if obj.Gnode(lungN(1)).comx > obj.Gnode(lungN(2)).comx
+                leftN = lungN(1);
+                rightN = lungN(2);
+            else 
+                leftN = lungN(2);
+                rightN = lungN(1);
+            end
+            
+            % assign labels to major bronchi
+            classedgenonlobes(obj.carina_node, leftN, 'L')
+            classedgenonlobes(obj.carina_node, rightN, 'R')
+                        
+            % % Identify node of upper and lower left lobe 'LL'
+            LlungN = successors(G, leftN);
+            
+            if obj.Gnode(LlungN(1)).comz > obj.Gnode(LlungN(2)).comz
+                LULN = LlungN(1);
+                LLLN = LlungN(2);
+            else
+                LULN = LlungN(2);
+                LLLN = LlungN(1);
+            end
+            
+            % assign branches of the left lobe.
+            classedgelobes(LULN, 'LU')
+            classedgelobes(LLLN, 'LL')
+            
+            % TODO: Identify node of lingular            
+            
+            % % Identify right upper lobe
+            RlungN = successors(G, rightN);
+            [~, I] = max([obj.Gnode(RlungN).comz]);
+            RULN = RlungN(I);
+            
+            % class branches of right upper lobe
+            classedgelobes(RULN, 'RU')
+            
+            % check if following node also belongs to upper lobe
+            upper_ratio = G.Edges.Weight(findedge(G,rightN,RlungN(RlungN ~= RULN)));
+            lower_ratio = G.Edges.Weight(findedge(G,obj.carina_node,rightN));
+            if upper_ratio/lower_ratio < 0.5
+                % non standard upper lobe branching
+                RlungN2 = find(G, RlungN(RlungN ~= RULN));
+                [~, I] = max([obj.Gnode(RlungN2).comz]);
+                RULN2 = RlungN(I);
+                classedgelobes(RULN2, 'RU')
+                % create subgraph of following nodes from here
+                Gsub = subgraph(G,bfsearch(G,RlungN2(RlungN2~=RULN2)));
+            else
+                % create subgraph of following nodes
+                Gsub = subgraph(G,bfsearch(G,RlungN(RlungN ~= RULN)));
+            end
+            
+            % % Identify mid and lower lobes in right lung
+            % get list of endpoint nodes
+            endpoint = Gsub.Nodes(Gsub.Nodes.ep == 1, :);
+            % compute z - y.
+            z_minus_y = [endpoint.comz] - [endpoint.comy];
+            % identify end node of right middle lobe.
+            [~, I] = max(z_minus_y);
+            RML_end = endpoint.label(I);
+            % identify end node of right lower lobe.
+            [~, I] = min(z_minus_y);
+            RLL_end = endpoint.label(I);
+            % identify bifurcation point of the two end points.
+            RML_endpath = flip(shortestpath(G,obj.carina_node, RML_end));
+            RLL_endpath = flip(shortestpath(G,obj.carina_node, RLL_end));
+            [~, I] = intersect(RML_endpath, RLL_endpath);
+            RML_RLLN = RML_endpath(min(I));
+            RMLN = RML_endpath(min(I)-1);
+            % % assign labels to RM edges, not RL
+            classedgelobes(RMLN, 'RM')
+            
+%             % % check for remaining non-lobe branches if they exist.
+%             P = shortestpath(G, RightN, RML_RLLN);
+%             switch length(P)
+%                 case 1 % No further branching from right lung node
+%                     % do nothing
+%                 case 2 % Further major bronchi to lower lobes
+%                     classedgenonlobes(RlungN, RML_RLLN, 'R')
+%                 case 3 % potential non-standard branching
+%                     upper_ratio = G.Edges.Weight(findedge(G,RightN,P(2)));
+%                     lower_ratio = G.Edges.Weight(findedge(G,obj.carina_node,RightN));
+%                     if upper_ratio/lower_ratio < 0.5
+%                         
+%                     end
+%             end
+            
+            % assign remaining labels to RLL
+            lobes(cellfun(@isempty,lobes)) = {'RL'};
+            
+            % add lobe field to glink
+            lobe = num2cell(lobes);
+            [obj.Glink(:).lobe] = lobe{:};
+            
+            function classedgelobes(node, label)
+                % identify all edges from node outwards
+                [~, E] = bfsearch(G, node, 'edgetonew');
+                % add predecessing edge
+                E = [E; inedges(G, node)];
+                lobes(G.Edges.Label(E)) = {label};
+            end
+            
+            function classedgenonlobes(s, t, label)
+            [~, E] = shortestpath(G, s, t);
+            lobes(G.Edges.Label(E)) = {label};
+            end
+        end
         
-%% UTILITIES                
+        
+        %% UTILITIES
         function [debugseg, debugskel] = DebugGraph(obj)
+            % TODO: consider moving graph plot to the default plot.
             % First check for multiple 'inedges' to all nodes.
             multiinedgenodes = cell(height(obj.Gdigraph.Edges),1);
             j = 1;
@@ -208,7 +336,7 @@
                     multiinedgenodes{j} = eid;
                     j = j + 1;
                 end
-            end          
+            end
             multiinedgenodes(j:end)=[];
             % convert cell of different shapes to vector, by Wolfie on
             % stackoverflow.
@@ -225,9 +353,9 @@
             
             % return empty debug if no errors found.
             if isempty(erroredge)
-               debugseg = [];
-               debugskel = [];
-               disp('No errors found in skeleton/segmentation')
+                debugseg = [];
+                debugskel = [];
+                disp('No errors found in skeleton/segmentation')
             else
                 warning([int2str(length(multiinedgenodes)) ' errors found in seg/skel. Check output of AirwaySkel.DebugGraph'])
                 % identify edge indices in Glink
@@ -238,7 +366,7 @@
                 debugseg = double(obj.seg);
                 % identify voxels of error branch in seg
                 errorvox = ismember(branch_seg, Glink_ind);
-                debugseg(errorvox == 1) = 2;            
+                debugseg(errorvox == 1) = 2;
                 % identify voxels in skel of 'error' branches
                 errorvox = [obj.Glink(Glink_ind).point];
                 %copy skel and relabel 'error' branches
@@ -251,11 +379,12 @@
                 h.NodeColor = 'k';
                 h.EdgeColor = 'k';
                 highlight(h,'Edges',erroredge,'EdgeColor','r')
-               
+                
             end
         end
         
         function branch_seg = ClassifySegmentation(obj)
+            % TODO: consider making this function more robust!
             % label every branch in segmentation to AS branch index.
             
             % Find linear indicies of skeleton
@@ -284,10 +413,10 @@
             for i = 1:length(PQ)
                 branch_seg(PQ(i,1),PQ(i,2),PQ(i,3)) = classed_skel(k(i));
             end
-
+            
         end
         
-%% HIGH LEVEL METHODS    
+        %% HIGH LEVEL METHODS
         function obj = AirwayImageAll(obj)
             % Traverse all airway segments except the trachea.
             disp('Start traversing all airway segments')
@@ -319,7 +448,7 @@
             end
         end
         
-%% TRAVERSING AIRWAYS METHODS %%%
+        %% TRAVERSING AIRWAYS METHODS %%%
         function obj = CreateAirwayImage(obj, link_index)
             % Constructs perpendicular images as if travelling along an
             % airway segment in CT image and Segmentation.
@@ -336,13 +465,13 @@
             arc_length = zeros(length(spline_points),1);
             for i = 1:length(spline_points)
                 try
-                % * Compute Normal Vector per spline point
-                [normal, CT_point] = AirwaySkel.ComputeNormal(spline, spline_points(i));
-                % * Interpolate Perpendicular Slice per spline point
-                [TransAirwayImage(:,:,i), TransSegImage(:,:,i)] = ...
-                    InterpolateCT(obj, normal, CT_point);
-                % * Compute real arc_length at this spline point
-                arc_length(i) = Arc_length_to_point(spline_points(i),spline);
+                    % * Compute Normal Vector per spline point
+                    [normal, CT_point] = AirwaySkel.ComputeNormal(spline, spline_points(i));
+                    % * Interpolate Perpendicular Slice per spline point
+                    [TransAirwayImage(:,:,i), TransSegImage(:,:,i)] = ...
+                        InterpolateCT(obj, normal, CT_point);
+                    % * Compute real arc_length at this spline point
+                    arc_length(i) = Arc_length_to_point(spline_points(i),spline);
                 catch
                     % TODO identify why arc_length cannot be calculated in
                     % some cases.
@@ -423,7 +552,7 @@
             spline = cscvn(smooth_data_points);
         end
         
-%% MEASUREMENT METHODS
+        %% MEASUREMENT METHODS
         function obj = FindAirwayBoundariesFWHM(obj, link_index)
             %Based on function by Kin Quan 2018 that is based on Kiraly06
             
@@ -437,35 +566,35 @@
             % For every traversed slice
             for k = 1:slices_size
                 try
-                % * Compute airway centre
-                % Check that airway centre is slice centre
-                center = ...
-                    Return_centre_pt_image(...
-                    obj.TraversedSeg{link_index, 1}(:,:,k));
-                
-                % Recompute new centre if necessary
-                [centre_ind , new_centre] =  ...
-                    Check_centre_with_segmentation(obj.TraversedImage{link_index, 1}(:,:,k), ...
-                    obj.TraversedSeg{link_index, 1}(:,:,k));
-                if ~centre_ind
-                    center = fliplr(new_centre);
-                end
-                
-                % * Raycast
-                [CT_rays, seg_rays, coords]= Raycast(obj, ...
-                    obj.TraversedImage{link_index, 1}(:,:,k), ...
-                    obj.TraversedSeg{link_index, 1}(:,:,k), center);
-                
-                % * Compute FWHM
-                [FWHMl, FWHMp, FWHMr] = AirwaySkel.computeFWHM(CT_rays,...
-                    seg_rays, coords);
-                
-                % * Compute Ellipses
-                FWHMl_ellipse = ComputeEllipses(obj, FWHMl);
-                FWHMp_ellipse = ComputeEllipses(obj, FWHMp);
-                FWHMr_ellipse = ComputeEllipses(obj, FWHMr);
-                
-                % * Record, catch incase a slice fails.
+                    % * Compute airway centre
+                    % Check that airway centre is slice centre
+                    center = ...
+                        Return_centre_pt_image(...
+                        obj.TraversedSeg{link_index, 1}(:,:,k));
+                    
+                    % Recompute new centre if necessary
+                    [centre_ind , new_centre] =  ...
+                        Check_centre_with_segmentation(obj.TraversedImage{link_index, 1}(:,:,k), ...
+                        obj.TraversedSeg{link_index, 1}(:,:,k));
+                    if ~centre_ind
+                        center = fliplr(new_centre);
+                    end
+                    
+                    % * Raycast
+                    [CT_rays, seg_rays, coords]= Raycast(obj, ...
+                        obj.TraversedImage{link_index, 1}(:,:,k), ...
+                        obj.TraversedSeg{link_index, 1}(:,:,k), center);
+                    
+                    % * Compute FWHM
+                    [FWHMl, FWHMp, FWHMr] = AirwaySkel.computeFWHM(CT_rays,...
+                        seg_rays, coords);
+                    
+                    % * Compute Ellipses
+                    FWHMl_ellipse = ComputeEllipses(obj, FWHMl);
+                    FWHMp_ellipse = ComputeEllipses(obj, FWHMp);
+                    FWHMr_ellipse = ComputeEllipses(obj, FWHMr);
+                    
+                    % * Record, catch incase a slice fails.
                     raycast_FWHMl{k,1} = FWHMl_ellipse;
                     raycast_FWHMp{k,1} = FWHMp_ellipse;
                     raycast_FWHMr{k,1} = FWHMr_ellipse;
@@ -473,7 +602,7 @@
                     warning('Fail recorded')
                     raycast_FWHMl{k,1} = NaN;
                     raycast_FWHMp{k,1} = NaN;
-                    raycast_FWHMr{k,1} = NaN;                
+                    raycast_FWHMr{k,1} = NaN;
                 end
             end
             obj.FWHMesl{link_index, 1} = raycast_FWHMl;
@@ -549,7 +678,7 @@
                     obj.arclength{i, 1}, cum_area);
             end
         end
-
+        
         function [logtaperrate, cum_arclength, cum_area, edgepath] = ConstructTaperPath(obj, terminal_link_idx)
             % TODO: remove trachea node?
             G = digraph(obj);
@@ -570,11 +699,11 @@
                 i = edgepath(q);
                 % skip the first of each link except the first one
                 if k == 1
-                    try 
+                    try
                         cum_area = [cum_area; obj.FWHMesl{i, 1}{1, 1}.area];
                         k=0;
                     catch
-                    	cum_area = [cum_area; NaN];
+                        cum_area = [cum_area; NaN];
                         k=0;
                     end
                 end
@@ -582,12 +711,12 @@
                 max_current_arclength = max(cum_arclength);
                 current_arclength_array = max_current_arclength+obj.arclength{i,1}(2:end);
                 cum_arclength = [cum_arclength; current_arclength_array];
-
+                
                 for j = 2:length(obj.arclength{i,1})
-                    try 
+                    try
                         cum_area = [cum_area; obj.FWHMesl{i, 1}{j, 1}.area];
                     catch
-                    	cum_area = [cum_area; NaN];
+                        cum_area = [cum_area; NaN];
                     end
                 end
             end
@@ -598,14 +727,14 @@
             %h = plot(G);
             %highlight(h,'Edges',edgepath,'EdgeColor','r','LineWidth',1.5)
         end
-            
-%% Graph Methods
+        
+        %% Graph Methods
         function loopbetweentwopoints(obj)
             % used to ensure loops between two points do not exist due to
             % segmentation errors. Amends the skeleton and graph but not
             % segmentation
         end
-
+        
         function G = digraph(obj)
             % TODO: REDUNDANT FUNCTION?
             % compute edge weights
@@ -616,36 +745,38 @@
             % add edges
             G = digraph([obj.Glink(:).n1],[obj.Glink(:).n2], weights);
         end
-
-%% VISUALISATION METHODS
-function h = plot(obj, varargin)
-    % Only show graph for airways from carina to distal.
-    G = obj.Gdigraph;
-
-%     trachea_edges = find(G.Edges.Label == obj.trachea_path);
-%     G = rmedge(G, trachea_edges);
-%     G = rmnode(G, find(indegree(G)==0 & outdegree(G)==0));
-    
-    if nargin > 1
-        edgelabels = varargin{1};
-    else
-        edgelabels = G.Edges.Label;
-    end
-    h = plot(G,'EdgeLabel',edgelabels, 'Layout', 'layered');
-    h.NodeColor = 'r';
-    h.EdgeColor = 'k';
-end
-
-function h = plotgenlabels(obj)
-AS = ComputeAirwayGen(AS);
-gens = [AS.Glink(:).generation];
-G = AS.Gdigraph;
-genslabels = gens(AS.Gdigraph.Edges.Label);
-h = plot(G,'EdgeLabel',genslabels, 'Layout', 'layered');
-end
-
-
-function PlotTree(obj)
+        
+        %% VISUALISATION METHODS
+        function h = plot(obj, varargin)
+            % Default plot is a graph network representation. Optional input is to
+            % provide a list of edge labels indexed by the Glink property.
+            
+            % Only show graph for airways from carina to distal.
+            G = obj.Gdigraph;
+            
+            %     trachea_edges = find(G.Edges.Label == obj.trachea_path);
+            %     G = rmedge(G, trachea_edges);
+            %     G = rmnode(G, find(indegree(G)==0 & outdegree(G)==0));
+            
+            if nargin > 1
+                edgelabels = varargin{1};
+            else
+                % default edge label is Glink index.
+                edgelabels = G.Edges.Label;
+            end
+            h = plot(G,'EdgeLabel',edgelabels, 'Layout', 'layered');
+            h.NodeColor = 'r';
+            h.EdgeColor = 'k';
+        end
+        
+        function h = plotgenlabels(obj)
+            gens = [AS.Glink(:).generation];
+            genslabels = gens(obj.Gdigraph.Edges.Label);
+            h = plot(obj, genslabels);
+        end
+        
+        
+        function PlotTree(obj)
             % Plot the airway tree with nodes and links
             % Original Function by Ashkan Pakzad on 27th July 2019.
             
@@ -656,7 +787,7 @@ function PlotTree(obj)
             % edges
             ind = zeros(length(obj.Glink), 1);
             for i = 1:length(obj.Glink)
-            ind(i) = obj.Glink(i).point(ceil(end/2));
+                ind(i) = obj.Glink(i).point(ceil(end/2));
             end
             [Y, X, Z] = ind2sub(size(obj.seg),ind);
             nums_link = string(1:length(obj.Glink));
@@ -675,7 +806,7 @@ function PlotTree(obj)
             view(80,0)
             axis vis3d
             
-end
+        end
         
         function PlotMap(obj, clims)
             axis([0 size(obj.CT, 1) 0 size(obj.CT, 2) 0 size(obj.CT, 3)])
@@ -684,7 +815,7 @@ end
             cdata = zeros(size(obj.seg));
             branch_seg = ClassifySegmentation(obj);
             for i = 1:length(obj.Specs)
-             cdata(branch_seg == i) = obj.Specs(i).FWHMl_logtaper*-1;
+                cdata(branch_seg == i) = obj.Specs(i).FWHMl_logtaper*-1;
             end
             
             % producing the plot
@@ -700,13 +831,13 @@ end
         end
         
         function PlotAirway3(obj, link_index)
-            % Plot resampled airway slices overlayed with FWHMesl ray cast 
+            % Plot resampled airway slices overlayed with FWHMesl ray cast
             % points and fitted ellipse
             f = figure('Position',  [100, 100, 850, 600]);
             slide = 1;
             PlotAirway(obj, link_index, slide)
             numSteps = size(obj.TraversedImage{link_index,1}, 3);
-
+            
             b = uicontrol('Parent',f,'Style','slider','Position',[50,10,750,23],...
                 'value',slide, 'min',1, 'max',numSteps, 'SliderStep', [1/(numSteps-1) , 1/(numSteps-1)]);
             bgcolor = f.Color;
@@ -715,7 +846,7 @@ end
             uicontrol('Parent',f,'Style','text','Position',[800,10,23,23],...
                 'String',numSteps,'BackgroundColor',bgcolor);
             
-            b.Callback = @sliderselect; 
+            b.Callback = @sliderselect;
             
             function sliderselect(src,event)
                 val=round(b.Value);
@@ -731,26 +862,26 @@ end
             colormap gray
             
             try % try block incase FWHMesl has not been executed.
-            % plot ray cast results
-
-            plot(obj.FWHMesl{link_index, 1}{slide, 1}.x_points, obj.FWHMesl{link_index, 1}{slide, 1}.y_points,'r.')
-            plot(obj.FWHMesl{link_index, 2}{slide, 1}.x_points, obj.FWHMesl{link_index, 2}{slide, 1}.y_points,'c.')
-            plot(obj.FWHMesl{link_index, 3}{slide, 1}.x_points, obj.FWHMesl{link_index, 3}{slide, 1}.y_points,'y.')
-
-            % plot ellipse fitting
-            ellipse(obj.FWHMesl{link_index, 1}{slide, 1}.elliptical_info(3),obj.FWHMesl{link_index, 1}{slide, 1}.elliptical_info(4),...
-                obj.FWHMesl{link_index, 1}{slide, 1}.elliptical_info(5),obj.FWHMesl{link_index, 1}{slide, 1}.elliptical_info(1),...
-                obj.FWHMesl{link_index, 1}{slide, 1}.elliptical_info(2),'m');
-            
-            ellipse(obj.FWHMesl{link_index, 2}{slide, 1}.elliptical_info(3),obj.FWHMesl{link_index, 2}{slide, 1}.elliptical_info(4),...
-                obj.FWHMesl{link_index, 2}{slide, 1}.elliptical_info(5),obj.FWHMesl{link_index, 2}{slide, 1}.elliptical_info(1),...
-                obj.FWHMesl{link_index, 2}{slide, 1}.elliptical_info(2),'b');
-            
-            ellipse(obj.FWHMesl{link_index, 3}{slide, 1}.elliptical_info(3),obj.FWHMesl{link_index, 3}{slide, 1}.elliptical_info(4),...
-                obj.FWHMesl{link_index, 3}{slide, 1}.elliptical_info(5),obj.FWHMesl{link_index, 3}{slide, 1}.elliptical_info(1),...
-                obj.FWHMesl{link_index, 3}{slide, 1}.elliptical_info(2),'y');
-            %TODO: set third colour more appropiately
-            
+                % plot ray cast results
+                
+                plot(obj.FWHMesl{link_index, 1}{slide, 1}.x_points, obj.FWHMesl{link_index, 1}{slide, 1}.y_points,'r.')
+                plot(obj.FWHMesl{link_index, 2}{slide, 1}.x_points, obj.FWHMesl{link_index, 2}{slide, 1}.y_points,'c.')
+                plot(obj.FWHMesl{link_index, 3}{slide, 1}.x_points, obj.FWHMesl{link_index, 3}{slide, 1}.y_points,'y.')
+                
+                % plot ellipse fitting
+                ellipse(obj.FWHMesl{link_index, 1}{slide, 1}.elliptical_info(3),obj.FWHMesl{link_index, 1}{slide, 1}.elliptical_info(4),...
+                    obj.FWHMesl{link_index, 1}{slide, 1}.elliptical_info(5),obj.FWHMesl{link_index, 1}{slide, 1}.elliptical_info(1),...
+                    obj.FWHMesl{link_index, 1}{slide, 1}.elliptical_info(2),'m');
+                
+                ellipse(obj.FWHMesl{link_index, 2}{slide, 1}.elliptical_info(3),obj.FWHMesl{link_index, 2}{slide, 1}.elliptical_info(4),...
+                    obj.FWHMesl{link_index, 2}{slide, 1}.elliptical_info(5),obj.FWHMesl{link_index, 2}{slide, 1}.elliptical_info(1),...
+                    obj.FWHMesl{link_index, 2}{slide, 1}.elliptical_info(2),'b');
+                
+                ellipse(obj.FWHMesl{link_index, 3}{slide, 1}.elliptical_info(3),obj.FWHMesl{link_index, 3}{slide, 1}.elliptical_info(4),...
+                    obj.FWHMesl{link_index, 3}{slide, 1}.elliptical_info(5),obj.FWHMesl{link_index, 3}{slide, 1}.elliptical_info(1),...
+                    obj.FWHMesl{link_index, 3}{slide, 1}.elliptical_info(2),'y');
+                %TODO: set third colour more appropiately
+                
             catch
                 warning('No FWHMesl data, showing slices without elliptical information.')
             end
@@ -762,17 +893,17 @@ end
             a = rectangle('Position',[0,0,133,10],'FaceColor','y','LineWidth',2);
             ax = gca;
             try
-            text(ax, 1,5,sprintf('Arc Length = %4.1f mm; Inner area = %4.2f mm^2; Peak area = %4.2f mm^2; Outer area = %4.2f mm^2; %3.0i of %3.0i', ...
-                obj.arclength{link_index, 1}(slide), obj.FWHMesl{link_index, 1}{slide, 1}.area, obj.FWHMesl{link_index, 2}{slide, 1}.area ,...
-                obj.FWHMesl{link_index, 3}{slide, 1}.area, slide, size(obj.TraversedImage{link_index, 1},3)));
-            catch 
+                text(ax, 1,5,sprintf('Arc Length = %4.1f mm; Inner area = %4.2f mm^2; Peak area = %4.2f mm^2; Outer area = %4.2f mm^2; %3.0i of %3.0i', ...
+                    obj.arclength{link_index, 1}(slide), obj.FWHMesl{link_index, 1}{slide, 1}.area, obj.FWHMesl{link_index, 2}{slide, 1}.area ,...
+                    obj.FWHMesl{link_index, 3}{slide, 1}.area, slide, size(obj.TraversedImage{link_index, 1},3)));
+            catch
                 text(ax, 1,5,sprintf('Arc Length = %4.1f mm; %3.0i of %3.0i', ...
-                obj.arclength{link_index, 1}(slide), slide, size(obj.TraversedImage{link_index, 1},3)));
+                    obj.arclength{link_index, 1}(slide), slide, size(obj.TraversedImage{link_index, 1},3)));
             end
         end
         
-end
-%% STATIC METHODS    
+    end
+    %% STATIC METHODS
     methods (Static)
         function [normal, CT_point] = ComputeNormal(spline, point)
             % Based on original function by Kin Quan 2018
@@ -788,11 +919,11 @@ end
         
         function logtaperrate = ComputeTaperRate(arclength, area)
             
-        % identify NaN data points
-        idx = isnan(area);
-        % compute logtaperrate, ignoring nan values
-        p_coeff = polyfit(arclength(~idx),log(area(~idx)),1);
-        logtaperrate = p_coeff(1);                   
+            % identify NaN data points
+            idx = isnan(area);
+            % compute logtaperrate, ignoring nan values
+            p_coeff = polyfit(arclength(~idx),log(area(~idx)),1);
+            logtaperrate = p_coeff(1);
         end
         
         
