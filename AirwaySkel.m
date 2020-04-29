@@ -820,6 +820,7 @@ classdef AirwaySkel
             branch_seg = ClassifySegmentation(obj);
             switch mode 
                 case 'TaperGradient'
+                    % TODO: rewrite this bit....
                     for i = 1:length(obj.Specs)
                         cdata(branch_seg == i) = obj.Specs(i).FWHMl_logtaper*-1;
                     end
@@ -827,42 +828,42 @@ classdef AirwaySkel
                     for i = 1:length(obj.Glink)
                         cdata(branch_seg == i) = obj.Glink(i).generation;
                     end
-                    map = linspecer(max(cdata(:))+1);
                     clims = [0 max(cdata(:))];
-                    colorbarstring = 'Generation Number';
+%                     colorbarstring = 'Generation Number';
                 case 'Lobe'
                     % convert lobe id to number
                     lobeid = {'B','RU','RM','RL','LU','LL'};
                     for i = 1:length(obj.Glink)
                         cdata(branch_seg == i) = find(strcmp(lobeid, obj.Glink(i).lobe))-1;
                     end
-                    map = linspecer(max(cdata(:)));
                     clims = [0 max(cdata(:))+1];
-                    colorbarstring = 'Lobe';
+%                     colorbarstring = 'Lobe';
+%                     colourshow = clims(1):clims(2);
+%                     colourlabels = lobeid;
                     
                 otherwise
                     error('Choose appropiate mode.')
             end
-            % producing the plot
+            % producing segmentation 3d object
             p = patch(isosurface(obj.seg));
-            %[x,y,z] = meshgrid(1:size(obj.seg, 1),1:size(obj.seg, 2),1:size(obj.seg, 3));
-            %isocolors(x,y,z, cdata, p);
-            % map cdata scale to p
+            % map colour indices to 3d object vertices
             isocolors(cdata, p);
-            % % Reassign colors to real values
+            % % Reassign colors to meaningful values
             Vertcolour = p.FaceVertexCData;
             vcolours = unique(Vertcolour);
             colourind = unique(cdata);
             for i = 1:length(vcolours)
                 Vertcolour(Vertcolour==vcolours(i)) = colourind(i);
             end
+            % overwrite vertices colour with meaningful values
             p.FaceVertexCData = Vertcolour;
             
             p.FaceColor = 'interp';
             p.EdgeColor = 'none';
+            map = linspecer(max(cdata(:))+1);
             colormap(map)
-            c = colorbar;
-            c.Label.String = colorbarstring;
+%             c = colorbar('Ticks', colourshow, 'TickLabels', colourlabels);
+%             c.Label.String = colorbarstring;
             caxis(clims)
             view(80,0)
             axis vis3d
