@@ -226,20 +226,37 @@ classdef AirwaySkel
             classedgenonlobes(obj.carina_node, leftN, 'B')
             classedgenonlobes(obj.carina_node, rightN, 'B')
                         
-            % % Identify node of upper and lower left lobe 'LL'
+            % % Identify node of upper-lingular and lower left lobe 'LL'
             LlungN = successors(G, leftN);
             
             if obj.Gnode(LlungN(1)).comz > obj.Gnode(LlungN(2)).comz
-                LULN = LlungN(1);
+                LUL_L = LlungN(1);
                 LLLN = LlungN(2);
             else
-                LULN = LlungN(2);
+                LUL_L = LlungN(2);
                 LLLN = LlungN(1);
             end
             
-            % assign branches of the left lobe.
-            classedgelobes(LULN, 'LU')
+            % Assign branches of the lower left lobe
             classedgelobes(LLLN, 'LL')
+            % assign branch from left lobe divider to upper lobe node
+            classedgenonlobes(leftN, LUL_L, 'LU')
+            
+            % identify upper lobe and lingular
+            LUL_LN = successors(G, LUL_L);
+            
+            if obj.Gnode(LUL_LN(1)).comz > obj.Gnode(LUL_LN(2)).comz
+                LULN = LUL_LN(1);
+                LN = LUL_LN(2);
+            else
+                LULN = LUL_LN(2);
+                LN = LUL_LN(1);
+            end
+            
+            % assign branches of the upper left lobe.
+            classedgelobes(LULN, 'LU')
+            classedgelobes(LN, 'lin')
+            
             
             % TODO: Identify node of lingular            
             
@@ -410,7 +427,8 @@ classdef AirwaySkel
             [XP, YP, ZP] = ind2sub(size(obj.seg), skel_ind);
             P = [XP, YP, ZP];
             % find nearest seg point to it on skeleton
-            k = dsearchn(P,PQ);
+            T = delaunayn(P);
+            k = dsearchn(P,T,PQ);
             % find that skeleton point's edge assignment
             branch_seg = zeros(size(obj.seg));
             for i = 1:length(PQ)
@@ -832,7 +850,7 @@ classdef AirwaySkel
 %                     colorbarstring = 'Generation Number';
                 case 'Lobe'
                     % convert lobe id to number
-                    lobeid = {'B','RU','RM','RL','LU','LL'};
+                    lobeid = {'B','RU','RM','RL','LU','lin','LL'};
                     for i = 1:length(obj.Glink)
                         cdata(branch_seg == i) = find(strcmp(lobeid, obj.Glink(i).lobe))-1;
                     end
@@ -860,7 +878,7 @@ classdef AirwaySkel
             
             p.FaceColor = 'interp';
             p.EdgeColor = 'none';
-            map = linspecer(max(cdata(:))+1);
+            map = linspecer(max(cdata(:))+2);
             colormap(map)
 %             c = colorbar('Ticks', colourshow, 'TickLabels', colourlabels);
 %             c.Label.String = colorbarstring;
