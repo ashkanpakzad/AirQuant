@@ -77,11 +77,13 @@ strongCMB = find(T.LSF >= 0.5);
 
 %%% Compute loss graph
 g = binaryImageGraph(object);
+p_all = g.Edges.EndNodes(:,1);
+q_all = g.Edges.EndNodes(:,2);
 
 % compute step cost across grid
 for i = 1:height(g.Edges)
-    pnode = g.Edges.EndNodes(i,1);
-    qnode = g.Edges.EndNodes(i,2);
+    pnode = p_all(i);
+    qnode = q_all(i);
     py = g.Nodes.x(pnode);
     px = g.Nodes.y(pnode);
     qy = g.Nodes.x(qnode);
