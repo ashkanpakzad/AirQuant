@@ -81,15 +81,18 @@ p_all = g.Edges.EndNodes(:,1);
 q_all = g.Edges.EndNodes(:,2);
 
 % compute step cost across grid
-for i = 1:height(g.Edges)
-    pnode = p_all(i);
-    qnode = q_all(i);
+weights = zeros(size(p_all));
+for iedge = 1:height(g.Edges)
+    pnode = p_all(iedge);
+    qnode = q_all(iedge);
     py = g.Nodes.x(pnode);
     px = g.Nodes.y(pnode);
     qy = g.Nodes.x(qnode);
     qx = g.Nodes.y(qnode);
-    g.Edges.Weight(i) = stepcost(px,py,qx,qy,object,DTmap);
+    weights(iedge) = stepcost(px,py,qx,qy,object,DTmap);
 end
+
+g.Edges.Weight = weights;
 
 %%% while loop for as long as new branches found
 branchit = 0;
