@@ -47,29 +47,13 @@ end
 
 %%% Compute LSF of CMBs
 allLSF = zeros(size(T, 1),1);
-for j = 1:size(T, 1)
-    py= T.X(j);
-    px= T.Y(j);
+for j_lsf = 1:size(T, 1)
+    py= T.X(j_lsf);
+    px= T.Y(j_lsf);
     
-    [Qx, Qy] = ndgrid(px-1:px+1, py-1:py+1);
-    nb = [Qx(:),Qy(:)];
-    nb(5,:) = [];
-    
-    inequalityvals = zeros(length(nb),1);
-    for i = 1:length(nb)
-        dist = abs(px-nb(i,1))+abs(py-nb(i,2));
-        upper = DTmap(nb(i,1), nb(i,2)) - DTmap(px, py);
-        lower = 0.5*(object(px, py)+object(nb(i,1), nb(i,2)))*dist;
-        inequalityvals(i) = upper/lower;
-    end
-    output = abs(max(inequalityvals(:)));
-    if output > 0
-        LSF = 1- output;
-    else
-        LSF = 1;
-    end
-    allLSF(j) = LSF;
+    allLSF(j_lsf) = sigfactor(px, py, object, DTmap);
 end
+
 T.LSF = allLSF;
 
 % identify strong CMBs
@@ -77,18 +61,22 @@ strongCMB = find(T.LSF >= 0.5);
 
 %%% Compute loss graph
 g = binaryImageGraph(object);
+
+% extract graph information into matrices for performance.
 p_all = g.Edges.EndNodes(:,1);
 q_all = g.Edges.EndNodes(:,2);
-
+nodex = g.Nodes.x;
+nodey = g.Nodes.y;
 % compute step cost across grid
+
 weights = zeros(size(p_all));
 for iedge = 1:height(g.Edges)
     pnode = p_all(iedge);
     qnode = q_all(iedge);
-    py = g.Nodes.x(pnode);
-    px = g.Nodes.y(pnode);
-    qy = g.Nodes.x(qnode);
-    qx = g.Nodes.y(qnode);
+    py = nodex(pnode);
+    px = nodey(pnode);
+    qy = nodex(qnode);
+    qx = nodey(qnode);
     weights(iedge) = stepcost(px,py,qx,qy,object,DTmap);
 end
 
@@ -109,8 +97,8 @@ while ~isequal(Omarked, object)
     end
     
     % if potential branchs identified add branch
-    for i = 1:length(subtrees)
-        [furthestCMBX, furthestCMBY] = furthestCMB(Omarked,T.linear, subtrees{1,i});
+    for i_st = 1:length(subtrees)
+        [furthestCMBX, furthestCMBY] = furthestCMB(Omarked,T.linear, subtrees{1,i_st});
         
         [pathX,pathY,~] = mincostpath(...
             initx, inity, furthestCMBY, furthestCMBX, object, g);
@@ -159,8 +147,7 @@ Skel(skelpath) = 1;
         inequalityvals = zeros(length(nb),1);
         for i = 1:length(nb)
             dist = abs(px-nb(i,1))+abs(py-nb(i,2));
-            DTval = DTmap(px, py);
-            upper = DTmap(nb(i,1), nb(i,2)) - DTval;
+            upper = DTmap(nb(i,1), nb(i,2)) - DTmap(px, py);;
             lower = 0.5*(object(px, py)+object(nb(i,1), nb(i,2)))*dist;
             inequalityvals(i) = upper/lower;
         end
@@ -177,16 +164,15 @@ Skel(skelpath) = 1;
         epsilon = 0.01;
         LSF1 = sigfactor(px, py, object, DTmap);
         LSF2 = sigfactor(qx, qy, object, DTmap);
-        dist = abs(px-qx)+abs(py-qy);
+        dist_sc = abs(px-qx)+abs(py-qy);
         
-        SC = dist/(epsilon+(LSF1+LSF2)^2);
+        SC = dist_sc/(epsilon+(LSF1+LSF2)^2);
     end
 
     function nb = neighbors(px, py)
-        %[Qx, Qy] = ndgrid(px-1:px+1, py-1:py+1);
-        [Qx, Qy] = meshgrid(px-1:px+1, py-1:py+1);
-        nb = [Qx(:),Qy(:)];
-        %nb(5,:) = [];
+        % 8 connected neighbor positions
+        nb = [px-1 py-1; px-1 py; px-1 py+1; px py-1; px py+1;...
+            px+1 py-1; px+1 py; px+1 py+1;];
     end
 
     function [pathX,pathY,cost] = mincostpath(sx, sy, tx, ty, object, g)
@@ -226,30 +212,30 @@ Skel(skelpath) = 1;
         %copy DSmap
         DSmapprev = DSmap;
         DSmapnew = zeros(size(DSmap)); % holder!
-        k = 0;
+        k_ds = 0;
         while ~isequal(DSmapnew, DSmapprev) % while there is no change
             % dummy on very first iteration
-            if k == 0
+            if k_ds == 0
                 DSmapnew = DSmap;
             end
             %update iteration
-            k = k+1;
+            k_ds = k_ds+1;
             % shift current to previous
             DSmapprev = DSmapnew;
             % loop through all voxels in object but not in skel
-            for j = 1:length(allp)
+            for j_ds = 1:length(allp)
                 
-                px = allpx(j);
-                py = allpy(j);
+                px = allpx(j_ds);
+                py = allpy(j_ds);
                 
                 % identify neighbor
                 nb = neighbors(px, py);
                 
                 dsvals = zeros(length(nb),1);
-                for i = 1:length(nb)
-                    %dist = abs(px-nb(i,1))+abs(py-nb(i,2));
-                    dist = sqrt((px-nb(i,1))^2+(py-nb(i,2))^2);
-                    dsvals(i) = DSmapprev(nb(i,1), nb(i,2)) - dist;
+                for i_ds = 1:length(nb)
+                    %dist = abs(px-nb(i_ds,1))+abs(py-nb(i_ds,2));
+                    dist = sqrt((px-nb(i_ds,1))^2+(py-nb(i_ds,2))^2);
+                    dsvals(i_ds) = DSmapprev(nb(i_ds,1), nb(i_ds,2)) - dist;
                 end
                 % update DSmap
                 DSmapnew(px,py) = max(dsvals(:));
