@@ -4,6 +4,7 @@ function Skel = TreeSkel(object, initx, inity)
 
 % set up record of neighbor positions
 nbLUT = neighbors_LUT(object);
+nb_con = 8; % pixel connectivity
 
 %%% get DT map & Omarked
 DTmap = bwdist(~object, 'euclidean');
@@ -27,7 +28,6 @@ while candidatemax > 0
     iscmb = 1;
     
     % check if neighbor has a larger value
-    %nbcmb = neighbors(X,Y);
     nbind = sub2ind(size(DTmap),squeeze(nbLUT(X,Y,2,:)),squeeze(nbLUT(X,Y,1,:)));
     nbDT = DTmap(nbind);
     neighbor_compare = 2*(nbDT-candidatemax)./(object(I)+ object(nbind));
@@ -144,13 +144,13 @@ Skel = zeros(size(object));
 Skel(skelpath) = 1;
 
     function LSF = sigfactor(px, py, object, DTmap)
-        nb = neighbors(px, py);
+        %nb = neighbors(px, py);
         
-        inequalityvals = zeros(length(nb),1);
-        for i = 1:length(nb)
-            dist = abs(px-nb(i,1))+abs(py-nb(i,2));
-            upper = DTmap(nb(i,1), nb(i,2)) - DTmap(px, py);
-            lower = 0.5*(object(px, py)+object(nb(i,1), nb(i,2)))*dist;
+        inequalityvals = zeros(nb_con,1);
+        for i = 1:nb_con
+            dist = abs(px-nbLUT(px,py,1,i))+abs(py-nbLUT(px,py,2,i));
+            upper = DTmap(nbLUT(px,py,1,i), nbLUT(px,py,2,i)) - DTmap(px, py);
+            lower = 0.5*(object(px, py)+object(nbLUT(px,py,1,i), nbLUT(px,py,2,i)))*dist;
             inequalityvals(i) = upper/lower;
         end
         output = abs(max(inequalityvals(:)));
