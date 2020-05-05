@@ -2,6 +2,8 @@ function Skel = TreeSkel(object, initx, inity)
 % Object = binary image
 % init = point to start skeletonisation from.
 
+% set up record of neighbor positions
+nbLUT = neighbors_LUT(object);
 
 %%% get DT map & Omarked
 DTmap = bwdist(~object, 'euclidean');
@@ -25,8 +27,8 @@ while candidatemax > 0
     iscmb = 1;
     
     % check if neighbor has a larger value
-    nbcmb = neighbors(X,Y);
-    nbind = sub2ind(size(DTmap),nbcmb(:,2),nbcmb(:,1));
+    %nbcmb = neighbors(X,Y);
+    nbind = sub2ind(size(DTmap),squeeze(nbLUT(X,Y,2,:)),squeeze(nbLUT(X,Y,1,:)));
     nbDT = DTmap(nbind);
     neighbor_compare = 2*(nbDT-candidatemax)./(object(I)+ object(nbind));
     if any(neighbor_compare >= 1)
@@ -147,7 +149,7 @@ Skel(skelpath) = 1;
         inequalityvals = zeros(length(nb),1);
         for i = 1:length(nb)
             dist = abs(px-nb(i,1))+abs(py-nb(i,2));
-            upper = DTmap(nb(i,1), nb(i,2)) - DTmap(px, py);;
+            upper = DTmap(nb(i,1), nb(i,2)) - DTmap(px, py);
             lower = 0.5*(object(px, py)+object(nb(i,1), nb(i,2)))*dist;
             inequalityvals(i) = upper/lower;
         end
