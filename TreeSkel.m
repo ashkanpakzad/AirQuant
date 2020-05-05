@@ -231,13 +231,13 @@ Skel(skelpath) = 1;
                 py = allpy(j_ds);
                 
                 % identify neighbor
-                nb = neighbors(px, py);
+                %nb = neighbors(px, py);
                 
-                dsvals = zeros(length(nb),1);
-                for i_ds = 1:length(nb)
+                dsvals = zeros(nb_con,1);
+                for i_ds = 1:nb_con
                     %dist = abs(px-nb(i_ds,1))+abs(py-nb(i_ds,2));
-                    dist = sqrt((px-nb(i_ds,1))^2+(py-nb(i_ds,2))^2);
-                    dsvals(i_ds) = DSmapprev(nb(i_ds,1), nb(i_ds,2)) - dist;
+                    dist = sqrt((px-nbLUT(px,py,1,i_ds))^2+(py-nbLUT(px,py,2,i_ds))^2);
+                    dsvals(i_ds) = DSmapprev(nbLUT(px,py,1,i_ds), nbLUT(px,py,2,i_ds)) - dist;
                 end
                 % update DSmap
                 DSmapnew(px,py) = max(dsvals(:));
