@@ -183,7 +183,7 @@ Skel(skelpath) = 1;
         %[Qx, Qy] = ndgrid(px-1:px+1, py-1:py+1);
         [Qx, Qy] = meshgrid(px-1:px+1, py-1:py+1);
         nb = [Qx(:),Qy(:)];
-        nb(5,:) = [];
+        %nb(5,:) = [];
     end
 
     function [pathX,pathY,cost] = mincostpath(sx, sy, tx, ty, object, g)
