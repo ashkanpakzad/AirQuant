@@ -1,4 +1,4 @@
-function Skel = TreeSkel(object, initx, inity)
+function Skel = TreeSkel(object, initx, inity, debug)
 % Object = binary image
 % init = point to start skeletonisation from.
 
@@ -6,13 +6,13 @@ function Skel = TreeSkel(object, initx, inity)
 nbLUT = neighbors_LUT(object);
 nb_con = 8; % pixel connectivity
 
-%%% get DT map & Omarked
+%% get DT map & Omarked
 DTmap = bwdist(~object, 'euclidean');
 Omarked = zeros(size(object));
 Omarked(initx, inity) = 1;
 skelpath = []; % intialise skel path
 
-%%% Create Central maximal disk look up table
+%% Create Central maximal disk look up table
 T = table('Size',[0 4],'VariableTypes',{'double','double','double','double'});
 T.Properties.VariableNames = {'radius', 'linear','X', 'Y'};
 DTmapscan = DTmap;
@@ -29,8 +29,9 @@ while candidatemax > 0
     
     % check if neighbor has a larger value
     nbind = sub2ind(size(DTmap),squeeze(nbLUT(X,Y,2,:)),squeeze(nbLUT(X,Y,1,:)));
-    nbDT = DTmap(nbind);
-    neighbor_compare = 2*(nbDT-candidatemax)./(object(I)+ object(nbind));
+    %nbDT = DTmap(nbind);
+    neighbor_compare = 2*(DTmap(nbind)-candidatemax)./(object(I)+ object(nbind));
+    
     if any(neighbor_compare >= 1)
         iscmb = 0;
         % if this statement is true, then not a CMB
@@ -60,8 +61,30 @@ T.LSF = allLSF;
 
 % identify strong CMBs
 strongCMB = find(T.LSF >= 0.5);
+%%
+if debug == 1
+    figure
+    subplot(1,2,1)
+    imagesc(object)
+    colormap gray
+    hold on
+    for m = 1:size(T, 1)
+        circle(T.X(m), T.Y(m), T.radius(m));
+    end
+    
+    subplot(1,2,2)
+    imagesc(DTmap)
+    colormap gray
+    hold on
+    plot(T.X, T.Y,'c.')
+    strongCMB = find(T.LSF >= 0.5);
+    plot(T.X(strongCMB), T.Y(strongCMB),'r.')
+    legend('weak CMB', 'Strong CMB')
+    error('Debug mode called.') % break out of function
+end
+    
 
-%%% Compute loss graph
+%% Compute loss graph
 g = binaryImageGraph(object);
 
 % extract graph information into matrices for performance.
@@ -144,7 +167,6 @@ Skel = zeros(size(object));
 Skel(skelpath) = 1;
 
     function LSF = sigfactor(px, py, object, DTmap)
-        %nb = neighbors(px, py);
         
         inequalityvals = zeros(nb_con,1);
         for i = 1:nb_con
@@ -171,11 +193,11 @@ Skel(skelpath) = 1;
         SC = dist_sc/(epsilon+(LSF1+LSF2)^2);
     end
 
-    function nb = neighbors(px, py)
-        % 8 connected neighbor positions
-        nb = [px-1 py-1; px-1 py; px-1 py+1; px py-1; px py+1;...
-            px+1 py-1; px+1 py; px+1 py+1;];
-    end
+%     function nb = neighbors(px, py)
+%         % 8 connected neighbor positions
+%         nb = [px-1 py-1; px-1 py; px-1 py+1; px py-1; px py+1;...
+%             px+1 py-1; px+1 py; px+1 py+1;];
+%     end
 
     function [pathX,pathY,cost] = mincostpath(sx, sy, tx, ty, object, g)
         
@@ -214,6 +236,7 @@ Skel(skelpath) = 1;
         %copy DSmap
         DSmapprev = DSmap;
         DSmapnew = zeros(size(DSmap)); % holder!
+        dsvals = zeros(nb_con,1);
         k_ds = 0;
         while ~isequal(DSmapnew, DSmapprev) % while there is no change
             % dummy on very first iteration
@@ -231,9 +254,7 @@ Skel(skelpath) = 1;
                 py = allpy(j_ds);
                 
                 % identify neighbor
-                %nb = neighbors(px, py);
                 
-                dsvals = zeros(nb_con,1);
                 for i_ds = 1:nb_con
                     %dist = abs(px-nb(i_ds,1))+abs(py-nb(i_ds,2));
                     dist = sqrt((px-nbLUT(px,py,1,i_ds))^2+(py-nbLUT(px,py,2,i_ds))^2);
@@ -310,5 +331,14 @@ Skel(skelpath) = 1;
             end
         end
         subtrees = CC_unmarked.PixelIdxList(1, B_potential);
+    end
+    function h = circle(x,y,r)
+        % circle plotting function used for debugging.
+        hold on
+        th = 0:pi/50:2*pi;
+        xunit = r * cos(th) + x;
+        yunit = r * sin(th) + y;
+        h = plot(xunit, yunit, 'r');
+        hold off
     end
 end
