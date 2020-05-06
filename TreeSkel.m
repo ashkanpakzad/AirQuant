@@ -13,8 +13,9 @@ Omarked(initx, inity) = 1;
 skelpath = []; % intialise skel path
 
 %% Create Central maximal disk look up table
-T = table('Size',[0 4],'VariableTypes',{'double','double','double','double'});
-T.Properties.VariableNames = {'radius', 'linear','X', 'Y'};
+%T = table('Size',[0 4],'VariableTypes',{'double','double','double','double'});
+T = zeros(0,4);
+%T.Properties.VariableNames = {'radius', 'linear','X', 'Y'};
 DTmapscan = DTmap;
 
 candidatemax = 1; % to initialise
@@ -39,7 +40,7 @@ while candidatemax > 0
     
     % Add to cmb table
     if iscmb == 1
-        newrow = {candidatemax, I, X, Y};
+        newrow = [candidatemax, I, X, Y];
         T = [T; newrow];
     end
     DTmapscan(I) = 0;
@@ -51,16 +52,16 @@ end
 %%% Compute LSF of CMBs
 allLSF = zeros(size(T, 1),1);
 for j_lsf = 1:size(T, 1)
-    py= T.X(j_lsf);
-    px= T.Y(j_lsf);
+    py= T(j_lsf,3);
+    px= T(j_lsf,4);
     
     allLSF(j_lsf) = sigfactor(px, py, object, DTmap);
 end
 
-T.LSF = allLSF;
+T(:,5) = allLSF;
 
 % identify strong CMBs
-strongCMB = find(T.LSF >= 0.5);
+strongCMB = find(T(:,5) >= 0.5);
 %%
 if debug == 1
     figure
@@ -69,16 +70,15 @@ if debug == 1
     colormap gray
     hold on
     for m = 1:size(T, 1)
-        circle(T.X(m), T.Y(m), T.radius(m));
+        circle(T(m,3), T(m,4), T(m,1));
     end
     
     subplot(1,2,2)
     imagesc(DTmap)
     colormap gray
     hold on
-    plot(T.X, T.Y,'c.')
-    strongCMB = find(T.LSF >= 0.5);
-    plot(T.X(strongCMB), T.Y(strongCMB),'r.')
+    plot(T(:,3), T(:,4),'c.')
+    plot(T(strongCMB,3), T(strongCMB,4),'r.')
     legend('weak CMB', 'Strong CMB')
     error('Debug mode called.') % break out of function
 end
@@ -123,7 +123,7 @@ while ~isequal(Omarked, object)
     
     % if potential branchs identified add branch
     for i_st = 1:length(subtrees)
-        [furthestCMBX, furthestCMBY] = furthestCMB(Omarked,T.linear, subtrees{1,i_st});
+        [furthestCMBX, furthestCMBY] = furthestCMB(Omarked,T(:,2), subtrees{1,i_st});
         
         [pathX,pathY,~] = mincostpath(...
             initx, inity, furthestCMBY, furthestCMBX, object, g);
@@ -253,13 +253,16 @@ Skel(skelpath) = 1;
                 px = allpx(j_ds);
                 py = allpy(j_ds);
                 
-                % identify neighbor
-                
+                % compare neighbors of voxel to current voxel.
+%                 
                 for i_ds = 1:nb_con
                     %dist = abs(px-nb(i_ds,1))+abs(py-nb(i_ds,2));
                     dist = sqrt((px-nbLUT(px,py,1,i_ds))^2+(py-nbLUT(px,py,2,i_ds))^2);
                     dsvals(i_ds) = DSmapprev(nbLUT(px,py,1,i_ds), nbLUT(px,py,2,i_ds)) - dist;
                 end
+                % method using sub2ind and squeeze takes longer.
+%                 dist = ((px-squeeze(nbLUT(px,py,1,:))).^2+(py-squeeze(nbLUT(px,py,2,:))).^2).^(0.5);
+%                 dsvals = DSmapprev(sub2ind(size(DSmapprev),squeeze(nbLUT(px,py,1,:)), squeeze(nbLUT(px,py,2,:)))) - dist;
                 % update DSmap
                 DSmapnew(px,py) = max(dsvals(:));
             end
@@ -318,7 +321,7 @@ Skel(skelpath) = 1;
             CMBinCC = 0;
             % identify if any strong CMB in unmarked components
             for j = 1:length(strongCMB)
-                if ~isempty(find(cell2mat(CC_unmarked.PixelIdxList(i))==T.linear(strongCMB(j)),1))
+                if ~isempty(find(cell2mat(CC_unmarked.PixelIdxList(i))==T(strongCMB(j),2),1))
                     % mark CMB in current CC
                     CMBinCC = 1;
                 end
