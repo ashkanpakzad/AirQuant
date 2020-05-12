@@ -1,4 +1,4 @@
-function Skel = TreeSkel3D(object, initx, inity, thresh_min, thresh_multi, thresh_CMB, thresh_fill, debug)
+function Skel = TreeSkel3D(object, init, thresh_min, thresh_multi, thresh_CMB, thresh_fill, debug)
 % Object = binary image
 % init = point to start skeletonisation from.
 
@@ -8,21 +8,21 @@ function Skel = TreeSkel3D(object, initx, inity, thresh_min, thresh_multi, thres
 % default thresh_fill = 1.5
 
 % set up record of neighbor positions
-nbLUT = neighbors_LUT(object);
-nb_con = 8; % pixel connectivity
+nb_con = 26; % pixel connectivity
+nbLUT = neighbors_LUT(object, nb_con);
 
 inequalityvals = zeros(nb_con,1); % reserve memory for LSF computing.
 
 %% get DT map & Omarked
 DTmap = bwdist(~object, 'euclidean');
 Omarked = zeros(size(object));
-Omarked(initx, inity) = 1;
+Omarked(init(1), init(2), init(3)) = 1;
 skelpath = []; % intialise skel path
 
 %% Create Central maximal disk look up table
 %T = table('Size',[0 4],'VariableTypes',{'double','double','double','double'});
-T = zeros(0,4);
-%T.Properties.VariableNames = {'radius', 'linear','X', 'Y'};
+T = zeros(0,6);
+%T.Properties.VariableNames = {'radius', 'linear','X', 'Y', 'Z'};
 DTmapscan = DTmap;
 
 candidatemax = 1; % to initialise
@@ -31,12 +31,12 @@ while candidatemax > 0
     counter = counter + 1;
     % get current max
     [candidatemax, I] = max(DTmapscan,[],'all','linear');
-    [Y, X] = ind2sub(size(DTmapscan), I);
+    [Y, X, Z] = ind2sub(size(DTmapscan), I);
     
     iscmb = 1;
     
     % check if neighbor has a larger value
-    nbind = sub2ind(size(DTmap),squeeze(nbLUT(X,Y,2,:)),squeeze(nbLUT(X,Y,1,:)));
+    nbind = sub2ind(size(DTmap),squeeze(nbLUT(X,Y,Z,2,:)),squeeze(nbLUT(X,Y,Z,1,:)));
     %nbDT = DTmap(nbind);
     neighbor_compare = 2*(DTmap(nbind)-candidatemax)./(object(I)+ object(nbind));
     
@@ -47,7 +47,7 @@ while candidatemax > 0
     
     % Add to cmb table
     if iscmb == 1
-        newrow = [candidatemax, I, X, Y];
+        newrow = [candidatemax, I, X, Y, Z, 0];
         T = [T; newrow];
     end
     DTmapscan(I) = 0;
@@ -65,30 +65,30 @@ for j_lsf = 1:size(T, 1)
     allLSF(j_lsf) = sigfactor(px, py, object, DTmap);
 end
 
-T(:,5) = allLSF;
+T(:,6) = allLSF;
 
 % identify strong CMBs
-strongCMB = find(T(:,5) >= thresh_CMB);
+strongCMB = find(T(:,6) >= thresh_CMB);
 %% Debugging CMB plots
-if debug == 1
-    figure
-    subplot(1,2,1)
-    imagesc(object)
-    colormap gray
-    hold on
-    for m = 1:size(T, 1)
-        circle(T(m,3), T(m,4), T(m,1));
-    end
-    
-    subplot(1,2,2)
-    imagesc(DTmap)
-    colormap gray
-    hold on
-    plot(T(:,3), T(:,4),'c.')
-    plot(T(strongCMB,3), T(strongCMB,4),'r.')
-    legend('weak CMB', 'Strong CMB')
-    error('Debug mode called.') % break out of function
-end
+% if debug == 1
+%     figure
+%     subplot(1,2,1)
+%     imagesc(object)
+%     colormap gray
+%     hold on
+%     for m = 1:size(T, 1)
+%         circle(T(m,3), T(m,4), T(m,1));
+%     end
+%     
+%     subplot(1,2,2)
+%     imagesc(DTmap)
+%     colormap gray
+%     hold on
+%     plot(T(:,3), T(:,4),'c.')
+%     plot(T(strongCMB,3), T(strongCMB,4),'r.')
+%     legend('weak CMB', 'Strong CMB')
+%     error('Debug mode called.') % break out of function
+% end
     
 
 %% Compute loss graph
