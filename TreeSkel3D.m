@@ -61,8 +61,9 @@ allLSF = zeros(size(T, 1),1);
 for j_lsf = 1:size(T, 1)
     py= T(j_lsf,3);
     px= T(j_lsf,4);
+    pz = T(j_lsf,5);
     
-    allLSF(j_lsf) = sigfactor(px, py, object, DTmap);
+    allLSF(j_lsf) = sigfactor(px, py, pz, object, DTmap);
 end
 
 T(:,6) = allLSF;
@@ -92,7 +93,7 @@ strongCMB = find(T(:,6) >= thresh_CMB);
     
 
 %% Compute loss graph
-g = binaryImageGraph(object);
+g = binaryImageGraph3(object);
 
 % extract graph information into matrices for performance.
 p_all = g.Edges.EndNodes(:,1);
@@ -181,17 +182,17 @@ end
 Skel = zeros(size(object));
 Skel(skelpath) = 1;
 
-    function LSF = sigfactor(px, py, object, DTmap)
+    function LSF = sigfactor(px, py, pz, object, DTmap)
         
         for i = 1:nb_con
-            dist = abs(px-nbLUT(px,py,1,i))+abs(py-nbLUT(px,py,2,i));
-            upper = DTmap(nbLUT(px,py,1,i), nbLUT(px,py,2,i)) - DTmap(px, py);
-            lower = 0.5*(object(px, py)+object(nbLUT(px,py,1,i), nbLUT(px,py,2,i)))*dist;
+            dist = abs(px-nbLUT(px,py,pz,1,i))+abs(py-nbLUT(px,py,pz,2,i))+abs(pz-nbLUT(px,py,pz,3,i));
+            upper = DTmap(nbLUT(px,py,pz,1,i), nbLUT(px,py,pz,2,i), nbLUT(px,py,pz,3,i)) - DTmap(px, py ,pz);
+            lower = 0.5*(object(px,py,pz)+object(nbLUT(px,py,pz,1,i), nbLUT(px,py,pz,2,i), nbLUT(px,py,pz,3,i)))*dist;
             inequalityvals(i) = upper/lower;
         end
         output = abs(max(inequalityvals(:)));
         if output > 0
-            LSF = 1- output;
+            LSF = 1 - output;
         else
             LSF = 1;
         end
