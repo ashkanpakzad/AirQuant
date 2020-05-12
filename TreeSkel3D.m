@@ -100,6 +100,7 @@ p_all = g.Edges.EndNodes(:,1);
 q_all = g.Edges.EndNodes(:,2);
 nodex = g.Nodes.x;
 nodey = g.Nodes.y;
+nodez = g.Nodes.z;
 % compute step cost across grid
 
 weights = zeros(size(p_all));
@@ -108,9 +109,11 @@ for iedge = 1:height(g.Edges)
     qnode = q_all(iedge);
     py = nodex(pnode);
     px = nodey(pnode);
+    pz = nodez(pnode);
     qy = nodex(qnode);
     qx = nodey(qnode);
-    weights(iedge) = stepcost(px,py,qx,qy,object,DTmap);
+    qz = nodez(qnode);
+    weights(iedge) = stepcost(px,py,pz,qx,qy,qz,object,DTmap);
 end
 
 g.Edges.Weight = weights;
@@ -198,12 +201,12 @@ Skel(skelpath) = 1;
         end
     end
 
-    function SC = stepcost(px,py,qx,qy,object,DTmap)
+    function SC = stepcost(px,py,pz,qx,qy,qz,object,DTmap)
         
         epsilon = 0.01;
-        LSF1 = sigfactor(px, py, object, DTmap);
-        LSF2 = sigfactor(qx, qy, object, DTmap);
-        dist_sc = abs(px-qx)+abs(py-qy);
+        LSF1 = sigfactor(px, py, pz, object, DTmap);
+        LSF2 = sigfactor(qx, qy, qz, object, DTmap);
+        dist_sc = abs(px-qx)+abs(py-qy)+abs(pz-qz);
         
         SC = dist_sc/(epsilon+(LSF1+LSF2)^2);
     end
