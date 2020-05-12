@@ -295,7 +295,7 @@ Skel(skelpath) = 1;
         Bmarked = (DSmapnew >= 0 & object == 1);
     end
 
-    function [furthestCMBX, furthestCMBY] = furthestCMB(Omarked, CMB_list, subtree_ind)
+    function [furthestCMBX, furthestCMBY, furthestCMBZ] = furthestCMB(Omarked, CMB_list, subtree_ind)
         % subtree_ind = cell2mat(CC_unmarked.PixelIdxList(B_potential(1)));
         % Omarked = Omarked;
         % CMB_list= T.linear;
@@ -305,20 +305,23 @@ Skel(skelpath) = 1;
         % CMB_list = list linear indicies of Central Maximal Balls
         
         % get boundary voxels of Omarked
-        Omarked_boundcell = bwboundaries(Omarked);
-        Omarked_bound = Omarked_boundcell{1,1};
+        se = strel('sphere',1);
+        boundaryimage = Omarked - imerode(Omarked, se);
+        bound_lin = find(boundaryimage == 1);
+        [Yb, Xb, Zb] = ind2sub(size(boundaryimage), bound_lin);
+        Omarked_bound = [Yb, Xb, Zb];
         
         % get subset of CMB in subtree
         commonCMBind = intersect(CMB_list, subtree_ind);
         
         % compute distances of all Omarked boundary to all CMB in T_i
-        [commonCMBlinY, commonCMBlinX]= ind2sub(size(Omarked), commonCMBind);
+        [commonCMBlinY, commonCMBlinX, commonCMBlinZ]= ind2sub(size(Omarked), commonCMBind);
         
         disti = zeros(length(commonCMBind),1);
         for i = 1:length(commonCMBind)
-            distj = zeros(length(Omarked_bound),1);
-            for j = 1:length(Omarked_bound)
-                distj(j,1) = sqrt((commonCMBlinX(i,1) - Omarked_bound(j,1))^2 + (commonCMBlinY(i,1) - Omarked_bound(j,2))^2);
+            distj = zeros(size(Omarked_bound,1),1);
+            for j = 1:size(Omarked_bound,1)
+                distj(j,1) = sqrt((commonCMBlinX(i,1) - Omarked_bound(j,1))^2 + (commonCMBlinY(i,1) - Omarked_bound(j,2))^2 + (commonCMBlinZ(i,1) - Omarked_bound(j,3))^2);
             end
             [disti(i,1)] = max(distj(:));
         end
@@ -327,6 +330,8 @@ Skel(skelpath) = 1;
         [~,furthestCMBcommon] = max(disti);
         furthestCMBX = commonCMBlinX(furthestCMBcommon);
         furthestCMBY = commonCMBlinY(furthestCMBcommon);
+        furthestCMBZ = commonCMBlinZ(furthestCMBcommon);
+
     end
 
     function [subtrees, Tmarked] = subtree(object, Omarked, strongCMB)
