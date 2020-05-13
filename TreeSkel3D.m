@@ -7,6 +7,8 @@ function Skel = TreeSkel3D(object, init, thresh_min, thresh_multi, thresh_CMB, t
 % default thresh_CMB = 0.5
 % default thresh_fill = 1.5
 
+% TODO: catch error where init is outside of object...
+
 % set up record of neighbor positions
 nb_con = 26; % pixel connectivity
 nbLUT = neighbors_LUT(object, nb_con);
@@ -36,7 +38,7 @@ while candidatemax > 0
     iscmb = 1;
     
     % check if neighbor has a larger value
-    nbind = sub2ind(size(DTmap),squeeze(nbLUT(X,Y,Z,2,:)),squeeze(nbLUT(X,Y,Z,1,:)));
+    nbind = sub2ind(size(DTmap),squeeze(nbLUT(X,Y,Z,2,:)),squeeze(nbLUT(X,Y,Z,1,:)),squeeze(nbLUT(X,Y,Z,3,:)));
     %nbDT = DTmap(nbind);
     neighbor_compare = 2*(DTmap(nbind)-candidatemax)./(object(I)+ object(nbind));
     
@@ -71,26 +73,25 @@ T(:,6) = allLSF;
 % identify strong CMBs
 strongCMB = find(T(:,6) >= thresh_CMB);
 %% Debugging CMB plots
-% if debug == 1
+if debug == 1
+%     sparseCMB = strongCMB(1:100:end);
 %     figure
-%     subplot(1,2,1)
-%     imagesc(object)
-%     colormap gray
+%     patch(isosurface(object),'EdgeColor', 'none','FaceAlpha',0.3);
 %     hold on
-%     for m = 1:size(T, 1)
-%         circle(T(m,3), T(m,4), T(m,1));
+%     axis vis3d
+%     for m = 1:size(sparseCMB, 1)
+%         ball(T(sparseCMB(m),3), T(sparseCMB(m),4), ...
+%             T(sparseCMB(m),5), T(sparseCMB(m),1));
 %     end
-%     
-%     subplot(1,2,2)
-%     imagesc(DTmap)
-%     colormap gray
-%     hold on
-%     plot(T(:,3), T(:,4),'c.')
-%     plot(T(strongCMB,3), T(strongCMB,4),'r.')
-%     legend('weak CMB', 'Strong CMB')
-%     error('Debug mode called.') % break out of function
-% end
     
+    figure
+    patch(isosurface(object),'EdgeColor', 'none','FaceAlpha',0.3);
+    hold on
+    plot3(T(:,3), T(:,4),T(:,5),'c.')
+    plot3(T(strongCMB,3), T(strongCMB,4),T(strongCMB,5),'r.')
+    legend('weak CMB', 'Strong CMB')
+    error('Debug mode called.') % break out of function
+end
 
 %% Compute loss graph
 g = binaryImageGraph3(object);
@@ -134,19 +135,19 @@ while ~isequal(Omarked, object)
     
     % if potential branchs identified add branch
     for i_st = 1:length(subtrees)
-        [furthestCMBX, furthestCMBY] = furthestCMB(Omarked,T(strongCMB,2), subtrees{1,i_st});
+        [furthestCMBX, furthestCMBY, furthestCMBZ] = furthestCMB(Omarked,T(strongCMB,2), subtrees{1,i_st});
         
-        [pathX,pathY,~] = mincostpath(...
-            initx, inity, furthestCMBY, furthestCMBX, object, g);
+        [pathX,pathY,pathZ,~] = mincostpath(...
+            init(1), init(2), init(3), furthestCMBY, furthestCMBX,furthestCMBZ, object, g);
         % convert to linear indicies and extract branch
-        newskelI = sub2ind(size(object), pathX, pathY);
+        newskelI = sub2ind(size(object), pathX, pathY, pathZ);
         Bi = setdiff(newskelI,skelpath);
         % check significance
         % add up LSF values along branch path to get LSFBi.
         Bi_LSF = zeros(size(Bi));
         for k = 1:length(Bi)
-            [px, py] = ind2sub(size(object), Bi(k));
-            Bi_LSF(k) = sigfactor(px, py, object, DTmap);
+            [px, py, pz] = ind2sub(size(object), Bi(k));
+            Bi_LSF(k) = sigfactor(px, py, pz, object, DTmap);
         end
         % compute DT value of CMB that branches the new skel to get DT_CMBv.
         if branchit ~= 1
@@ -217,10 +218,10 @@ Skel(skelpath) = 1;
 %             px+1 py-1; px+1 py; px+1 py+1;];
 %     end
 
-    function [pathX,pathY,cost] = mincostpath(sx, sy, tx, ty, object, g)
+    function [pathX,pathY,pathZ,cost] = mincostpath(sx, sy, sz, tx, ty,tz, object, g)
         
-        startind = sub2ind(size(object), sx, sy);
-        stopind = sub2ind(size(object), tx, ty);
+        startind = sub2ind(size(object), sx, sy, sz);
+        stopind = sub2ind(size(object), tx, ty, tz);
         
         % compute lowest cost path
         startnode = find(g.Nodes.PixelIndex == startind);
@@ -229,7 +230,7 @@ Skel(skelpath) = 1;
         [P, cost] = shortestpath(g, startnode, stopnode);
         
         % get coords
-        [pathX,pathY] = ind2sub(size(object), g.Nodes.PixelIndex(P));
+        [pathX,pathY,pathZ] = ind2sub(size(object), g.Nodes.PixelIndex(P));
     end
 
 
@@ -249,7 +250,7 @@ Skel(skelpath) = 1;
         
         % identify all p part of object but not the skeleton
         allp = find(nonskel == 1);
-        [allpx, allpy] = ind2sub(size(nonskel), allp);
+        [allpx, allpy, allpz] = ind2sub(size(nonskel), allp);
         
         %copy DSmap
         DSmapprev = DSmap;
@@ -270,13 +271,14 @@ Skel(skelpath) = 1;
                 
                 px = allpx(j_ds);
                 py = allpy(j_ds);
+                pz = allpz(j_ds);
                 
                 % compare neighbors of voxel to current voxel.
 %                 
                 for i_ds = 1:nb_con
                     %dist = abs(px-nb(i_ds,1))+abs(py-nb(i_ds,2));
-                    dist = sqrt((px-nbLUT(px,py,1,i_ds))^2+(py-nbLUT(px,py,2,i_ds))^2);
-                    dsvals(i_ds) = DSmapprev(nbLUT(px,py,1,i_ds), nbLUT(px,py,2,i_ds)) - dist;
+                    dist = sqrt((px-nbLUT(px,py,pz,1,i_ds))^2+(py-nbLUT(px,py,pz,2,i_ds))^2+(pz-nbLUT(px,py,pz,3,i_ds))^2);
+                    dsvals(i_ds) = DSmapprev(nbLUT(px,py,pz,1,i_ds), nbLUT(px,py,pz,2,i_ds), nbLUT(px,py,pz,3,i_ds)) - dist;
                 end
                 % method using sub2ind and squeeze takes longer.
 %                 dist = ((px-squeeze(nbLUT(px,py,1,:))).^2+(py-squeeze(nbLUT(px,py,2,:))).^2).^(0.5);
@@ -372,5 +374,13 @@ Skel(skelpath) = 1;
         yunit = r * sin(th) + y;
         h = plot(xunit, yunit, 'r');
         hold off
+    end
+    function h = ball(x,y,z,r)
+        hold on
+        [X,Y,Z] = sphere;
+        X2 = X * r + x;
+        Y2 = Y * r + y;
+        Z2 = Z * r + z;
+        surf(X2,Y2,Z2)
     end
 end
