@@ -113,4 +113,76 @@ gzip('*_PTK*.nii')
 delete *_PTK*.nii
 cd(initial_path)
 
+%% save snapshots of 2D overlays
+% get CT image
+lung_image = dataset.GetResult('PTKLungROI');
+image_viewer = PTKViewer(lung_image);
+% close(gcf)
+
+%% save 2D previews of each segmentation
+cd(savepath)
+reporting.LogVerbose('Generate and save 2D quick previews of all segmentations')
+
+% lungs
+image_viewer = PTKViewer(lung_image);
+image_viewer.ViewerPanelHandle.OverlayImage = lungs;
+image_viewer.ViewerPanelHandle.OverlayOpacity = 30;
+PTKShow2DSlicesInOneFigure(image_viewer.ViewerPanelHandle,PTKImageOrientation.Axial, 20, reporting);
+saveas(gcf,[casename, '_PTKlungs_quickresult'],'tiff')
+close all
+
+% airway s
+image_viewer = PTKViewer(lung_image);
+image_viewer.ViewerPanelHandle.OverlayImage = airways;
+image_viewer.ViewerPanelHandle.OverlayOpacity = 30;
+PTKShow2DSlicesInOneFigure(image_viewer.ViewerPanelHandle,PTKImageOrientation.Coronal, 60, reporting);
+saveas(gcf,[casename, '_PTKairways_quickresult'],'tiff')
+close all
+
+% lobes
+image_viewer = PTKViewer(lung_image);
+image_viewer.ViewerPanelHandle.OverlayImage = lobes;
+image_viewer.ViewerPanelHandle.OverlayOpacity = 30;
+PTKShow2DSlicesInOneFigure(image_viewer.ViewerPanelHandle,PTKImageOrientation.Sagittal, 20, reporting);
+saveas(gcf,[casename, '_PTKlobes_quickresult'],'tiff')
+close all
+
+cd(initial_path)
+
+%% save snapshots of 3D models
+cd(savepath)
+reporting.LogVerbose('Generate and save 3D quick previews of all results')
+
+% lungs
+PTKVisualiseIn3D([], lungs, 4, false, reporting);
+view(0,0)
+camlight('right')
+saveas(gcf,[casename, '_PTKlungs3D'],'png')
+close all
+
+% airways
+PTKVisualiseIn3D([], airways, 0, true, reporting);
+view(0,0)
+camlight('right')
+saveas(gcf,[casename, '_PTKairways3D'],'png')
+close all
+
+% skeleton
+PTKVisualiseIn3D([], skeleton, 0, true, reporting);
+view(0,0)
+camlight('right')
+saveas(gcf,[casename, '_PTKairwaycentreline3D'],'png')
+close all
+
+% lobes
+PTKVisualiseIn3D([], lobes, 4, false, reporting);
+view(0,0)
+camlight('right')
+saveas(gcf,[casename, '_PTKlobes3D'],'png')
+close all
+
+cd(initial_path)
+
+
+%%
 reporting.Log('Complete')
