@@ -4,18 +4,19 @@
 % PTK. Also converts original dicom to nifti format.
 
 %% Set up
-casename = 'N1';
-savepath = '/Users/apakz/PhD/normal_data/N1/PTKoutput';
+casename = 'M1';
+savepath = '/Users/apakz/PhD/normal_data/M1/PTKoutput';
 overwritelog = 1; % If log should be reset if already exists (0 to append)
 
 % dicom directory containing only the series to segment
-dcmdir = '/Users/apakz/PhD/normal_data/N1/dcm';
+dcmdir = '/Users/apakz/PhD/normal_data/M1/dcm';
 
 % path to PTK source 
 PTK_source = '/Users/apakz/PhD/publicPTK';
 
 
 %% Check for folder and log files
+initial_path = pwd;
 % create savepath dir if not exists
 if ~isfolder(savepath)
     mkdir(savepath)
@@ -30,7 +31,6 @@ end
 
 %% Call PTK and load image
 % add PTK to path
-initial_path = pwd;
 cd(PTK_source)
 PTKAddPaths;
 cd(initial_path)
@@ -90,11 +90,10 @@ skeleton = lungs.BlankCopy();
 new_image = zeros(skeleton.ImageSize, 'uint8');
 new_image(skeleton.GlobalToLocalIndices(skeleton_results.CentrelinePoints)) = 1;
 new_image(skeleton.GlobalToLocalIndices(skeleton_results.BifurcationPoints)) = 1;
-
 skeleton.ChangeRawImage(new_image);
 
 % sets origin of cropped volume to image volume
-skeleton.SetVoxelToThis(skeleton_results.StartPoint, 4);
+skeleton.SetVoxelToThis(skeleton_results.StartPoint, 1);
 skeleton.Title = [casename, ' / ', 'Segmentation', ' / ', 'PTKAirwayCentreline'];
 
 %% Export outputs compressed niftis
@@ -113,15 +112,11 @@ gzip('*_PTK*.nii')
 delete *_PTK*.nii
 cd(initial_path)
 
-%% save snapshots of 2D overlays
-% get CT image
-lung_image = dataset.GetResult('PTKLungROI');
-image_viewer = PTKViewer(lung_image);
-% close(gcf)
-
 %% save 2D previews of each segmentation
 cd(savepath)
 reporting.LogVerbose('Generate and save 2D quick previews of all segmentations')
+% get CT image
+lung_image = dataset.GetResult('PTKLungROI');
 
 % lungs
 image_viewer = PTKViewer(lung_image);
@@ -182,7 +177,4 @@ saveas(gcf,[casename, '_PTKlobes3D'],'png')
 close all
 
 cd(initial_path)
-
-
-%%
 reporting.Log('Complete')
