@@ -1,6 +1,7 @@
 %% Hyper Params
 CT_name = 'github_demo_raw.nii.gz';
 seg_name = 'github_demo_seg.nii.gz';
+skel_name = 'github_demo_skl.nii.gz';
 params = [];
 
 % Load data
@@ -9,9 +10,20 @@ CT = double(niftiread(meta));
 
 %Getting the segmented image
 S = logical(niftiread(seg_name));
+skel = logical(niftiread(skel_name));
 
 % create airway skeleton class
-AS = AirwaySkel(CT, meta, S, params);
+AS = AirwaySkel(CT, meta, S,skel, params);
+
+savename = 'test_AS.mat';
+save(savename, 'AS', '-v7.3')
+
+%%
+figure
+PlotTree(AS)
+
+figure
+plot(AS)
 
 %% plot
 figure
