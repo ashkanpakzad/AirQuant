@@ -1,4 +1,4 @@
-classdef AirwaySkel
+classdef AirQuant
     properties
         CT % CT image
         CTinfo % CT metadata
@@ -31,8 +31,8 @@ classdef AirwaySkel
     
     methods
         %% INITIALISATION METHODS
-        function obj = AirwaySkel(CTimage, CTinfo, segimage,skel, params)
-            % Initialise the AirwaySkel class object.
+        function obj = AirQuant(CTimage, CTinfo, segimage,skel, params)
+            % Initialise the AirQuant class object.
             % if using default settings, set params structure to empty.
             
             obj.CT = CTimage;
@@ -81,8 +81,7 @@ classdef AirwaySkel
                 obj.skel = skel;
             end
             % create graph from skeleton.
-            [obj.Gadj,obj.Gnode,obj.Glink] =...
-                Skel2Graph3D(obj.skel,0);
+            [obj.Gadj,obj.Gnode,obj.Glink] = Skel2Graph3D(obj.skel,0);
             
         end
         
@@ -119,6 +118,7 @@ classdef AirwaySkel
                     j = j + 1;
                 end
             end
+            removal(removal == 0) = [];
             G = rmedge(G,removal);
             
             % Need to ensure directions in Glink are also in the correct
@@ -343,9 +343,9 @@ classdef AirwaySkel
             end
         end
         
+        %% GRAPH NETWORK ANOMOLY ANALYSIS
         
-        %% UTILITIES
-        function [debugseg, debugskel] = DebugGraph(obj)
+        function [debugseg, debugskel, erroredge] = DebugGraph(obj)
             % TODO: consider moving graph plot to the default plot.
             % First check for multiple 'inedges' to all nodes.
             multiinedgenodes = cell(height(obj.Gdigraph.Edges),1);
@@ -375,9 +375,10 @@ classdef AirwaySkel
             if isempty(erroredge)
                 debugseg = [];
                 debugskel = [];
+                erroredge = [];
                 disp('No errors found in skeleton/segmentation')
             else
-                warning([int2str(length(multiinedgenodes)) ' errors found in seg/skel. Check output of AirwaySkel.DebugGraph'])
+                warning([int2str(length(multiinedgenodes)) ' errors found in seg/skel. Check output of AirQuant.DebugGraph'])
                 % identify edge indices in Glink
                 Glink_ind = obj.Gdigraph.Edges.Label(erroredge);
                 % get branch labelled segmentation
@@ -393,15 +394,69 @@ classdef AirwaySkel
                 debugskel = double(obj.skel);
                 debugskel(errorvox) = 2;
                 % also show debug graph plot
-                figure
-                G = obj.Gdigraph;
-                h = plot(G,'EdgeLabel',G.Edges.Label, 'Layout','layered');
-                h.NodeColor = 'k';
-                h.EdgeColor = 'k';
-                highlight(h,'Edges',erroredge,'EdgeColor','r')
+%                 figure
+%                 G = obj.Gdigraph;
+%                 h = plot(G,'EdgeLabel',G.Edges.Label, 'Layout','layered');
+%                 h.NodeColor = 'k';
+%                 h.EdgeColor = 'k';
+%                 highlight(h,'Edges',erroredge,'EdgeColor','r')
                 
             end
         end
+        
+        function [data1, data2] = Remove2nodeinedge(obj, erroredge)
+            % identify erroredges that appear more than once 
+            % (with same node)
+            % TODO: edit to hand >2.
+            
+            % only assumes that no more than 2 edges can share the same
+            % nodes in error.
+            erroredge = erroredge';
+            
+            % get node pairs for each edge
+            node_pairs = table2array(obj.Gdigraph.Edges(erroredge,'EndNodes'));
+            % identify which ones repeat
+            [~,uniqueInd] = unique(node_pairs,'rows','stable');
+            duplicateInd = setdiff(1:size(node_pairs,1),uniqueInd);
+            % copy one half of the duplicate indices
+            duplicateNode = node_pairs(duplicateInd,:);
+            duplicateedges = erroredge(duplicateInd);
+            
+            % Find the other paired duplicate indices.
+            paired_edges = cell(length(duplicateedges),1);
+            j = 1;
+            for i = 1:length(duplicateNode)
+                paired_edges{j} = zeros(2,1);
+                paired_edges{j}(1,1) = duplicateInd(i);
+                [~,~,paired_edges{j}(2,1)] = intersect(duplicateNode(i,:),node_pairs,'rows');
+                j = j + 1;
+            end
+            
+            for i = 1:length(paired_edges)
+            
+            % get skel points of edges and convert to sub
+            Glink_ind = obj.Gdigraph.Edges.Label(paired_edges{i});
+            edge1 = obj.Glink(Glink_ind(1)).point;
+            edge2 = obj.Glink(Glink_ind(2)).point;
+            [Y1, X1, Z1] = ind2sub(size(obj.skel), edge1);
+            [Y2, X2, Z2] = ind2sub(size(obj.skel), edge2);
+
+            % compute best fit cubic curve
+            data1 = [X1', Y1', Z1'];
+            data2 = [X2', Y2', Z2'];
+
+            %Generating the spline
+            
+            end
+            % rewrite skeleton with new spline
+            
+            % overwrite skeleton
+            
+            % recompute Tree digraph
+            
+        end
+        
+        %% UTILITIES
         
         function branch_seg = ClassifySegmentation(obj)
             % TODO: consider making this function more robust!
@@ -487,7 +542,7 @@ classdef AirwaySkel
             for i = 1:length(spline_points)
                 try
                     % * Compute Normal Vector per spline point
-                    [normal, CT_point] = AirwaySkel.ComputeNormal(spline, spline_points(i));
+                    [normal, CT_point] = AirQuant.ComputeNormal(spline, spline_points(i));
                     % * Interpolate Perpendicular Slice per spline point
                     [TransAirwayImage(:,:,i), TransSegImage(:,:,i)] = ...
                         InterpolateCT(obj, normal, CT_point);
@@ -607,7 +662,7 @@ classdef AirwaySkel
                         obj.TraversedSeg{link_index, 1}(:,:,k), center);
                     
                     % * Compute FWHM
-                    [FWHMl, FWHMp, FWHMr] = AirwaySkel.computeFWHM(CT_rays,...
+                    [FWHMl, FWHMp, FWHMr] = AirQuant.computeFWHM(CT_rays,...
                         seg_rays, coords);
                     
                     % * Compute Ellipses
@@ -695,7 +750,7 @@ classdef AirwaySkel
                     end
                 end
                 obj.Specs(i).FWHMl_logtaper = ...
-                    AirwaySkel.ComputeTaperRate(...
+                    AirQuant.ComputeTaperRate(...
                     obj.arclength{i, 1}, cum_area);
             end
         end
@@ -741,7 +796,7 @@ classdef AirwaySkel
                     end
                 end
             end
-            logtaperrate = AirwaySkel.ComputeTaperRate(cum_arclength, cum_area);
+            logtaperrate = AirQuant.ComputeTaperRate(cum_arclength, cum_area);
             
             % TODO: consider using graph and edge highlight for another
             % applications.
@@ -788,6 +843,11 @@ classdef AirwaySkel
             h = plot(G,'EdgeLabel',edgelabels, 'Layout', 'layered');
             h.NodeColor = 'r';
             h.EdgeColor = 'k';
+            % check for error edges
+            [~,~,erroredge] = DebugGraph(obj);
+            if ~isempty(erroredge)
+                highlight(h,'Edges',erroredge,'EdgeColor','r')
+            end
         end
         
         function h = plotgenlabels(obj)
