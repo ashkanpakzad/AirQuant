@@ -25,8 +25,8 @@ figure
 imagesc(proj)
 colormap gray
 hold on
-inity=116; % swapped from plot
-initx=34;
+inity=117; % swapped from plot
+initx=26;
 plot(inity,initx,'.g')
 
 %% run algo

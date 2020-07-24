@@ -12,14 +12,14 @@ S = logical(niftiread(seg_name));
 terms = niftiread(terminals_name);
 %%
 tic;
-Skel = TreeSkel_terminal(S, terms, 0);
+Skel_jinPTK = TreeSkel_terminal(S, terms, 0);
 timeit = toc/60;
 %% display against matlab skeletonise
 figure
 patch(isosurface(S),'EdgeColor', 'none','FaceAlpha',0.3);
 title('N3 - Implementation of Jin et al. 2016 with PTK Terminus points')
 hold on
-isosurface(Skel)
+isosurface(Skel_jinPTK)
 axis vis3d
 view(80,0)
 
@@ -42,6 +42,7 @@ axis vis3d
 view(80,0)
 
 %% save skeleton
+savenii(Skel_jinPTK, 'N3_skel_PTK_Jin2016', seg_name)
 
 %%
 se = strel('sphere',1);
@@ -50,3 +51,11 @@ figure
 imshow(object(:,:,20), [])
 figure
 imshow(boundaryimage(:,:,35), [])
+
+%%
+function savenii(V, filename_prefix, template_path)
+template_nii = load_untouch_nii(template_path);  
+template_nii.fileprefix = filename_prefix;
+template_nii.img = double(V);
+save_untouch_nii(template_nii,[filename_prefix '.nii.gz']);
+end

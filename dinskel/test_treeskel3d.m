@@ -25,11 +25,23 @@ initz = 6;
 init = [inity, initx, initz];
 % plot(inity,initx,'.g')
 
-%% run algo
+% run algo
 tic;
-Skel = TreeSkel3D(object, init, 3, 0.5, 0.5, 2, 0);
+Skel = TreeSkel3D(object, init, 3, 0.5, 0.5, 6 , 0);
 timeit = toc/60;
 
+%% Execute on real segmentation...
+addpath(genpath('/Users/apakz/PhD/normal_data/'))
+casename = 'N1';
+seg_name = [casename, '_lumen.nii.gz'];
+
+%Getting the segmented image and manual skeleton
+S = logical(niftiread(seg_name));
+init = [268, 265, 316];
+
+tic;
+Skel = TreeSkel3D(S, init, 3, 0.5, 0.5, 6 , 0);
+timeit = toc/60;
 %% display against matlab skeletonise
 figure
 subplot(1,2,1)
@@ -40,6 +52,7 @@ patch(isosurface(object),'EdgeColor', 'none','FaceAlpha',0.3);
 title('Implementation of Din et al. 2016')
 hold on
 plot3(X,Y,Z,'r.','MarkerSize',10)
+axis vis3d
 
 
 subplot(1,2,2)
@@ -49,6 +62,7 @@ patch(isosurface(object),'EdgeColor', 'none','FaceAlpha',0.3);
 title('MATLAB''s implementation of Lee et al. 1994')
 hold on
 plot3(X,Y,Z,'r.','MarkerSize',10)
+axis vis3d
 
 %%
 se = strel('sphere',1);

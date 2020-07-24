@@ -1,10 +1,17 @@
-function Skel = TreeSkel(object, initx, inity, debug)
+function Skel = TreeSkel(object, initx, inity, thresh_min, thresh_multi, thresh_CMB, thresh_fill, debug)
 % Object = binary image
 % init = point to start skeletonisation from.
 
+% default threshmin = 3
+% default threshmulti = 0.5
+% default thresh_CMB = 0.5
+% default thresh_fill = 1.5
+
 % set up record of neighbor positions
-nbLUT = neighbors_LUT(object);
 nb_con = 8; % pixel connectivity
+nbLUT = neighbors_LUT(object,nb_con);
+
+inequalityvals = zeros(nb_con,1); % reserve memory for LSF computing.
 
 %% get DT map & Omarked
 DTmap = bwdist(~object, 'euclidean');
@@ -61,8 +68,8 @@ end
 T(:,5) = allLSF;
 
 % identify strong CMBs
-strongCMB = find(T(:,5) >= 0.5);
-%%
+strongCMB = find(T(:,5) >= thresh_CMB);
+%% Debugging CMB plots
 if debug == 1
     figure
     subplot(1,2,1)
@@ -123,7 +130,7 @@ while ~isequal(Omarked, object)
     
     % if potential branchs identified add branch
     for i_st = 1:length(subtrees)
-        [furthestCMBX, furthestCMBY] = furthestCMB(Omarked,T(:,2), subtrees{1,i_st});
+        [furthestCMBX, furthestCMBY] = furthestCMB(Omarked,T(strongCMB,2), subtrees{1,i_st});
         
         [pathX,pathY,~] = mincostpath(...
             initx, inity, furthestCMBY, furthestCMBX, object, g);
@@ -145,9 +152,10 @@ while ~isequal(Omarked, object)
             Bi_sig = 0;
             % significant branch if this condition met
             sig_value = sum(Bi_LSF);
-            adaptive_threshold = 3+0.5*(DT_branchv);
+            adaptive_threshold = thresh_min+thresh_multi*(DT_branchv);
             if sig_value > adaptive_threshold
                 Bi_sig = 1;
+                %disp(int2str(sig_value))
             end
         else
             Bi_sig = 1;
@@ -160,6 +168,13 @@ while ~isequal(Omarked, object)
         Bmarked = adaptivefill(Bi, object, DTmap);
         % update marked volume
         Omarked = (Omarked == 1 | Bmarked == 1);
+%         figure
+%         [Y, X] = ind2sub(size(Omarked), skelpath);
+%         imagesc(Omarked)
+%         colormap gray
+%         hold on
+%         plot(X,Y,'r.','MarkerSize',10)
+%     
     end
 end
 
@@ -168,7 +183,6 @@ Skel(skelpath) = 1;
 
     function LSF = sigfactor(px, py, object, DTmap)
         
-        inequalityvals = zeros(nb_con,1);
         for i = 1:nb_con
             dist = abs(px-nbLUT(px,py,1,i))+abs(py-nbLUT(px,py,2,i));
             upper = DTmap(nbLUT(px,py,1,i), nbLUT(px,py,2,i)) - DTmap(px, py);
@@ -226,7 +240,7 @@ Skel(skelpath) = 1;
         
         % initialise with Dilation Scale map
         DSmap = zeros(size(object));
-        DSmap(Bskel) = 2*DTmap(Bskel);
+        DSmap(Bskel) = thresh_fill*DTmap(Bskel);
         DSmap(nonskel == 1) = -1*max(DSmap(:));
         
         % identify all p part of object but not the skeleton
@@ -265,13 +279,19 @@ Skel(skelpath) = 1;
 %                 dsvals = DSmapprev(sub2ind(size(DSmapprev),squeeze(nbLUT(px,py,1,:)), squeeze(nbLUT(px,py,2,:)))) - dist;
                 % update DSmap
                 DSmapnew(px,py) = max(dsvals(:));
+                
+                % animation...
             end
+            % animation...
+%             imagesc(DSmapnew)
+%             colormap gray
+%             pause(0.5)
         end
         
         Bmarked = (DSmapnew >= 0 & object == 1);
     end
 
-    function [furthestCMBX, furthestCMBY] = furthestCMB(Omarked,CMB_list, subtree_ind)
+    function [furthestCMBX, furthestCMBY] = furthestCMB(Omarked, CMB_list, subtree_ind)
         % subtree_ind = cell2mat(CC_unmarked.PixelIdxList(B_potential(1)));
         % Omarked = Omarked;
         % CMB_list= T.linear;

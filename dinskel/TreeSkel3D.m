@@ -11,7 +11,6 @@ function Skel = TreeSkel3D(object, init, thresh_min, thresh_multi, thresh_CMB, t
 
 % set up record of neighbor positions
 nb_con = 26; % pixel connectivity
-nbLUT = neighbors_LUT(object, nb_con);
 
 inequalityvals = zeros(nb_con,1); % reserve memory for LSF computing.
 
@@ -22,9 +21,8 @@ Omarked(init(1), init(2), init(3)) = 1;
 skelpath = []; % intialise skel path
 
 %% Create Central maximal disk look up table
-%T = table('Size',[0 4],'VariableTypes',{'double','double','double','double'});
 T = zeros(0,6);
-%T.Properties.VariableNames = {'radius', 'linear','X', 'Y', 'Z'};
+%T VariableNames = {'radius', 'linear','X', 'Y', 'Z', 'LSF'};
 DTmapscan = DTmap;
 
 candidatemax = 1; % to initialise
@@ -33,13 +31,12 @@ while candidatemax > 0
     counter = counter + 1;
     % get current max
     [candidatemax, I] = max(DTmapscan,[],'all','linear');
-    [Y, X, Z] = ind2sub(size(DTmapscan), I);
+    [YI, XI, ZI] = ind2sub(size(DTmapscan), I);
     
     iscmb = 1;
     
-    % check if neighbor has a larger value
-    nbind = sub2ind(size(DTmap),squeeze(nbLUT(X,Y,Z,2,:)),squeeze(nbLUT(X,Y,Z,1,:)),squeeze(nbLUT(X,Y,Z,3,:)));
-    %nbDT = DTmap(nbind);
+    nb = neighbors_idx(XI, YI, ZI);
+    nbind = sub2ind(size(DTmap),nb(2,:),nb(1,:),nb(3,:));
     neighbor_compare = 2*(DTmap(nbind)-candidatemax)./(object(I)+ object(nbind));
     
     if any(neighbor_compare >= 1)
@@ -49,7 +46,7 @@ while candidatemax > 0
     
     % Add to cmb table
     if iscmb == 1
-        newrow = [candidatemax, I, X, Y, Z, 0];
+        newrow = [candidatemax, I, XI, YI, ZI, 0];
         T = [T; newrow];
     end
     DTmapscan(I) = 0;
@@ -90,6 +87,7 @@ if debug == 1
     plot3(T(:,3), T(:,4),T(:,5),'c.')
     plot3(T(strongCMB,3), T(strongCMB,4),T(strongCMB,5),'r.')
     legend('weak CMB', 'Strong CMB')
+    axis vis3d
     error('Debug mode called.') % break out of function
 end
 
@@ -128,6 +126,12 @@ while ~isequal(Omarked, object)
     
     % update Omarked from potential subtree detector
     Omarked = (Omarked == 1 | Tmarked == 1);
+    
+    % checking here
+%     figure
+%     patch(isosurface(Omarked),'EdgeColor', 'none','FaceAlpha',0.3);
+%     axis vis3d
+%     axis([0 size(Omarked, 1) 0 size(Omarked, 2) 0 size(Omarked, 3)])
     
     if isempty(subtrees)
         break
@@ -173,12 +177,6 @@ while ~isequal(Omarked, object)
         Bmarked = adaptivefill(Bi, object, DTmap);
         % update marked volume
         Omarked = (Omarked == 1 | Bmarked == 1);
-%         figure
-%         [Y, X] = ind2sub(size(Omarked), skelpath);
-%         imagesc(Omarked)
-%         colormap gray
-%         hold on
-%         plot(X,Y,'r.','MarkerSize',10)
 %     
     end
 end
@@ -187,11 +185,11 @@ Skel = zeros(size(object));
 Skel(skelpath) = 1;
 
     function LSF = sigfactor(px, py, pz, object, DTmap)
-        
+        nb = neighbors_idx(px,py,pz);
         for i = 1:nb_con
-            dist = abs(px-nbLUT(px,py,pz,1,i))+abs(py-nbLUT(px,py,pz,2,i))+abs(pz-nbLUT(px,py,pz,3,i));
-            upper = DTmap(nbLUT(px,py,pz,1,i), nbLUT(px,py,pz,2,i), nbLUT(px,py,pz,3,i)) - DTmap(px, py ,pz);
-            lower = 0.5*(object(px,py,pz)+object(nbLUT(px,py,pz,1,i), nbLUT(px,py,pz,2,i), nbLUT(px,py,pz,3,i)))*dist;
+            dist = abs(px-nb(1,i))+abs(py-nb(2,i))+abs(pz-nb(3,i));
+            upper = DTmap(nb(1,i), nb(2,i), nb(3,i)) - DTmap(px, py ,pz);
+            lower = 0.5*(object(px,py,pz)+object(nb(1,i), nb(2,i), nb(3,i)))*dist;
             inequalityvals(i) = upper/lower;
         end
         output = abs(max(inequalityvals(:)));
@@ -211,12 +209,6 @@ Skel(skelpath) = 1;
         
         SC = dist_sc/(epsilon+(LSF1+LSF2)^2);
     end
-
-%     function nb = neighbors(px, py)
-%         % 8 connected neighbor positions
-%         nb = [px-1 py-1; px-1 py; px-1 py+1; px py-1; px py+1;...
-%             px+1 py-1; px+1 py; px+1 py+1;];
-%     end
 
     function [pathX,pathY,pathZ,cost] = mincostpath(sx, sy, sz, tx, ty,tz, object, g)
         
@@ -248,7 +240,7 @@ Skel(skelpath) = 1;
         DSmap(Bskel) = thresh_fill*DTmap(Bskel);
         DSmap(nonskel == 1) = -1*max(DSmap(:));
         
-        % identify all p part of object but not the skeleton
+        % identify all p, part of object but not the skeleton
         allp = find(nonskel == 1);
         [allpx, allpy, allpz] = ind2sub(size(nonskel), allp);
         
@@ -274,24 +266,17 @@ Skel(skelpath) = 1;
                 pz = allpz(j_ds);
                 
                 % compare neighbors of voxel to current voxel.
-%                 
+                nb = neighbors_idx(px,py,pz);
+
                 for i_ds = 1:nb_con
                     %dist = abs(px-nb(i_ds,1))+abs(py-nb(i_ds,2));
-                    dist = sqrt((px-nbLUT(px,py,pz,1,i_ds))^2+(py-nbLUT(px,py,pz,2,i_ds))^2+(pz-nbLUT(px,py,pz,3,i_ds))^2);
-                    dsvals(i_ds) = DSmapprev(nbLUT(px,py,pz,1,i_ds), nbLUT(px,py,pz,2,i_ds), nbLUT(px,py,pz,3,i_ds)) - dist;
+                    dist = sqrt((px-nb(1,i_ds))^2+(py-nb(2,i_ds))^2+(pz-nb(3,i_ds))^2);
+                    dsvals(i_ds) = DSmapprev(nb(1,i_ds), nb(2,i_ds), nb(3,i_ds)) - dist;
                 end
-                % method using sub2ind and squeeze takes longer.
-%                 dist = ((px-squeeze(nbLUT(px,py,1,:))).^2+(py-squeeze(nbLUT(px,py,2,:))).^2).^(0.5);
-%                 dsvals = DSmapprev(sub2ind(size(DSmapprev),squeeze(nbLUT(px,py,1,:)), squeeze(nbLUT(px,py,2,:)))) - dist;
-                % update DSmap
-                DSmapnew(px,py) = max(dsvals(:));
+
+                DSmapnew(px,py,pz) = max(dsvals(:));
                 
-                % animation...
             end
-            % animation...
-%             imagesc(DSmapnew)
-%             colormap gray
-%             pause(0.5)
         end
         
         Bmarked = (DSmapnew >= 0 & object == 1);
@@ -366,15 +351,7 @@ Skel(skelpath) = 1;
         end
         subtrees = CC_unmarked.PixelIdxList(1, B_potential);
     end
-    function h = circle(x,y,r)
-        % circle plotting function used for debugging.
-        hold on
-        th = 0:pi/50:2*pi;
-        xunit = r * cos(th) + x;
-        yunit = r * sin(th) + y;
-        h = plot(xunit, yunit, 'r');
-        hold off
-    end
+
     function h = ball(x,y,z,r)
         hold on
         [X,Y,Z] = sphere;
@@ -382,5 +359,17 @@ Skel(skelpath) = 1;
         Y2 = Y * r + y;
         Z2 = Z * r + z;
         surf(X2,Y2,Z2)
+    end
+    function nb = neighbors_idx(i, j, k)
+        nb = [i-1 j-1 k-1; ...
+            i-1 j k-1; i-1 j+1 k-1; i j-1 k-1; ...
+            i j k-1; i j+1 k-1; i+1 j-1 k-1; ...
+            i+1 j k-1; i+1 j+1 k-1; i-1 j-1 k; ...
+            i-1 j k; i-1 j+1 k; i j-1 k; ...
+            i j+1 k; i+1 j-1 k; ...
+            i+1 j k; i+1 j+1 k; i-1 j-1 k+1; ...
+            i-1 j k+1; i-1 j+1 k+1; i j-1 k+1; ...
+            i j k+1; i j+1 k+1; i+1 j-1 k+1; ...
+            i+1 j k+1; i+1 j+1 k+1;]';
     end
 end

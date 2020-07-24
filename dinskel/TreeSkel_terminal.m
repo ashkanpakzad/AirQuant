@@ -1,13 +1,7 @@
 function Skel = TreeSkel_terminal(object, terminal, debug)
 % Object = binary image
-% init = point to start skeletonisation from.
-
-% default threshmin = 3
-% default threshmulti = 0.5
-% default thresh_CMB = 0.5
-% default thresh_fill = 1.5
-
-% TODO: catch error where init is outside of object...
+% terminal = volume with same size as object, airway endpoints are labelled 
+% as 1 and top of trachea by 2.
 
 % set up record of neighbor positions
 nb_con = 26; % pixel connectivity
@@ -128,7 +122,10 @@ Skel(skelpath) = 1;
         startnode = find(g.Nodes.PixelIndex == startind);
         stopnode = find(g.Nodes.PixelIndex == stopind);
         
-        [P, cost] = shortestpath(g, startnode, stopnode);
+        [P, cost, edgepath] = shortestpath(g, startnode, stopnode);
+        
+        % change weights of traversed edges to 0.
+        g.Edges.Weight(edgepath) = 0;
         
         % get coords
         [pathX,pathY,pathZ] = ind2sub(size(object), g.Nodes.PixelIndex(P));
