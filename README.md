@@ -13,7 +13,7 @@ AirwaySkel is a MATLAB class for extracting airway measurements from a fully seg
 $ git clone https://github.com/ashkanpakzad/AirQuant.git
 ```
 
-* Example use: see scripts/example.m
+* Example use: see [scripts/example.m](scripts/example.m)
 
 ## Use
 
