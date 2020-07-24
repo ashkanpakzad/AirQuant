@@ -1,2 +1,3 @@
-[folder,~,~] = fileparts(which('AirQuantAddPath'));
-addpath(genpath(folder))
+function AirQuantDir = AirQuantAddPath()
+[AirQuantDir,~,~] = fileparts(which('AirQuantAddPath'));
+addpath(genpath(AirQuantDir))
