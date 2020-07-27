@@ -883,7 +883,7 @@ classdef AirQuant
             plot3(X_node,Y_node,Z_node, 'r.', 'MarkerSize', 18, 'Color', 'r');
             text(X_node+1,Y_node+1,Z_node+1, nums_node, 'Color', [0.8, 0, 0])
             
-            axis([0 size(obj.CT, 1) 0 size(obj.CT, 2) 0 size(obj.CT, 3)])
+            %axis([0 size(obj.CT, 1) 0 size(obj.CT, 2) 0 size(obj.CT, 3)])
             view(80,0)
             axis vis3d
             
