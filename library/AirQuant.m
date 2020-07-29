@@ -11,6 +11,7 @@ classdef AirQuant
         num_rays = 50; % check methods
         ray_interval = 0.2; % check methods
         skel % skeleton based on segementation
+        savename % filename to load/save
     end
     properties (SetAccess = private)
         % Graph Properties
@@ -31,44 +32,58 @@ classdef AirQuant
     
     methods
         %% INITIALISATION METHODS
-        function obj = AirQuant(CTimage, CTinfo, segimage, skel, params)
+        function obj = AirQuant(CTimage, CTinfo, segimage, skel, savename, params)
             % Initialise the AirQuant class object.
-            % if using default settings, set params structure to empty.
+            % if using default settings, do not provide params argument.
             
-            obj.CT = CTimage;
-            % TODO: consider preprocess segmentation to keep largest
-            % connected component.
-            % ensure no holes in segmentation
-            obj.seg = imfill(segimage,'holes');
-            obj.CTinfo = CTinfo;
-            % set params
-            if varin > 4
-                obj.physical_plane_length = params.physical_plane_length;
-                obj.physical_sampling_interval = params.physical_sampling_interval;
-                obj.spline_sampling_interval = params.spline_sampling_interval;
-                obj.num_rays = params.num_rays;
-                obj.ray_interval = params.ray_interval;
+            % Can provide just file name, if analyses previously complete.
+            if nargin == 1
+                savename = CTimage;
+                obj.savename = savename;
             end
-            % graph airway skeleton
-            obj = GenerateSkel(obj,skel);
-            % Identify trachea
-            obj = FindTrachea(obj);
-            % Convert into digraph
-            obj = AirwayDigraph(obj);
-            % Identify Carina
-            obj = FindCarina(obj);
-            % Identify paths that belong to trachea
-            obj = FindTracheaPaths(obj);
-            % classify airway generations
-            obj = ComputeAirwayGen(obj);
-            % set up empty cell for traversed CT and segmentation
-            obj.TraversedImage = cell(length(obj.Glink),1);
-            obj.TraversedSeg = cell(length(obj.Glink),1);
-            % set up empty specs doubles
-            obj.arclength = cell(length(obj.Glink),1);
-            obj.Specs = struct();
-            % set up empty cell for recording raycast/fwhmesl method
-            obj.FWHMesl = cell(length(obj.Glink),3);
+            
+            if isfile(savename)
+                load(savename)
+                obj.savename = savename;
+            else
+                obj.CT = CTimage;
+                % TODO: consider preprocess segmentation to keep largest
+                % connected component.
+                % ensure no holes in segmentation
+                obj.seg = imfill(segimage,'holes');
+                obj.CTinfo = CTinfo;
+                % set params
+                if nargin > 5
+                    obj.physical_plane_length = params.physical_plane_length;
+                    obj.physical_sampling_interval = params.physical_sampling_interval;
+                    obj.spline_sampling_interval = params.spline_sampling_interval;
+                    obj.num_rays = params.num_rays;
+                    obj.ray_interval = params.ray_interval;
+                end
+                % graph airway skeleton
+                obj = GenerateSkel(obj,skel);
+                % Identify trachea
+                obj = FindTrachea(obj);
+                % Convert into digraph
+                obj = AirwayDigraph(obj);
+                % Identify Carina
+                obj = FindCarina(obj);
+                % Identify paths that belong to trachea
+                obj = FindTracheaPaths(obj);
+                % classify airway generations
+                obj = ComputeAirwayGen(obj);
+                % set up empty cell for traversed CT and segmentation
+                obj.TraversedImage = cell(length(obj.Glink),1);
+                obj.TraversedSeg = cell(length(obj.Glink),1);
+                % set up empty specs doubles
+                obj.arclength = cell(length(obj.Glink),1);
+                obj.Specs = struct();
+                % set up empty cell for recording raycast/fwhmesl method
+                obj.FWHMesl = cell(length(obj.Glink),3);
+                % save class
+                obj.savename = savename;
+                save(obj)
+            end
         end
         
         
@@ -256,10 +271,7 @@ classdef AirQuant
             % assign branches of the upper left lobe.
             classedgelobes(LULN, 'LU')
             classedgelobes(LN, 'lin')
-            
-            
-            % TODO: Identify node of lingular            
-            
+                        
             % % Identify right upper lobe
             RlungN = successors(G, rightN);
             [~, I] = max([obj.Gnode(RlungN).comz]);
@@ -328,6 +340,9 @@ classdef AirQuant
             % add lobe field to glink
             lobe = num2cell(lobes);
             [obj.Glink(:).lobe] = lobe{:};
+            
+            % save object class
+            save(obj)
             
             function classedgelobes(node, label)
                 % identify all edges from node outwards
@@ -458,6 +473,10 @@ classdef AirQuant
         
         %% UTILITIES
         
+        function save(obj)
+            save(obj.savename, 'obj', '-v7.3')
+        end
+        
         function branch_seg = ClassifySegmentation(obj)
             % TODO: consider making this function more robust!
             % label every branch in segmentation to AS branch index.
@@ -489,7 +508,6 @@ classdef AirQuant
             for i = 1:length(PQ)
                 branch_seg(PQ(i,1),PQ(i,2),PQ(i,3)) = classed_skel(k(i));
             end
-            
         end
         
         function report = debuggingreport(obj)
@@ -517,9 +535,12 @@ classdef AirQuant
             % Traverse all airway segments except the trachea.
             disp('Start traversing all airway segments')
             total_branches = length(obj.Glink);
+            % check to see if any branches already processed.
+            incomplete = cellfun(@isempty, obj.TraversedImage);
+            
             for i = 1:length(obj.Glink)
-                % skip the trachea
-                if i == obj.trachea_path
+                % skip the trachea or already processed branches
+                if i == obj.trachea_path || incomplete(i) == 0
                     continue
                 end
                 obj = CreateAirwayImage(obj, i);
@@ -534,14 +555,19 @@ classdef AirQuant
             % analyse all airway segments except the trachea.
             disp('Start computing FWHM boundaries of all airway segments')
             total_branches = length(obj.Glink);
+            
+            % check which branches already traversed
+            incomplete = cellfun(@isempty, obj.FWHMesl{:,1});
+
             for i = 1:length(obj.Glink)
                 % skip the trachea
-                if i == obj.trachea_path
+                if i == obj.trachea_path || incomplete(i) == 0
                     continue
                 end
                 obj = FindAirwayBoundariesFWHM(obj, i);
                 disp(['FWHMesl: Completed ', num2str(i), ' of ', num2str(total_branches)])
             end
+            save(obj)
         end
         
         %% TRAVERSING AIRWAYS METHODS %%%
@@ -584,6 +610,8 @@ classdef AirQuant
             obj.TraversedImage{link_index, 1} = TransAirwayImage;
             obj.TraversedSeg{link_index, 1} = TransSegImage;
             obj.arclength{link_index, 1} = arc_length;
+            % save obj to disk after every branch
+            save(obj)
         end
         
         
@@ -825,12 +853,6 @@ classdef AirQuant
         end
         
         %% Graph Methods
-        function loopbetweentwopoints(obj)
-            % used to ensure loops between two points do not exist due to
-            % segmentation errors. Amends the skeleton and graph but not
-            % segmentation
-        end
-        
         function G = digraph(obj)
             % TODO: REDUNDANT FUNCTION?
             % compute edge weights
@@ -865,8 +887,14 @@ classdef AirQuant
                 case 'index' % default
                     edgelabels = G.Edges.Label;
                 case 'lobes'
-                    lobes = [obj.Glink(:).lobe];
-                    edgelabels = lobes(G.Edges.Label);
+                    try
+                        lobes = [obj.Glink(:).lobe];
+                    catch
+                        warning('')
+                        edgelabels = G.Edges.Label;
+
+                    end
+
                 case {'generation','gen'}
                     gens = [obj.Glink(:).generation];
                     edgelabels = gens(G.Edges.Label);
