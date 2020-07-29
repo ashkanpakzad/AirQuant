@@ -31,7 +31,7 @@ classdef AirQuant
     
     methods
         %% INITIALISATION METHODS
-        function obj = AirQuant(CTimage, CTinfo, segimage,skel, params)
+        function obj = AirQuant(CTimage, CTinfo, segimage, skel, params)
             % Initialise the AirQuant class object.
             % if using default settings, set params structure to empty.
             
@@ -42,7 +42,7 @@ classdef AirQuant
             obj.seg = imfill(segimage,'holes');
             obj.CTinfo = CTinfo;
             % set params
-            if ~isempty(params)
+            if varin > 4
                 obj.physical_plane_length = params.physical_plane_length;
                 obj.physical_sampling_interval = params.physical_sampling_interval;
                 obj.spline_sampling_interval = params.spline_sampling_interval;
@@ -492,6 +492,26 @@ classdef AirQuant
             
         end
         
+        function report = debuggingreport(obj)
+            % produce a table showing success of processing for each airway
+            % branch.
+            report = [];
+            report = struct('airway',num2cell(1:length(obj.Glink)));
+%             temp = num2cell(1:length(obj.Glink));
+%             [report.airway] = temp{:};
+            
+            % check for each airway arclength and FWHM failures
+            for i = 1:length(obj.Glink)
+                report(i).arclength = ~any(isnan(obj.arclength{i}));
+                try
+                report(i).FWHM_inner = all(cellfun(@isstruct,obj.FWHMesl{i,1}));
+                report(i).FWHM_peak = all(cellfun(@isstruct,obj.FWHMesl{i,2}));
+                report(i).FWHM_outer = all(cellfun(@isstruct,obj.FWHMesl{i,3}));
+                catch
+                end
+            end
+        end
+                    
         %% HIGH LEVEL METHODS
         function obj = AirwayImageAll(obj)
             % Traverse all airway segments except the trachea.
@@ -823,7 +843,7 @@ classdef AirQuant
         end
         
         %% VISUALISATION METHODS
-        function h = plot(obj, varargin)
+        function h = plot(obj, type)
             % Default plot is a graph network representation. Optional input is to
             % provide a list of edge labels indexed by the Glink property.
             
@@ -835,11 +855,26 @@ classdef AirQuant
             %     G = rmnode(G, find(indegree(G)==0 & outdegree(G)==0));
             
             if nargin > 1
-                edgelabels = varargin{1};
+                labeltype = type;
             else
                 % default edge label is Glink index.
-                edgelabels = G.Edges.Label;
+                labeltype = 'index';
             end
+            
+            switch labeltype
+                case 'index' % default
+                    edgelabels = G.Edges.Label;
+                case 'lobes'
+                    lobes = [obj.Glink(:).lobe];
+                    edgelabels = lobes(G.Edges.Label);
+                case {'generation','gen'}
+                    gens = [obj.Glink(:).generation];
+                    edgelabels = gens(G.Edges.Label);
+                otherwise
+                    warning('Unexpected plot type. Resorting to default type.')
+                    edgelabels = G.Edges.Label;
+            end
+            
             h = plot(G,'EdgeLabel',edgelabels, 'Layout', 'layered');
             h.NodeColor = 'r';
             h.EdgeColor = 'k';
