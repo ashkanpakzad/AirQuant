@@ -546,6 +546,7 @@ classdef AirQuant
                 obj = CreateAirwayImage(obj, i);
                 disp(['Traversing: Completed ', num2str(i), ' of ', num2str(total_branches)])
             end
+            disp('Traversing: Done')
         end
         
         
@@ -557,7 +558,7 @@ classdef AirQuant
             total_branches = length(obj.Glink);
             
             % check which branches already traversed
-            incomplete = cellfun(@isempty, obj.FWHMesl{:,1});
+            incomplete = cellfun(@isempty, obj.FWHMesl(:,1));
 
             for i = 1:length(obj.Glink)
                 % skip the trachea
@@ -568,6 +569,7 @@ classdef AirQuant
                 disp(['FWHMesl: Completed ', num2str(i), ' of ', num2str(total_branches)])
             end
             save(obj)
+            disp('FWHMesl: Done')
         end
         
         %% TRAVERSING AIRWAYS METHODS %%%
