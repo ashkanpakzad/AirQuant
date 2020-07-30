@@ -522,9 +522,9 @@ classdef AirQuant
             for i = 1:length(obj.Glink)
                 report(i).arclength = ~any(isnan(obj.arclength{i}));
                 try
-                report(i).FWHM_inner = all(cellfun(@isstruct,obj.FWHMesl{i,1}));
-                report(i).FWHM_peak = all(cellfun(@isstruct,obj.FWHMesl{i,2}));
-                report(i).FWHM_outer = all(cellfun(@isstruct,obj.FWHMesl{i,3}));
+                report(i).FWHM_inner = all(~cellfun(@isempty,obj.FWHMesl{i,1}));
+                report(i).FWHM_peak = all(~cellfun(@isempty,obj.FWHMesl{i,2}));
+                report(i).FWHM_outer = all(~cellfun(@isempty,obj.FWHMesl{i,3}));
                 catch
                 end
             end
@@ -725,7 +725,8 @@ classdef AirQuant
                     raycast_FWHMp{k,1} = FWHMp_ellipse;
                     raycast_FWHMr{k,1} = FWHMr_ellipse;
                 catch
-                    warning('Fail recorded')
+                    % segmentation exceeds interpolated slice therefore no
+                    % measurement recorded.
                     raycast_FWHMl{k,1} = NaN;
                     raycast_FWHMp{k,1} = NaN;
                     raycast_FWHMr{k,1} = NaN;
@@ -788,7 +789,8 @@ classdef AirQuant
                 elliptical_sturct.elliptical_info(4)*...
                 pi*obj.physical_sampling_interval.^2;
         end
-        
+     
+        %% ANALYSIS METHODS
         function obj = ComputeTaperValues(obj)
             for i = 1:length(obj.TraversedImage)
                 cum_area = [];
@@ -892,11 +894,8 @@ classdef AirQuant
                     try
                         lobes = [obj.Glink(:).lobe];
                     catch
-                        warning('')
-                        edgelabels = G.Edges.Label;
-
+                        error('Need to run ComputeAirwayLobes first')
                     end
-
                 case {'generation','gen'}
                     gens = [obj.Glink(:).generation];
                     edgelabels = gens(G.Edges.Label);
@@ -1065,7 +1064,7 @@ classdef AirQuant
                 %TODO: set third colour more appropiately
                 
             catch
-                warning('No FWHMesl data, showing slices without elliptical information.')
+                % warning('No FWHMesl data, showing slices without elliptical information.')
             end
             
             % display area measurements
@@ -1134,6 +1133,9 @@ classdef AirQuant
                 % * Find the edge of the interpolated segmentation.
                 if seg_profile(1) < 0.5
                     continue % skip if seg edge does not exist
+%                 elseif seg_profile(length(seg_profile)) > 0.5
+%                     % set to slice edge if segmentation exceeds slice
+%                     seg_half = length(ind_ray);
                 else
                     % Identify the last vaule that is above the 0.5
                     ind_ray = (seg_profile < 0.5);
