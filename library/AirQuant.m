@@ -254,6 +254,8 @@ classdef AirQuant
             
             % Assign branches of the lower left lobe
             classedgelobes(LLLN, 'LL')
+            classedgelobes(LUL_L, 'LU')
+
             % assign branch from left lobe divider to upper lobe node
             classedgenonlobes(leftN, LUL_L, 'LU')
             
@@ -280,23 +282,32 @@ classdef AirQuant
             % class branches of right upper lobe
             classedgelobes(RULN, 'RU')
             
-            % check if following node also belongs to upper lobe
-            upper_ratio = G.Edges.Weight(findedge(G,rightN,RlungN(RlungN ~= RULN)));
-            lower_ratio = G.Edges.Weight(findedge(G,obj.carina_node,rightN));
-            if upper_ratio/lower_ratio < 0.5
-                % non standard upper lobe branching
-                RlungN2 = find(G, RlungN(RlungN ~= RULN));
-                [~, I] = max([obj.Gnode(RlungN2).comz]);
-                RULN2 = RlungN(I);
-                classedgelobes(RULN2, 'RU')
-                % create subgraph of following nodes from here
-                Gsub = subgraph(G,bfsearch(G,RlungN2(RlungN2~=RULN2)));
-            else
-                % create subgraph of following nodes
-                Gsub = subgraph(G,bfsearch(G,RlungN(RlungN ~= RULN)));
-            end
-            
             % % Identify mid and lower lobes in right lung
+            switch length(RlungN) 
+                case 3 % all 3 lobes branch off same node (low res CT)
+                    G_copy = G; % make copy and remove upper lobe
+                    G_copy = rmnode(G_copy,bfsearch(G_copy,RULN));
+                    Gsub = subgraph(G_copy,bfsearch(G_copy,(find(G_copy.Nodes.label == rightN))));
+                case 2 % Much more likely
+                    % check if following node also belongs to upper lobe
+                    upper_ratio = G.Edges.Weight(findedge(G,rightN,RlungN(RlungN ~= RULN)));
+                    lower_ratio = G.Edges.Weight(findedge(G,obj.carina_node,rightN));
+                    if upper_ratio/lower_ratio < 0.5
+                        % non standard upper lobe branching
+                        RlungN2 = find(G, RlungN(RlungN ~= RULN));
+                        [~, I] = max([obj.Gnode(RlungN2).comz]);
+                        RULN2 = RlungN(I);
+                        classedgelobes(RULN2, 'RU')
+                        Gsub = subgraph(G,bfsearch(G,RlungN2(RlungN2~=RULN2)));
+                    else
+                    % create subgraph of following nodes
+                    Gsub = subgraph(G,bfsearch(G,RlungN(RlungN ~= RULN)));
+                    end
+                otherwise
+                    error('Lobe classification failed to distinguish right lobes, Airways may be incomplete.')
+            end
+
+            
             % get list of endpoint nodes
             endpoint = Gsub.Nodes(Gsub.Nodes.ep == 1, :);
             % compute z - y.
@@ -513,7 +524,6 @@ classdef AirQuant
         function report = debuggingreport(obj)
             % produce a table showing success of processing for each airway
             % branch.
-            report = [];
             report = struct('airway',num2cell(1:length(obj.Glink)));
 %             temp = num2cell(1:length(obj.Glink));
 %             [report.airway] = temp{:};
@@ -791,23 +801,36 @@ classdef AirQuant
         end
      
         %% ANALYSIS METHODS
-        function obj = ComputeTaperValues(obj)
-            for i = 1:length(obj.TraversedImage)
-                cum_area = [];
-                for j = 1:length(obj.arclength{i,1})
-                    try
-                        cum_area = [cum_area; obj.FWHMesl{i, 1}{j, 1}.area];
-                    catch
-                        cum_area = [cum_area; NaN];
-                    end
-                end
-                obj.Specs(i).FWHMl_logtaper = ...
-                    AirQuant.ComputeTaperRate(...
-                    obj.arclength{i, 1}, cum_area);
-            end
-        end
+%         function obj = ComputeTaperValues(obj)
+%             for i = 1:length(obj.TraversedImage)
+%                 cum_area = [];
+%                 for j = 1:length(obj.arclength{i,1})
+%                     try
+%                         cum_area = [cum_area; obj.FWHMesl{i, 1}{j, 1}.area];
+%                     catch
+%                         cum_area = [cum_area; NaN];
+%                     end
+%                 end
+%                 obj.Specs(i).FWHMl_logtaper = ...
+%                     AirQuant.ComputeTaperGrad(...
+%                     obj.arclength{i, 1}, cum_area);
+%             end
+%         end
         
-        function [logtaperrate, cum_arclength, cum_area, edgepath] = ConstructTaperPath(obj, terminal_link_idx)
+        function [logtapergrad, cum_arclength, cum_area, edgepath] = ConstructTaperPath(obj, terminal_link_idx, type)
+            if nargin < 3
+                type = 'inner';
+            end
+            switch type
+                case 'inner'
+                    typeidx = 1;
+                case 'peak'
+                    typeidx = 2;
+                case 'outer'
+                    typeidx = 3;
+                otherwise
+                    error(['Unknown type: ', type, 'please use ''inner'', ''peak'' or ''outer''.'])
+            end
             % TODO: remove trachea node?
             G = digraph(obj);
             [path,~,~] = shortestpath(G, obj.carina_node, terminal_link_idx);
@@ -828,7 +851,7 @@ classdef AirQuant
                 % skip the first of each link except the first one
                 if k == 1
                     try
-                        cum_area = [cum_area; obj.FWHMesl{i, 1}{1, 1}.area];
+                        cum_area = [cum_area; obj.FWHMesl{i, typeidx}{1, 1}.area];
                         k=0;
                     catch
                         cum_area = [cum_area; NaN];
@@ -842,18 +865,102 @@ classdef AirQuant
                 
                 for j = 2:length(obj.arclength{i,1})
                     try
-                        cum_area = [cum_area; obj.FWHMesl{i, 1}{j, 1}.area];
+                        cum_area = [cum_area; obj.FWHMesl{i, typeidx}{j, 1}.area];
                     catch
                         cum_area = [cum_area; NaN];
                     end
                 end
             end
-            logtaperrate = AirQuant.ComputeTaperRate(cum_arclength, cum_area);
+            logtapergrad = AirQuant.ComputeTaperGrad(cum_arclength, cum_area);
             
             % TODO: consider using graph and edge highlight for another
             % applications.
             %h = plot(G);
             %highlight(h,'Edges',edgepath,'EdgeColor','r','LineWidth',1.5)
+        end
+        
+        
+        function terminalbranchlist = ListTerminalBranches(obj)
+            terminalbranchlist = [obj.Gnode([obj.Gnode(:).ep] == 1).links];
+        end
+        
+        
+        function AllTaperResults = ComputeTaperAll(obj)
+            % get list of terminal branches
+            terminallinklist = ListTerminalBranches(obj);
+            % construct structure to save analysis results
+            AllTaperResults = struct('terminalbranch',num2cell(terminallinklist));
+            % compute taper results for each terminal branch
+            for i = 1:length(AllTaperResults)
+                branch_idx = AllTaperResults(i).terminalbranch;
+                [logtapergrad_inner, cum_arclength, cum_area_inner, edgepath] = ...
+                    ConstructTaperPath(obj, branch_idx, 'inner');
+                [logtapergrad_peak, ~, cum_area_peak, ~] = ...
+                    ConstructTaperPath(obj, branch_idx, 'peak');
+                [logtapergrad_outer, ~, cum_area_outer, ~] = ...
+                    ConstructTaperPath(obj, branch_idx, 'outer');
+                AllTaperResults(i).edgepath = edgepath;
+                AllTaperResults(i).arclength = cum_arclength;
+                AllTaperResults(i).area_inner = cum_area_inner;
+                AllTaperResults(i).area_peak = cum_area_peak;
+                AllTaperResults(i).area_outer = cum_area_outer;
+                AllTaperResults(i).logtapergrad_inner = logtapergrad_inner;
+                AllTaperResults(i).logtapergrad_peak = logtapergrad_peak;
+                AllTaperResults(i).logtapergrad_outer = logtapergrad_outer;
+                
+                try % only add lobe information if it exists
+                    AllTaperResults(i).lobe = obj.Glink(branch_idx).lobe;
+                catch
+                end
+            end
+            if isfield(AllTaperResults, 'lobe')
+                AllTaperResults = sortrows(struct2table(AllTaperResults), 'lobe');
+            else
+                AllTaperResults = struct2table(AllTaperResults);
+            end
+        end
+        
+        
+        function PlotTaperResults(obj, terminal_link_idx, type)
+            if nargin < 3
+                type = 'other';
+            end
+            switch type
+                case 'inner'
+                    plottaperunderfunc(obj, terminal_link_idx, type)
+                    ylabel('Inner Area (mm^2)')
+                    title(['Inner lumen terminal log taper graph for branch ', num2str(terminal_link_idx)])
+                case 'peak'
+                    plottaperunderfunc(obj, terminal_link_idx, type)
+                    ylabel('Peak Area (mm^2)')
+                    title(['Peak wall attenuation terminal log taper for branch ', num2str(terminal_link_idx)])
+                case 'outer'
+                    plottaperunderfunc(obj, terminal_link_idx, type)
+                    ylabel('Outer Area (mm^2)')
+                    title(['Outer wall terminal log taper graph for branch ', num2str(terminal_link_idx)])
+                otherwise
+                    subplot(3,1,1)
+                    PlotTaperResults(obj, terminal_link_idx, 'inner')
+                    subplot(3,1,2)
+                    PlotTaperResults(obj, terminal_link_idx, 'peak')      
+                    subplot(3,1,3)
+                    PlotTaperResults(obj, terminal_link_idx, 'outer')
+            end
+        end
+        
+        function plottaperunderfunc(obj, terminal_link_idx, type)
+            [logtapergrad, cum_arclength, cum_area, ~] = ConstructTaperPath(obj, terminal_link_idx, type);
+            plot(cum_arclength, cum_area, 'k.')
+            hold on
+            [~, displacement] = AirQuant.ComputeTaperGrad(cum_arclength, cum_area);
+            logcurve = exp(-logtapergrad*cum_arclength + displacement);
+            plot(cum_arclength, logcurve,'-r')
+            xlabel('Arc-length (mm)')
+            legend('Measured', 'Log curve fit')
+%             h = gca;
+%             xlim = h.XLim;
+%             ylim = h.YLim;
+%             text(xlim(1),ylim(1),['Log(Tapering-Gradient): ' num2str(logtapergrad)])
         end
         
         %% Graph Methods
@@ -992,7 +1099,7 @@ classdef AirQuant
             isocolors(cdata, p);
             % % Reassign colors to meaningful values
             Vertcolour = p.FaceVertexCData;
-            vcolours = unique(Vertcolour);
+            vcolours = uniquetol(Vertcolour);
             colourind = unique(cdata);
             for i = 1:length(vcolours)
                 Vertcolour(Vertcolour==vcolours(i)) = colourind(i);
@@ -1098,13 +1205,16 @@ classdef AirQuant
         end
         
         
-        function logtaperrate = ComputeTaperRate(arclength, area)
-            
+        function [logtapergradient, displacement] = ComputeTaperGrad(arclength, area)
             % identify NaN data points
             idx = isnan(area);
-            % compute logtaperrate, ignoring nan values
+            % compute logtapergrad, ignoring nan values
             p_coeff = polyfit(arclength(~idx),log(area(~idx)),1);
-            logtaperrate = p_coeff(1);
+            % positive if thinning, therefore multiply by -1.
+            logtapergradient = p_coeff(1) * -1; % logtapergradient
+            if nargout > 1
+                displacement = p_coeff(2); % displacement
+            end
         end
         
         
