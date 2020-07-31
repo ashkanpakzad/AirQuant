@@ -1,4 +1,4 @@
-classdef AirQuant
+classdef AirQuant < handle % handle class
     properties
         CT % CT image
         CTinfo % CT metadata
@@ -801,22 +801,7 @@ classdef AirQuant
                 pi*obj.physical_sampling_interval.^2;
         end
      
-        %% ANALYSIS METHODS
-%         function obj = ComputeTaperValues(obj)
-%             for i = 1:length(obj.TraversedImage)
-%                 cum_area = [];
-%                 for j = 1:length(obj.arclength{i,1})
-%                     try
-%                         cum_area = [cum_area; obj.FWHMesl{i, 1}{j, 1}.area];
-%                     catch
-%                         cum_area = [cum_area; NaN];
-%                     end
-%                 end
-%                 obj.Specs(i).FWHMl_logtaper = ...
-%                     AirQuant.ComputeTaperGrad(...
-%                     obj.arclength{i, 1}, cum_area);
-%             end
-%         end
+        %% TAPERING ANALYSIS METHODS
         
         function [logtapergrad, cum_arclength, cum_area, edgepath] = ConstructTaperPath(obj, terminal_node_idx, type)
             if nargin < 3
@@ -888,7 +873,7 @@ classdef AirQuant
         end
         
         
-        function AllTaperResults = ComputeTaperAll(obj)
+        function [AllTaperResults] = ComputeTaperAll(obj)
             % get list of terminal branches
             terminallinklist = ListTerminalNodes(obj);
             % construct structure to save analysis results
@@ -922,9 +907,12 @@ classdef AirQuant
             else
                 AllTaperResults = struct2table(AllTaperResults);
             end
+%             if nargout > 1
+            obj.Specs.AllTaperResults = AllTaperResults;
+%             end
         end
         
-        
+        %% TAPERING VISUALISATION METHODS
         function PlotTaperResults(obj, terminal_node_idx, type)
             if nargin < 3
                 type = 'other';
@@ -964,7 +952,48 @@ classdef AirQuant
         end
         end
         
-
+        function TaperBoxPlot(obj, type)
+            % requires lobe classification
+            if ~isfield(obj.Glink, 'lobe')
+                error('Lobe classification required. Please run ComputeAirwayLobes() first.')
+            end
+            % run ComputeTaperAll if analysis not saved.
+            if  ~isfield(obj.Specs, 'AllTaperResults')
+                AllTaperResults = ComputeTaperAll(obj);
+                warning('For faster results run ComputeTaperAll() first')
+            else
+                AllTaperResults = obj.Specs.AllTaperResults;
+            end   
+            if nargin < 2
+                type = 'other';
+            end
+                        
+            switch type
+                case 'inner'
+                    logtaperdata = [AllTaperResults.logtapergrad_inner];
+                    typetxt = 'Inner lumen';
+                case 'peak'
+                    logtaperdata = [AllTaperResults.logtapergrad_peak];
+                    typetxt = 'Peak wall';
+                case 'outer'
+                    logtaperdata = [AllTaperResults.logtapergrad_outer];
+                    typetxt = 'Outer wall';
+                otherwise
+                    subplot(3,1,1)
+                    TaperBoxPlot(obj, 'inner')
+                    subplot(3,1,2)
+                    TaperBoxPlot(obj, 'peak')
+                    subplot(3,1,3)
+                    TaperBoxPlot(obj, 'outer')
+                    return
+            end
+            datalabels = [AllTaperResults.lobe];
+            
+            boxplot(logtaperdata, datalabels)
+            xlabel('Lobe')
+            ylabel('Log Taper Gradient')
+            title(typetxt)
+        end
         
         %% Graph Methods
         function G = digraph(obj)
