@@ -817,7 +817,7 @@ classdef AirQuant
 %             end
 %         end
         
-        function [logtapergrad, cum_arclength, cum_area, edgepath] = ConstructTaperPath(obj, terminal_link_idx, type)
+        function [logtapergrad, cum_arclength, cum_area, edgepath] = ConstructTaperPath(obj, terminal_node_idx, type)
             if nargin < 3
                 type = 'inner';
             end
@@ -833,7 +833,7 @@ classdef AirQuant
             end
             % TODO: remove trachea node?
             G = digraph(obj);
-            [path,~,~] = shortestpath(G, obj.carina_node, terminal_link_idx);
+            [path,~,~] = shortestpath(G, obj.carina_node, terminal_node_idx);
             
             % construct edgepath from graph2skel NB: MATLAB graph object
             % does not work.
@@ -880,25 +880,28 @@ classdef AirQuant
         end
         
         
-        function terminalbranchlist = ListTerminalBranches(obj)
-            terminalbranchlist = [obj.Gnode([obj.Gnode(:).ep] == 1).links];
+        function terminalnodelist = ListTerminalNodes(obj)
+            terminalnodelist = find([obj.Gnode(:).ep] == 1);
+            % remove trachea node
+            terminalnodelist(terminalnodelist ==  obj.trachea_node) = [];
         end
         
         
         function AllTaperResults = ComputeTaperAll(obj)
             % get list of terminal branches
-            terminallinklist = ListTerminalBranches(obj);
+            terminallinklist = ListTerminalNodes(obj);
             % construct structure to save analysis results
-            AllTaperResults = struct('terminalbranch',num2cell(terminallinklist));
+            AllTaperResults = struct('terminalnode',num2cell(terminallinklist));
             % compute taper results for each terminal branch
             for i = 1:length(AllTaperResults)
-                branch_idx = AllTaperResults(i).terminalbranch;
+                node_idx = AllTaperResults(i).terminalnode;
+                
                 [logtapergrad_inner, cum_arclength, cum_area_inner, edgepath] = ...
-                    ConstructTaperPath(obj, branch_idx, 'inner');
+                    ConstructTaperPath(obj, node_idx, 'inner');
                 [logtapergrad_peak, ~, cum_area_peak, ~] = ...
-                    ConstructTaperPath(obj, branch_idx, 'peak');
+                    ConstructTaperPath(obj, node_idx, 'peak');
                 [logtapergrad_outer, ~, cum_area_outer, ~] = ...
-                    ConstructTaperPath(obj, branch_idx, 'outer');
+                    ConstructTaperPath(obj, node_idx, 'outer');
                 AllTaperResults(i).edgepath = edgepath;
                 AllTaperResults(i).arclength = cum_arclength;
                 AllTaperResults(i).area_inner = cum_area_inner;
@@ -909,7 +912,7 @@ classdef AirQuant
                 AllTaperResults(i).logtapergrad_outer = logtapergrad_outer;
                 
                 try % only add lobe information if it exists
-                    AllTaperResults(i).lobe = obj.Glink(branch_idx).lobe;
+                    AllTaperResults(i).lobe = obj.Glink(obj.Gnode(node_idx).links).lobe;
                 catch
                 end
             end
@@ -921,35 +924,35 @@ classdef AirQuant
         end
         
         
-        function PlotTaperResults(obj, terminal_link_idx, type)
+        function PlotTaperResults(obj, terminal_node_idx, type)
             if nargin < 3
                 type = 'other';
             end
             switch type
                 case 'inner'
-                    plottaperunderfunc(obj, terminal_link_idx, type)
-                    ylabel('Inner Area (mm^2)')
-                    title(['Inner lumen terminal log taper graph for branch ', num2str(terminal_link_idx)])
+                    logtapergrad = plottaperunderfunc(obj, terminal_node_idx, type);
+                    typetxt = 'Inner lumen';
                 case 'peak'
-                    plottaperunderfunc(obj, terminal_link_idx, type)
-                    ylabel('Peak Area (mm^2)')
-                    title(['Peak wall attenuation terminal log taper for branch ', num2str(terminal_link_idx)])
+                    logtapergrad = plottaperunderfunc(obj, terminal_node_idx, type);
+                    typetxt = 'Peak wall';
                 case 'outer'
-                    plottaperunderfunc(obj, terminal_link_idx, type)
-                    ylabel('Outer Area (mm^2)')
-                    title(['Outer wall terminal log taper graph for branch ', num2str(terminal_link_idx)])
+                    logtapergrad = plottaperunderfunc(obj, terminal_node_idx, type);
+                    typetxt = 'Outer wall';
                 otherwise
                     subplot(3,1,1)
-                    PlotTaperResults(obj, terminal_link_idx, 'inner')
+                    PlotTaperResults(obj, terminal_node_idx, 'inner')
                     subplot(3,1,2)
-                    PlotTaperResults(obj, terminal_link_idx, 'peak')      
+                    PlotTaperResults(obj, terminal_node_idx, 'peak')      
                     subplot(3,1,3)
-                    PlotTaperResults(obj, terminal_link_idx, 'outer')
+                    PlotTaperResults(obj, terminal_node_idx, 'outer')
+                    return % end function
             end
-        end
-        
-        function plottaperunderfunc(obj, terminal_link_idx, type)
-            [logtapergrad, cum_arclength, cum_area, ~] = ConstructTaperPath(obj, terminal_link_idx, type);
+            ylabel('Area (mm^2)')
+            txt = sprintf('%s log taper graph; Terminal-node: %d; LogTaperGrad: %0.3g',typetxt, terminal_node_idx,logtapergrad);
+            title(txt)
+            
+            function logtapergrad = plottaperunderfunc(obj, terminal_node_idx, type)
+            [logtapergrad, cum_arclength, cum_area, ~] = ConstructTaperPath(obj, terminal_node_idx, type);
             plot(cum_arclength, cum_area, 'k.')
             hold on
             [~, displacement] = AirQuant.ComputeTaperGrad(cum_arclength, cum_area);
@@ -957,11 +960,10 @@ classdef AirQuant
             plot(cum_arclength, logcurve,'-r')
             xlabel('Arc-length (mm)')
             legend('Measured', 'Log curve fit')
-%             h = gca;
-%             xlim = h.XLim;
-%             ylim = h.YLim;
-%             text(xlim(1),ylim(1),['Log(Tapering-Gradient): ' num2str(logtapergrad)])
         end
+        end
+        
+
         
         %% Graph Methods
         function G = digraph(obj)
