@@ -33,6 +33,16 @@ PlotTree(AQ)
 figure
 plot(AQ)
 
+%% compute lobes
+AQ = ComputeAirwayLobes(AQ);
+figure; PlotMap3D(AQ, 'Lobe');
+% Generatlly use the save function when AQ given and returned by function.
+save(AQ) 
+% MATLAB's colourcoding can be a little buggy when viewing results.
+% Note that the upper left lobe's lingular is treated seperately. An
+% emulation of the middle lobe in the right lung. The Airway segmentation
+% must reach all anatomical lobes for this function to be successful.
+
 %% Plot the skeleton inside the segmentation
 figure
 patch(isosurface(S),'EdgeColor', 'none','FaceAlpha',0.3);
@@ -67,5 +77,22 @@ disp(toc/60)
 % measurements are complete.
 AQ = FindFWHMall(AQ);
 
-%% Construct taper rate path to compute
+%% Analysis
+report = debuggingreport(AQ);
+
+%% Construct single taper gradient path
+terminalbranchlist = ListTerminalBranches(AQ); % list of terminal branches
+terminal_link_idx = terminalbranchlist(1);
+% get branch data for carina to terminal branch.
 [logtaperrate, cum_arclength, cum_area, path] = ConstructTaperPath(AQ, terminal_link_idx); 
+figure
+plot(cum_arclength, cum_area);
+
+%% Compute taper gradient path of all terminal branches
+% Table with all carina-terminal branch data.
+% running ComputeAirwayLobes before this function will group output by lobe.
+AllTaperResults = ComputeTaperAll(AQ);
+
+%% Display taper results of a single gradient path
+figure
+PlotTaperResults(AQ, AllTaperResults.terminalbranch(1))
