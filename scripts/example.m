@@ -51,24 +51,34 @@ isosurface(skel)
 axis vis3d
 
 %% traverse the first indexed airway, measure and display results
-% this may take a few minutes
+% this may take >20 minutes
+% given the Airway index of interest (use the plottree and plot function to 
+% identify branch indices) this function interpolates slices along that
+% branch and then attempts to fit an ellipse to the inner lumen, wall peak
+% attenuation and outer wall boundaries.
 idx = 26;
 tic;
 AQ = CreateAirwayImage(AQ, idx);
 AQ = FindAirwayBoundariesFWHM(AQ, idx);
 disp(toc/60)
 
+% the interpolated slices and fitted ellipses can be viewed with the below
+% function. interpolated slice shows 1x1 mm pixels, if the voxel size of
+% the original image is greater than this then the interpolated slices will
+% be noticibly blurry and results poor.
 PlotAirway3(AQ, idx)
+
 % AirQuant doesn't save tapering measurements automatically 
 % (only interpolated slices), so we can manually invoke the save method after
 % performing measurements on a single branch.
 save(AQ)
 
-%% traverse all airway 
+%% traverse all airways
 % this could take a number of hours, results will be saved along the way so
-% can be interrupted.
+% can be interrupted and rerun at a later time.
 tic;
 AQ = AirwayImageAll(AQ);
+% show how long it took
 time = toc;
 disp(toc/60)
 
@@ -77,22 +87,28 @@ disp(toc/60)
 % measurements are complete.
 AQ = FindFWHMall(AQ);
 
-%% Analysis
+%% This will tell you which branches have been processed.
+% if both the AirwayImageAll and FindFWHMall functions have been run to
+% completion successfully then the results of this should show all 1s.
 report = debuggingreport(AQ);
-
-%% Construct single taper gradient path
-terminalbranchlist = ListTerminalBranches(AQ); % list of terminal branches
-terminal_link_idx = terminalbranchlist(1);
-% get branch data for carina to terminal branch.
-[logtaperrate, cum_arclength, cum_area, path] = ConstructTaperPath(AQ, terminal_link_idx); 
-figure
-plot(cum_arclength, cum_area);
 
 %% Compute taper gradient path of all terminal branches
 % Table with all carina-terminal branch data.
-% running ComputeAirwayLobes before this function will group output by lobe.
+% running ComputeAirwayLobes() before this function will group output by lobe.
 AllTaperResults = ComputeTaperAll(AQ);
 
 %% Display taper results of a single gradient path
+% plot taper grad results from carina to a given end-node.
 figure
-PlotTaperResults(AQ, AllTaperResults.terminalbranch(1))
+PlotTaperResults(AQ, AllTaperResults.terminalnode(1), 'inner')
+figure
+PlotTaperResults(AQ, AllTaperResults.terminalnode(1))
+
+%% Construct single taper gradient path
+% this demonstrates more hands on functions to process data as desired.
+% list of terminal node, refer to airway graph.
+terminalnodelist = ListTerminalNodes(AQ); 
+% get branch data for carina to terminal node for given node.
+% note a positive taper gradient shows that the branch is tapering.
+[logtaperrate, cum_arclength, cum_area, path] = ConstructTaperPath(AQ, terminalnodelist(1)); 
+
