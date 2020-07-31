@@ -525,9 +525,7 @@ classdef AirQuant
             % produce a table showing success of processing for each airway
             % branch.
             report = struct('airway',num2cell(1:length(obj.Glink)));
-%             temp = num2cell(1:length(obj.Glink));
-%             [report.airway] = temp{:};
-            
+           
             % check for each airway arclength and FWHM failures
             for i = 1:length(obj.Glink)
                 report(i).arclength = ~any(isnan(obj.arclength{i}));
@@ -538,6 +536,9 @@ classdef AirQuant
                 catch
                 end
             end
+                        % remove trachea branch. 
+            report(obj.trachea_path) = [];
+            report = struct2table(report);
         end
                     
         %% HIGH LEVEL METHODS
