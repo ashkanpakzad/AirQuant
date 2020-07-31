@@ -272,7 +272,7 @@ classdef AirQuant
             
             % assign branches of the upper left lobe.
             classedgelobes(LULN, 'LU')
-            classedgelobes(LN, 'lin')
+            classedgelobes(LN, 'LUlin')
                         
             % % Identify right upper lobe
             RlungN = successors(G, rightN);
@@ -1084,7 +1084,7 @@ classdef AirQuant
 %                     colorbarstring = 'Generation Number';
                 case 'Lobe'
                     % convert lobe id to number
-                    lobeid = {'B','RU','RM','RL','LU','lin','LL'};
+                    lobeid = {'B','RU','RM','RL','LU','LUlin','LL'};
                     for i = 1:length(obj.Glink)
                         cdata(branch_seg == i) = find(strcmp(lobeid, obj.Glink(i).lobe))-1;
                     end
