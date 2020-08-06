@@ -819,7 +819,7 @@ classdef AirQuant < handle % handle class
             end
             % TODO: remove trachea node?
             G = digraph(obj);
-            [path,~,~] = shortestpath(G, obj.carina_node, terminal_node_idx);
+            path = shortestpath(G, obj.carina_node, terminal_node_idx);
             
             % construct edgepath from graph2skel NB: MATLAB graph object
             % does not work.
