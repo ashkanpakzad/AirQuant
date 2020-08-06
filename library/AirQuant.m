@@ -873,7 +873,7 @@ classdef AirQuant < handle % handle class
         end
         
         
-        function [AllTaperResults] = ComputeTaperAll(obj)
+        function AllTaperResults = ComputeTaperAll(obj)
             % get list of terminal branches
             terminallinklist = ListTerminalNodes(obj);
             % construct structure to save analysis results
@@ -960,7 +960,6 @@ classdef AirQuant < handle % handle class
             % run ComputeTaperAll if analysis not saved.
             if  ~isfield(obj.Specs, 'AllTaperResults')
                 AllTaperResults = ComputeTaperAll(obj);
-                warning('For faster results run ComputeTaperAll() first')
             else
                 AllTaperResults = obj.Specs.AllTaperResults;
             end   
