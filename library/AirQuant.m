@@ -256,7 +256,7 @@ classdef AirQuant < handle % handle class
             classedgelobes(LLLN, 'LL')
             classedgelobes(LUL_L, 'LU')
 
-            % assign branch from left lobe divider to upper lobe node
+            % assign branch from left lobe divider to upper itk node
             classedgenonlobes(leftN, LUL_L, 'LU')
             
             % identify upper lobe and lingular
@@ -294,17 +294,17 @@ classdef AirQuant < handle % handle class
                     lower_ratio = G.Edges.Weight(findedge(G,obj.carina_node,rightN));
                     if upper_ratio/lower_ratio < 0.5
                         % non standard upper lobe branching
-                        RlungN2 = find(G, RlungN(RlungN ~= RULN));
+                        RlungN2 = successors(G, RlungN(RlungN ~= RULN));
                         [~, I] = max([obj.Gnode(RlungN2).comz]);
-                        RULN2 = RlungN(I);
+                        RULN2 = RlungN2(I);
                         classedgelobes(RULN2, 'RU')
                         Gsub = subgraph(G,bfsearch(G,RlungN2(RlungN2~=RULN2)));
                     else
-                    % create subgraph of following nodes
-                    Gsub = subgraph(G,bfsearch(G,RlungN(RlungN ~= RULN)));
+                        % create subgraph of following nodes
+                        Gsub = subgraph(G,bfsearch(G,RlungN(RlungN ~= RULN)));
                     end
                 otherwise
-                    error('Lobe classification failed to distinguish right lobes, Airways may be incomplete.')
+                    error('Lobe classification failed to distinguish right lobes, airway segmentation may be incomplete.')
             end
 
             
@@ -316,7 +316,8 @@ classdef AirQuant < handle % handle class
             [~, I] = max(z_minus_y);
             RML_end = endpoint.label(I);
             % identify end node of right lower lobe.
-            [~, I] = min(z_minus_y);
+%             [~, I] = min(z_minus_y);
+            [~, I] = min(endpoint.comz);
             RLL_end = endpoint.label(I);
             % identify bifurcation point of the two end points.
             RML_endpath = flip(shortestpath(G,obj.carina_node, RML_end));
@@ -328,7 +329,12 @@ classdef AirQuant < handle % handle class
             % identify RML node
             RMLN = RML_endpath(min(I)-1);
             % assign labels to RM edges, not RL
-            classedgelobes(RMLN, 'RM')
+            classedgelobes(RMLN, 'RM') 
+            % include the missed out branch in rm.
+%             classedgenonlobes(RML_RLLN, RMLN, 'RM') 
+            % TODO: consider chaning above to branch.
+            % NB: cannot just go from 1 node before, must go 2 nodes incase
+            % the right middle and lower are not fully split at that point.
             
 %             % % check for remaining non-lobe branches if they exist.
 %             P = shortestpath(G, RightN, RML_RLLN);
@@ -1031,6 +1037,7 @@ classdef AirQuant < handle % handle class
                 case 'lobes'
                     try
                         lobes = [obj.Glink(:).lobe];
+                        edgelabels = lobes(G.Edges.Label);
                     catch
                         error('Need to run ComputeAirwayLobes first')
                     end
@@ -1059,29 +1066,55 @@ classdef AirQuant < handle % handle class
         end
         
         
-        function PlotTree(obj)
-            % Plot the airway tree with nodes and links
+        function PlotTree(obj, gen)
+            % Plot the airway tree with nodes and links in image space. Set
+            % gen to the maximum number of generations to show.
             % Original Function by Ashkan Pakzad on 27th July 2019.
+                            
+            if nargin == 1
+                gen = max([obj.Glink(:).generation]);
+            end
             
-            isosurface(obj.skel);
+%             isosurface(obj.skel);
+%             alpha(0.7)
+            % set up reduced link graph and skel 
+            vis_Glink_logical = [obj.Glink(:).generation] <= gen;
+            vis_Glink_ind = find(vis_Glink_logical == 1);
+            vis_Glink = obj.Glink(vis_Glink_logical);
+            % set up reduced node graph
+            vis_Gnode_logical = false(length(obj.Gnode),1);
+            for i = 1:length(obj.Gnode)
+                if ~isempty(intersect(obj.Gnode(i).links, vis_Glink_ind))
+                    vis_Gnode_logical(i) = 1;
+                end
+            end
+            vis_Gnode_ind = find(vis_Gnode_logical == 1);
+            vis_Gnode = obj.Gnode(vis_Gnode_logical);
+            % set up reduced skel
+            vis_skel = zeros(size(obj.skel));
+            vis_skel([vis_Glink.point]) = 1;
+            %vis_skel([vis_Gnode.idx]) = 1;
+            
+            isosurface(vis_skel)
             alpha(0.7)
+            
             hold on
             
             % edges
-            ind = zeros(length(obj.Glink), 1);
-            for i = 1:length(obj.Glink)
-                ind(i) = obj.Glink(i).point(ceil(end/2));
+            ind = zeros(length(vis_Glink), 1);
+            for i = 1:length(vis_Glink)
+                ind(i) = vis_Glink(i).point(ceil(end/2));
             end
-            [Y, X, Z] = ind2sub(size(obj.seg),ind);
-            nums_link = string(1:length(obj.Glink));
+            [Y, X, Z] = ind2sub(size(obj.skel),ind);
+            nums_link = string(vis_Glink_ind);
             %plot3(X,Y,Z, 'b.', 'MarkerFaceColor', 'none');
             text(X+1,Y+1,Z+1, nums_link, 'Color', [0, 0.3, 0])
             
             % nodes
-            X_node = [obj.Gnode.comy];
-            Y_node = [obj.Gnode.comx];
-            Z_node = [obj.Gnode.comz];
-            nums_node = string(1:length(obj.Gnode));
+            X_node = [vis_Gnode.comy];
+            Y_node = [vis_Gnode.comx]; 
+            Z_node = [vis_Gnode.comz];
+            nums_node = string(vis_Gnode_ind);
             plot3(X_node,Y_node,Z_node, 'r.', 'MarkerSize', 18, 'Color', 'r');
             text(X_node+1,Y_node+1,Z_node+1, nums_node, 'Color', [0.8, 0, 0])
             
