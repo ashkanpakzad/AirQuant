@@ -336,21 +336,6 @@ classdef AirQuant < handle % handle class
             % NB: cannot just go from 1 node before, must go 2 nodes incase
             % the right middle and lower are not fully split at that point.
             
-%             % % check for remaining non-lobe branches if they exist.
-%             P = shortestpath(G, RightN, RML_RLLN);
-%             switch length(P)
-%                 case 1 % No further branching from right lung node
-%                     % do nothing
-%                 case 2 % Further major bronchi to lower lobes
-%                     classedgenonlobes(RlungN, RML_RLLN, 'R')
-%                 case 3 % potential non-standard branching
-%                     upper_ratio = G.Edges.Weight(findedge(G,RightN,P(2)));
-%                     lower_ratio = G.Edges.Weight(findedge(G,obj.carina_node,RightN));
-%                     if upper_ratio/lower_ratio < 0.5
-%                         
-%                     end
-%             end
-            
             % assign remaining labels to RLL
             lobes(cellfun(@isempty,lobes)) = {'RL'};
             
@@ -1252,6 +1237,34 @@ classdef AirQuant < handle % handle class
                 text(ax, 1,5,sprintf('Arc Length = %4.1f mm; %3.0i of %3.0i', ...
                     obj.arclength{link_index, 1}(slide), slide, size(obj.TraversedImage{link_index, 1},3)));
             end
+        end
+        
+        %% EXPORT METHODS
+        function exportlobes(obj, savename)
+            % export airway segmentation labelled by lobes to nii.gz
+            
+            % classify by branch first
+            branch_seg = ClassifySegmentation(obj);
+            lobeid = {'B','RU','RM','RL','LU','LUlin','LL'};
+            lobe_airway_seg = zeros(size(obj.seg));
+            
+            % convert branch classification to lobe classification
+            try
+                for i = 1:length(obj.Glink)
+                    lobe_airway_seg(branch_seg == i) = find(strcmp(lobeid, obj.Glink(i).lobe));
+                end
+            catch
+                error('Need to run ComputeAirwayLobes first')
+            end
+            
+            % reduce datatype and change header info
+            lobe_airway_seg = uint8(lobe_airway_seg);
+            header = obj.CTinfo;
+            header.Datatype = 'uint8';
+            header.BitsPerPixel = '8';
+            header.Description = 'Airway Lobe Segmentation using AirQuant, layers: B,RU,RM,RL,LU,LUlin,LL';
+            
+            niftiwrite(lobe_airway_seg, savename, header, 'Compressed', true);
         end
         
     end
