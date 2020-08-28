@@ -46,12 +46,12 @@ classdef AirQuant < handle % handle class
                 load(savename)
                 obj.savename = savename;
             else
-                obj.CT = CTimage;
+                obj.CTinfo = CTinfo;
+                obj.CT = reorientvolume(CTimage, obj.CTinfo);
                 % TODO: consider preprocess segmentation to keep largest
                 % connected component.
                 % ensure no holes in segmentation
-                obj.seg = imfill(segimage,'holes');
-                obj.CTinfo = CTinfo;
+                obj.seg = reorientvolume(imfill(segimage,'holes'), obj.CTinfo);
                 % set params
                 if nargin > 5
                     obj.physical_plane_length = params.physical_plane_length;
@@ -93,7 +93,7 @@ classdef AirQuant < handle % handle class
             if isempty(skel)
                 obj.skel = Skeleton3D(obj.seg);
             else
-                obj.skel = skel;
+                obj.skel = reorientvolume(skel, obj.CTinfo);
             end
             % create graph from skeleton.
             [obj.Gadj,obj.Gnode,obj.Glink] = Skel2Graph3D(obj.skel,0);
@@ -316,8 +316,8 @@ classdef AirQuant < handle % handle class
             [~, I] = max(z_minus_y);
             RML_end = endpoint.label(I);
             % identify end node of right lower lobe.
-%             [~, I] = min(z_minus_y);
-            [~, I] = min(endpoint.comz);
+            [~, I] = min(z_minus_y);
+%            [~, I] = min(endpoint.comz);
             RLL_end = endpoint.label(I);
             % identify bifurcation point of the two end points.
             RML_endpath = flip(shortestpath(G,obj.carina_node, RML_end));
@@ -1106,6 +1106,9 @@ classdef AirQuant < handle % handle class
             %axis([0 size(obj.CT, 1) 0 size(obj.CT, 2) 0 size(obj.CT, 3)])
             view(80,0)
             axis vis3d
+            % undo matlab display flip
+            ax = gca;
+            ax.XDir = 'reverse';
             
         end
         
@@ -1165,6 +1168,9 @@ classdef AirQuant < handle % handle class
             caxis(clims)
             view(80,0)
             axis vis3d
+            % undo matlab display flip
+            ax = gca;
+            ax.XDir = 'reverse';
         end
         
         function PlotAirway3(obj, link_index)
