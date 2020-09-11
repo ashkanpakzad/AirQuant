@@ -80,12 +80,16 @@ classdef AirQuant < handle % handle class
                 obj.Specs = struct();
                 % set up empty cell for recording raycast/fwhmesl method
                 obj.FWHMesl = cell(length(obj.Glink),3);
+                try
+                    ComputeAirwayLobes(obj)
+                catch
+                    warning('Airway classification by Lobe unsuccessful. Lobe dependent functions will not work.')
+                end
                 % save class
                 obj.savename = savename;
                 save(obj)
             end
         end
-        
         
         function obj = GenerateSkel(obj, skel)
             % Generate the airway skeleton
@@ -225,7 +229,9 @@ classdef AirQuant < handle % handle class
             % Set up lobe store vector
             lobes = cell(length(obj.Glink),1);
             % Assign trachea to itself
-            lobes{obj.trachea_path} = 'B';
+            for i = 1:length(obj.trachea_path)
+                lobes{obj.trachea_path(i)} = 'B';
+            end
             
             % % Identify left and right lung nodes first
             lungN = successors(G, obj.carina_node);
@@ -317,7 +323,6 @@ classdef AirQuant < handle % handle class
             RML_end = endpoint.label(I);
             % identify end node of right lower lobe.
             [~, I] = min(z_minus_y);
-%            [~, I] = min(endpoint.comz);
             RLL_end = endpoint.label(I);
             % identify bifurcation point of the two end points.
             RML_endpath = flip(shortestpath(G,obj.carina_node, RML_end));
@@ -330,11 +335,6 @@ classdef AirQuant < handle % handle class
             RMLN = RML_endpath(min(I)-1);
             % assign labels to RM edges, not RL
             classedgelobes(RMLN, 'RM') 
-            % include the missed out branch in rm.
-%             classedgenonlobes(RML_RLLN, RMLN, 'RM') 
-            % TODO: consider chaning above to branch.
-            % NB: cannot just go from 1 node before, must go 2 nodes incase
-            % the right middle and lower are not fully split at that point.
             
             % assign remaining labels to RLL
             lobes(cellfun(@isempty,lobes)) = {'RL'};
@@ -342,10 +342,7 @@ classdef AirQuant < handle % handle class
             % add lobe field to glink
             lobe = num2cell(lobes);
             [obj.Glink(:).lobe] = lobe{:};
-            
-            % save object class
-            save(obj)
-            
+           
             function classedgelobes(node, label)
                 % identify all edges from node outwards
                 [~, E] = bfsearch(G, node, 'edgetonew');
@@ -531,7 +528,32 @@ classdef AirQuant < handle % handle class
             report(obj.trachea_path) = [];
             report = struct2table(report);
         end
+                  
+        function report = characteristicsreport(obj, type, showfig)
+            % produce a table showing 
+            % number of airways per generation
+            % number of airways per generation per lobe
+            rawgen = [obj.Glink(:).generation];
+            generations = unique(rawgen);
+%             gencount = zeros(size(generations));
+%             for i = 1:length(generations)
+%                 for j = 1:length(obj.Glink)
+%                     if obj.Glink(j).generation == generations(i)
+%                     end
+%                 end
+%             end
+            [gencount, ~] = histcounts(rawgen,generations);
+
+            switch type
+                case 'generation'
+                    report = table(generations, gencount);
+                case 'lobe'
                     
+                otherwise
+                    error('Choose type generation or lobe')
+            end
+            
+        end
         %% HIGH LEVEL METHODS
         function obj = AirwayImageAll(obj)
             % Traverse all airway segments except the trachea.
@@ -791,6 +813,123 @@ classdef AirQuant < handle % handle class
                 elliptical_sturct.elliptical_info(4)*...
                 pi*obj.physical_sampling_interval.^2;
         end
+        
+        %% EXTENT Methods
+        function counts = searchgenperlobe(obj, gen, lobe)
+            Nawy = length(obj.Glink);
+            counts = 0;
+            for i = 1:Nawy
+                if obj.Glink(i).generation == gen && strcmp(obj.Glink(i).lobe, lobe)
+                counts = counts + 1;
+                end
+            end
+        end
+        
+        function genperlobe = extentstats(obj)
+            % make table of lobes
+            maxgen = max([obj.Glink(:).generation]);
+            sz = [maxgen, 6];
+            varTypes = cell(1, 6);
+            varTypes(:) = {'double'};
+            varNames = {'RU','RM','RL','LU','LUlin','LL'};
+            genperlobe = table('Size',sz,'VariableTypes',varTypes,'VariableNames',varNames);
+            % get number of airways of that generation in that lobe
+            for lobe = 1:6
+                lobeid = varNames{1,lobe};
+                for gen = 1:maxgen
+                    genperlobe.(lobeid)(gen) = searchgenperlobe(obj, gen, lobeid);
+                end
+            end
+        end
+        
+        function [overextentidx, compare] = compareextent(obj, populationstats, threshold)
+            % threshold = minimum gen expected
+            % populationstats = table generated by summarising results from
+            % genperlobe over several images.
+            subject_genperlobe = table2array(extentstats(obj));
+            if istable(populationstats)
+                populationstats = table2array(populationstats);
+            end
+            gendiff = size(populationstats, 1) - size(subject_genperlobe, 1);
+            if gendiff < 0
+                populationstats = [populationstats; zeros(abs(gendiff),6)];
+            elseif gendiff > 0
+                subject_genperlobe = [subject_genperlobe; zeros(abs(gendiff),6)];
+            end
+                
+            % compare this subject to population
+            compare = floor(subject_genperlobe - populationstats);
+            
+            overextentidx = false(length(obj.Glink),1);
+%             safenodes = [];
+            varNames = {'RU','RM','RL','LU','LUlin','LL'};
+            % BF search
+            [~,bfs_Gind] = bfsearch(obj.Gdigraph, obj.trachea_node,'edgetonew');
+            % convert graph idx into link index
+            bfs_Lind = zeros(size(bfs_Gind));
+            for ind = 1:length(bfs_Gind)
+                bfs_Lind(ind) = obj.Gdigraph.Edges.Label(bfs_Gind(ind));
+            end
+            % reverse order
+            bfs_Lind = flip(bfs_Lind);
+            for lobe = 1:6
+                lobeid = varNames{1,lobe};
+                for gen = size(subject_genperlobe, 1):-1:threshold+1
+                    n_overextent = compare(gen, lobe);
+                    if n_overextent <= 0
+                        continue
+                    end
+                    overextentawy(obj, gen, lobeid, n_overextent);
+                end
+            end
+%             for awy = 1:length(obj.Glink)
+%                 if ~isempty(ismember(obj.Glink(awy).generation,[1:threshold]))
+%                     overextentidx(awy) = false;
+%                 end
+%             end
+%             function overextentawy(obj, gen, lobe, n_overextent)
+%             Nawy = length(obj.Glink);
+%             counts = 1;
+%             mode = 0;
+%             for i = 1:Nawy
+%                 if counts > n_overextent
+%                     mode = 1; % safe mode
+%                 end
+%                 checksafe = isempty(ismember([obj.Glink(i).n1, obj.Glink(i).n2], safenodes));
+%                 if obj.Glink(i).generation == gen && strcmp(obj.Glink(i).lobe, lobe) && checksafe == 0
+%                     if mode == 0
+%                         overextentidx(i) = true; % highlight as excess
+%                         counts = counts + 1;
+%                     elseif mode == 1
+%                         safenodes = [safenodes; obj.Glink(i).n1; obj.Glink(i).n2];
+%                     end
+%                 end
+%             end
+%             end    
+%         end
+
+            function overextentawy(obj, gen, lobe, n_overextent)
+            counts = 1;
+            for i = 1:length(bfs_Lind)
+                if counts > n_overextent
+                    break
+                end
+                awyind = bfs_Lind(i);
+                if obj.Glink(awyind).generation == gen && strcmp(obj.Glink(awyind).lobe, lobe)
+                   overextentidx(awyind) = true; % highlight as excess
+                   counts = counts + 1;
+                end
+            end
+            end    
+        end
+        
+
+       
+        function h = plotoverextent(obj, overextentidx, type)
+            overextentedge = overextentidx(obj.Gdigraph.Edges.Label);
+            h = plot(obj, type);
+            highlight(h,'Edges',overextentedge, 'LineStyle', ':', 'LineWidth',1)
+        end
      
         %% TAPERING ANALYSIS METHODS
         
@@ -1019,7 +1158,7 @@ classdef AirQuant < handle % handle class
             switch labeltype
                 case 'index' % default
                     edgelabels = G.Edges.Label;
-                case 'lobes'
+                case {'lobe','lobes'}
                     try
                         lobes = [obj.Glink(:).lobe];
                         edgelabels = lobes(G.Edges.Label);
@@ -1029,18 +1168,21 @@ classdef AirQuant < handle % handle class
                 case {'generation','gen'}
                     gens = [obj.Glink(:).generation];
                     edgelabels = gens(G.Edges.Label);
+                case 'none'
+                    edgelabels = '';
                 otherwise
                     warning('Unexpected plot type. Resorting to default type.')
                     edgelabels = G.Edges.Label;
             end
             
             h = plot(G,'EdgeLabel',edgelabels, 'Layout', 'layered');
+%             h = plot(G, 'Layout', 'layered');
             h.NodeColor = 'r';
             h.EdgeColor = 'k';
             % check for error edges
             [~,~,erroredge] = DebugGraph(obj);
             if ~isempty(erroredge)
-                highlight(h,'Edges',erroredge,'EdgeColor','r')
+                highlight(h,'Edges',erroredge,'EdgeColor','r');
             end
         end
         
@@ -1207,18 +1349,18 @@ classdef AirQuant < handle % handle class
             try % try block incase FWHMesl has not been executed.
                 % plot ray cast results
                 
-                plot(obj.FWHMesl{link_index, 1}{slide, 1}.x_points, obj.FWHMesl{link_index, 1}{slide, 1}.y_points,'r.')
-                plot(obj.FWHMesl{link_index, 2}{slide, 1}.x_points, obj.FWHMesl{link_index, 2}{slide, 1}.y_points,'c.')
-                plot(obj.FWHMesl{link_index, 3}{slide, 1}.x_points, obj.FWHMesl{link_index, 3}{slide, 1}.y_points,'y.')
+%                 plot(obj.FWHMesl{link_index, 1}{slide, 1}.x_points, obj.FWHMesl{link_index, 1}{slide, 1}.y_points,'r.')
+%                 plot(obj.FWHMesl{link_index, 2}{slide, 1}.x_points, obj.FWHMesl{link_index, 2}{slide, 1}.y_points,'c.')
+%                 plot(obj.FWHMesl{link_index, 3}{slide, 1}.x_points, obj.FWHMesl{link_index, 3}{slide, 1}.y_points,'y.')
                 
                 % plot ellipse fitting
                 ellipse(obj.FWHMesl{link_index, 1}{slide, 1}.elliptical_info(3),obj.FWHMesl{link_index, 1}{slide, 1}.elliptical_info(4),...
                     obj.FWHMesl{link_index, 1}{slide, 1}.elliptical_info(5),obj.FWHMesl{link_index, 1}{slide, 1}.elliptical_info(1),...
                     obj.FWHMesl{link_index, 1}{slide, 1}.elliptical_info(2),'m');
                 
-                ellipse(obj.FWHMesl{link_index, 2}{slide, 1}.elliptical_info(3),obj.FWHMesl{link_index, 2}{slide, 1}.elliptical_info(4),...
-                    obj.FWHMesl{link_index, 2}{slide, 1}.elliptical_info(5),obj.FWHMesl{link_index, 2}{slide, 1}.elliptical_info(1),...
-                    obj.FWHMesl{link_index, 2}{slide, 1}.elliptical_info(2),'b');
+%                 ellipse(obj.FWHMesl{link_index, 2}{slide, 1}.elliptical_info(3),obj.FWHMesl{link_index, 2}{slide, 1}.elliptical_info(4),...
+%                     obj.FWHMesl{link_index, 2}{slide, 1}.elliptical_info(5),obj.FWHMesl{link_index, 2}{slide, 1}.elliptical_info(1),...
+%                     obj.FWHMesl{link_index, 2}{slide, 1}.elliptical_info(2),'b');
                 
                 ellipse(obj.FWHMesl{link_index, 3}{slide, 1}.elliptical_info(3),obj.FWHMesl{link_index, 3}{slide, 1}.elliptical_info(4),...
                     obj.FWHMesl{link_index, 3}{slide, 1}.elliptical_info(5),obj.FWHMesl{link_index, 3}{slide, 1}.elliptical_info(1),...
