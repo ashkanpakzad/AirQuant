@@ -10,7 +10,7 @@ function PTKskel(SegImagePath, PTK_source)
 % is already in the MATLAB search path.
 
 % add PTK main directory to path if necessary
-if nargin > 2
+if nargin > 1
     addpath(PTK_source);
 end
 PTKAddPaths;
