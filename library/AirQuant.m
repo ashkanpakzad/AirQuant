@@ -23,6 +23,7 @@ classdef AirQuant < handle % handle class
         trachea_path % edges that form a connect subgraph above the carina
         carina_node % node that corresponds to the carina
         % Resampled image slices along graph paths/airway segments.
+        Splines % pp splines of branches
         TraversedImage % perpendicular CT slices of all airways
         TraversedSeg % perpendicular segmentation slices of all airways
         arclength % corresponding arclength measurement traversed slices
@@ -73,6 +74,7 @@ classdef AirQuant < handle % handle class
                 % classify airway generations
                 obj = ComputeAirwayGen(obj);
                 % set up empty cell for traversed CT and segmentation
+                obj.Splines = cell(length(obj.Glink),1);
                 obj.TraversedImage = cell(length(obj.Glink),1);
                 obj.TraversedSeg = cell(length(obj.Glink),1);
                 % set up empty specs doubles
@@ -597,36 +599,51 @@ classdef AirQuant < handle % handle class
         end
         
         %% TRAVERSING AIRWAYS METHODS %%%
+        
+        function spline_t_points = ComputeSplinePoints(obj, link_index)
+            % * Compute Spline if necessary
+            if isempty(obj.Splines{link_index, 1})
+                ComputeSpline(obj, link_index)
+            end
+            spline = obj.Splines{link_index, 1};
+            spline_t_limit = spline.breaks(end);
+            spline_t_points = 0:obj.spline_sampling_interval:spline_t_limit;
+            
+            arc_length = zeros(length(spline_t_points),1);
+       
+            for i = 1:length(spline_t_points)
+                % * Compute real arc_length at every spline point
+                arc_length(i) = Arc_length_to_point(spline,spline_t_points(i));
+            end
+            
+            obj.arclength{link_index, 1} = arc_length;
+            
+        end
+        
         function obj = CreateAirwayImage(obj, link_index)
             % Constructs perpendicular images as if travelling along an
             % airway segment in CT image and Segmentation.
-            
-            % * Compute whole Spline
-            spline = ComputeSpline(obj, link_index);
-            spline_para_limit = spline.breaks(end);
-            spline_points = 0:obj.spline_sampling_interval:spline_para_limit;
-            
+            spline_t_points = ComputeSplinePoints(obj, link_index);
             % loop along spline
             % TODO: auto calc 133
-            TransAirwayImage = zeros(133,133,length(spline_points));
-            TransSegImage = zeros(133,133,length(spline_points));
-            arc_length = zeros(length(spline_points),1);
-            for i = 1:length(spline_points)
+            TransAirwayImage = zeros(133,133,length(spline_t_points));
+            TransSegImage = zeros(133,133,length(spline_t_points));
+
+            for i = 1:length(spline_t_points)
                 try
+                    spline = obj.Splines{link_index, 1};
                     % * Compute Normal Vector per spline point
-                    [normal, CT_point] = AirQuant.ComputeNormal(spline, spline_points(i));
+                    [normal, CT_point] = AirQuant.ComputeNormal(spline, spline_t_points(i));
                     % * Interpolate Perpendicular Slice per spline point
                     [TransAirwayImage(:,:,i), TransSegImage(:,:,i)] = ...
                         InterpolateCT(obj, normal, CT_point);
-                    % * Compute real arc_length at this spline point
-                    arc_length(i) = Arc_length_to_point(spline_points(i),spline);
                 catch
                     % TODO identify why arc_length cannot be calculated in
                     % some cases.
                     warning('Failed to interpolate slice/identify arclength')
                     TransAirwayImage(:,:,i) = zeros(133);
                     TransSegImage(:,:,i) = zeros(133);
-                    arc_length(i) = NaN;
+                    obj.arclength{link_index, 1}(i) = NaN;
                 end
             end
             % * Replace NaN entries in images with zero.
@@ -635,7 +652,6 @@ classdef AirQuant < handle % handle class
             % * Save traversed image and arclength for each image
             obj.TraversedImage{link_index, 1} = TransAirwayImage;
             obj.TraversedSeg{link_index, 1} = TransSegImage;
-            obj.arclength{link_index, 1} = arc_length;
             % save obj to disk after every branch
             save(obj)
         end
@@ -679,7 +695,7 @@ classdef AirQuant < handle % handle class
         end
         
         
-        function spline = ComputeSpline(obj, link_index)
+        function ComputeSpline(obj, link_index)
             % Computes a smooth spline of a single graph edge.
             % Based on original function by Kin Quan 2018
             
@@ -699,7 +715,7 @@ classdef AirQuant < handle % handle class
             smooth_data_points = [smooth_x smooth_y smooth_z]';
             
             %Generating the spline
-            spline = cscvn(smooth_data_points);
+            obj.Splines{link_index, 1} = cscvn(smooth_data_points);
         end
         
         %% MEASUREMENT METHODS
@@ -1192,7 +1208,6 @@ classdef AirQuant < handle % handle class
             h = plot(obj, genslabels);
         end
         
-        
         function PlotTree(obj, gen)
             % Plot the airway tree with nodes and links in image space. Set
             % gen to the maximum number of generations to show.
@@ -1252,6 +1267,23 @@ classdef AirQuant < handle % handle class
             ax = gca;
             ax.XDir = 'reverse';
             
+        end
+        
+        function PlotSmoothTree(obj)
+            % loop through every branch, check spline has already been
+            % computed, compute if necessary. Skip trachea. Plot spline.
+            % TODO: This may not work as well when VoxelSize ~= [1,1,1]
+            for i = 1:length(obj.Glink)
+                if isempty(obj.Splines{i, 1})
+                    if ismember(i, obj.trachea_path)
+                        continue
+                    else
+                        ComputeSpline(obj, i)
+                    end
+                end
+                fnplt(obj.Splines{i, 1})
+                hold on
+            end
         end
         
         function PlotMap3D(obj, mode)

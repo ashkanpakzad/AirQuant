@@ -21,8 +21,8 @@
 % SOFTWARE.
 
 
-function arclength_distance = Arc_length_to_point( para_stop, ...
-    matlab_spline_sturct)
+function arclength_distance = Arc_length_to_point(matlab_spline_sturct, ...
+    para_stop)
 %Find the arclength at from the start to the given stopping parameter.
 
 %The input is the point of the parameterization and the spline sturct in
