@@ -6,7 +6,7 @@ classdef AirQuant < handle % handle class
         % CT Properties/resampling params
         physical_plane_length = 40;% check methods
         physical_sampling_interval = 0.3;% check methods
-        spline_sampling_interval = 0.25;% check methods
+        spline_sampling_interval = 0.25;% mm interval to sample along branch arclength
         % Ray params
         num_rays = 50; % check methods
         ray_interval = 0.2; % check methods
@@ -598,28 +598,44 @@ classdef AirQuant < handle % handle class
             disp('FWHMesl: Done')
         end
         
-        %% TRAVERSING AIRWAYS METHODS %%%
+        %% SPLINE METHODS
+        function ComputeSpline(obj, link_index)
+            % Computes a smooth spline of a single graph edge.
+            % Based on original function by Kin Quan 2018
+            
+            % The input is the list of ordered index
+            % The output is the smooth spline as a matlab sturct
+            
+            %Convert into 3d Points
+            [x_point, y_point, z_point] = ind2sub(size(obj.CT),obj.Glink(link_index).point);
+            
+            %Smoothing the data
+            voxel_size = obj.CTinfo.PixelDimensions;
+            smooth_x = smooth(x_point*voxel_size(1));
+            smooth_y = smooth(y_point*voxel_size(2));
+            smooth_z = smooth(z_point*voxel_size(3));
+            
+            %Complete smooth data
+            smooth_data_points = [smooth_x smooth_y smooth_z]';
+            
+            %Generating the spline
+            obj.Splines{link_index, 1} = cscvn(smooth_data_points);
+                end
         
-        function spline_t_points = ComputeSplinePoints(obj, link_index)
+        function t_points = ComputeSplinePoints(obj, link_index)
             % * Compute Spline if necessary
             if isempty(obj.Splines{link_index, 1})
                 ComputeSpline(obj, link_index)
             end
             spline = obj.Splines{link_index, 1};
-            spline_t_limit = spline.breaks(end);
-            spline_t_points = 0:obj.spline_sampling_interval:spline_t_limit;
             
-            arc_length = zeros(length(spline_t_points),1);
-       
-            for i = 1:length(spline_t_points)
-                % * Compute real arc_length at every spline point
-                arc_length(i) = Arc_length_to_point(spline,spline_t_points(i));
-            end
+            [t_points, arc_length] = spline_points(spline, obj.spline_sampling_interval);
             
             obj.arclength{link_index, 1} = arc_length;
             
-        end
+    end
         
+        %% TRAVERSING AIRWAYS METHODS %%%
         function obj = CreateAirwayImage(obj, link_index)
             % Constructs perpendicular images as if travelling along an
             % airway segment in CT image and Segmentation.
@@ -630,21 +646,21 @@ classdef AirQuant < handle % handle class
             TransSegImage = zeros(133,133,length(spline_t_points));
 
             for i = 1:length(spline_t_points)
-                try
+%                 try
                     spline = obj.Splines{link_index, 1};
                     % * Compute Normal Vector per spline point
                     [normal, CT_point] = AirQuant.ComputeNormal(spline, spline_t_points(i));
                     % * Interpolate Perpendicular Slice per spline point
                     [TransAirwayImage(:,:,i), TransSegImage(:,:,i)] = ...
                         InterpolateCT(obj, normal, CT_point);
-                catch
-                    % TODO identify why arc_length cannot be calculated in
-                    % some cases.
-                    warning('Failed to interpolate slice/identify arclength')
-                    TransAirwayImage(:,:,i) = zeros(133);
-                    TransSegImage(:,:,i) = zeros(133);
-                    obj.arclength{link_index, 1}(i) = NaN;
-                end
+%                 catch
+%                     % TODO identify why arc_length cannot be calculated in
+%                     % some cases.
+%                     warning('Failed to interpolate slice/identify arclength')
+%                     TransAirwayImage(:,:,i) = zeros(133);
+%                     TransSegImage(:,:,i) = zeros(133);
+%                     obj.arclength{link_index, 1}(i) = NaN;
+%                 end
             end
             % * Replace NaN entries in images with zero.
             TransAirwayImage(isnan(TransAirwayImage)) = 0;
@@ -694,29 +710,6 @@ classdef AirQuant < handle % handle class
                 [plane_length plane_length]);
         end
         
-        
-        function ComputeSpline(obj, link_index)
-            % Computes a smooth spline of a single graph edge.
-            % Based on original function by Kin Quan 2018
-            
-            % The input is the list of ordered index
-            % The output is the smooth spline as a matlab sturct
-            
-            %Convert into 3d Points
-            [x_point, y_point, z_point] = ind2sub(size(obj.CT),obj.Glink(link_index).point);
-            
-            %Smoothing the data
-            voxel_size = obj.CTinfo.PixelDimensions;
-            smooth_x = smooth(x_point*voxel_size(1));
-            smooth_y = smooth(y_point*voxel_size(2));
-            smooth_z = smooth(z_point*voxel_size(3));
-            
-            %Complete smooth data
-            smooth_data_points = [smooth_x smooth_y smooth_z]';
-            
-            %Generating the spline
-            obj.Splines{link_index, 1} = cscvn(smooth_data_points);
-        end
         
         %% MEASUREMENT METHODS
         function obj = FindAirwayBoundariesFWHM(obj, link_index)
@@ -1269,7 +1262,7 @@ classdef AirQuant < handle % handle class
             
         end
         
-        function PlotSmoothTree(obj)
+        function PlotSplineTree(obj)
             % loop through every branch, check spline has already been
             % computed, compute if necessary. Skip trachea. Plot spline.
             % TODO: This may not work as well when VoxelSize ~= [1,1,1]
@@ -1410,7 +1403,7 @@ classdef AirQuant < handle % handle class
             a = rectangle('Position',[0,0,133,10],'FaceColor','y','LineWidth',2);
             ax = gca;
             try
-                text(ax, 1,5,sprintf('Arc Length = %4.1f mm; Inner area = %4.2f mm^2; Peak area = %4.2f mm^2; Outer area = %4.2f mm^2; %3.0i of %3.0i', ...
+                text(ax, 1,5,sprintf('Arc Length = %4.2f mm; Inner area = %4.2f mm^2; Peak area = %4.2f mm^2; Outer area = %4.2f mm^2; %3.0i of %3.0i', ...
                     obj.arclength{link_index, 1}(slide), obj.FWHMesl{link_index, 1}{slide, 1}.area, obj.FWHMesl{link_index, 2}{slide, 1}.area ,...
                     obj.FWHMesl{link_index, 3}{slide, 1}.area, slide, size(obj.TraversedImage{link_index, 1},3)));
             catch
