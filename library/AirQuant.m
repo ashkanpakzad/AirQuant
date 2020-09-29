@@ -4,9 +4,10 @@ classdef AirQuant < handle % handle class
         CTinfo % CT metadata
         seg % binary airway segmentation
         % CT Properties/resampling params
-        physical_plane_length = 40;% check methods
-        physical_sampling_interval = 0.3;% check methods
-        spline_sampling_interval = 0.25;% mm interval to sample along branch arclength
+        max_plane_sz = 40;% max interpolated slice size
+        plane_sample_sz = 0.3;% interpolated slice pixel size
+        spline_sample_sz = 0.25;% mm interval to sample along branch arclength
+        plane_scaling_sz = 5; % scale airway diameter approx measurement.
         % Ray params
         num_rays = 50; % check methods
         ray_interval = 0.2; % check methods
@@ -22,7 +23,9 @@ classdef AirQuant < handle % handle class
         trachea_node % node corresponding to top of trachea
         trachea_path % edges that form a connect subgraph above the carina
         carina_node % node that corresponds to the carina
+        skel_points % list of skeleton points
         % Resampled image slices along graph paths/airway segments.
+        Dmap % distance transform of seg
         Splines % pp splines of branches
         TraversedImage % perpendicular CT slices of all airways
         TraversedSeg % perpendicular segmentation slices of all airways
@@ -55,9 +58,9 @@ classdef AirQuant < handle % handle class
                 obj.seg = reorientvolume(imfill(segimage,'holes'), obj.CTinfo);
                 % set params
                 if nargin > 5
-                    obj.physical_plane_length = params.physical_plane_length;
-                    obj.physical_sampling_interval = params.physical_sampling_interval;
-                    obj.spline_sampling_interval = params.spline_sampling_interval;
+                    obj.max_plane_sz = params.max_plane_sz;
+                    obj.plane_sample_sz = params.plane_sample_sz;
+                    obj.spline_sample_sz = params.spline_sample_sz;
                     obj.num_rays = params.num_rays;
                     obj.ray_interval = params.ray_interval;
                 end
@@ -73,6 +76,8 @@ classdef AirQuant < handle % handle class
                 obj = FindTracheaPaths(obj);
                 % classify airway generations
                 obj = ComputeAirwayGen(obj);
+                % Compute distance transform
+                obj.Dmap = bwdist(~obj.seg);
                 % set up empty cell for traversed CT and segmentation
                 obj.Splines = cell(length(obj.Glink),1);
                 obj.TraversedImage = cell(length(obj.Glink),1);
@@ -478,6 +483,11 @@ classdef AirQuant < handle % handle class
             save(obj.savename, 'obj', '-v7.3')
         end
         
+        function obj = ComputeSkelPoints(obj)
+            [XP, YP, ZP] = ind2sub(size(obj.seg), find(obj.skel == 1));
+            obj.skel_points = [XP, YP, ZP]; % list of skel points
+        end
+        
         function branch_seg = ClassifySegmentation(obj)
             % TODO: consider making this function more robust!
             % label every branch in segmentation to AS branch index.
@@ -499,8 +509,10 @@ classdef AirQuant < handle % handle class
             [XPQ, YPQ, ZPQ] = ind2sub(size(obj.seg),find(obj.seg == 1));
             PQ = [XPQ,YPQ,ZPQ];
             % get list of everypoint on skeleton
-            [XP, YP, ZP] = ind2sub(size(obj.seg), skel_ind);
-            P = [XP, YP, ZP];
+            if isempty(obj.skel_points)
+                ComputeSkelPoints(obj)
+            end
+            P = obj.skel_points;
             % find nearest seg point to it on skeleton
             T = delaunayn(P);
             k = dsearchn(P,T,PQ);
@@ -610,10 +622,10 @@ classdef AirQuant < handle % handle class
             [x_point, y_point, z_point] = ind2sub(size(obj.CT),obj.Glink(link_index).point);
             
             %Smoothing the data
-            voxel_size = obj.CTinfo.PixelDimensions;
-            smooth_x = smooth(x_point*voxel_size(1));
-            smooth_y = smooth(y_point*voxel_size(2));
-            smooth_z = smooth(z_point*voxel_size(3));
+            voxel_sz = obj.CTinfo.PixelDimensions;
+            smooth_x = smooth(x_point*voxel_sz(1));
+            smooth_y = smooth(y_point*voxel_sz(2));
+            smooth_z = smooth(z_point*voxel_sz(3));
             
             %Complete smooth data
             smooth_data_points = [smooth_x smooth_y smooth_z]';
@@ -629,7 +641,7 @@ classdef AirQuant < handle % handle class
             end
             spline = obj.Splines{link_index, 1};
             
-            [t_points, arc_length] = spline_points(spline, obj.spline_sampling_interval);
+            [t_points, arc_length] = spline_points(spline, obj.spline_sample_sz);
             
             obj.arclength{link_index, 1} = arc_length;
             
@@ -640,19 +652,32 @@ classdef AirQuant < handle % handle class
             % Constructs perpendicular images as if travelling along an
             % airway segment in CT image and Segmentation.
             spline_t_points = ComputeSplinePoints(obj, link_index);
-            % loop along spline
-            % TODO: auto calc 133
-            TransAirwayImage = zeros(133,133,length(spline_t_points));
-            TransSegImage = zeros(133,133,length(spline_t_points));
-
+            % set up slice store
+            TransAirwayImage = cell(length(spline_t_points),1);
+            TransSegImage = cell(length(spline_t_points),1);
             for i = 1:length(spline_t_points)
 %                 try
                     spline = obj.Splines{link_index, 1};
                     % * Compute Normal Vector per spline point
-                    [normal, CT_point] = AirQuant.ComputeNormal(spline, spline_t_points(i));
+                    [normal, CT_point] = AirQuant.ComputeNormal(spline, ...
+                        spline_t_points(i));
+                    % get approx airway size from distance map
+                    approx_diameter = ComputeDmapD(obj, CT_point);
+                    % compute intepolated slice size
+                    plane_sz = ceil(approx_diameter*obj.plane_scaling_sz);
+                    % use max plane size if current plane size exceeds it
+                    if plane_sz > obj.max_plane_sz
+                        plane_sz = obj.max_plane_sz;
+                    end
                     % * Interpolate Perpendicular Slice per spline point
-                    [TransAirwayImage(:,:,i), TransSegImage(:,:,i)] = ...
-                        InterpolateCT(obj, normal, CT_point);
+                    [InterpAirwayImage, InterpSegImage] = ...
+                        InterpolateCT(obj, normal, CT_point,  ...
+                        plane_sz, obj.plane_sample_sz);
+                    % * Replace NaN entries in images with zero.
+                    InterpAirwayImage(isnan(InterpAirwayImage)) = 0;
+                    InterpSegImage(isnan(InterpSegImage)) = 0;
+                    TransAirwayImage{i,1} = InterpAirwayImage;
+                    TransSegImage{i,1} = InterpSegImage;
 %                 catch
 %                     % TODO identify why arc_length cannot be calculated in
 %                     % some cases.
@@ -662,9 +687,6 @@ classdef AirQuant < handle % handle class
 %                     obj.arclength{link_index, 1}(i) = NaN;
 %                 end
             end
-            % * Replace NaN entries in images with zero.
-            TransAirwayImage(isnan(TransAirwayImage)) = 0;
-            TransSegImage(isnan(TransAirwayImage)) = 0;
             % * Save traversed image and arclength for each image
             obj.TraversedImage{link_index, 1} = TransAirwayImage;
             obj.TraversedSeg{link_index, 1} = TransSegImage;
@@ -673,7 +695,8 @@ classdef AirQuant < handle % handle class
         end
         
         
-        function [CT_plane, seg_plane] = InterpolateCT(obj, normal, CT_point)
+        function [CT_plane, seg_plane] = InterpolateCT(obj, normal, ...
+                CT_point,  plane_sz, plane_sample_sz)
             % Interpolates a CT plane of the image.
             % Based on original function by Kin Quan 2018
             
@@ -688,8 +711,7 @@ classdef AirQuant < handle % handle class
             % * Get plane grid
             basis_vecs = Orthonormal_basis_with_tangent_vector(normal);
             plane_grid = Grids_coords_for_plane(basis_vecs(:,3),...
-                basis_vecs(:,2), CT_point, obj.physical_plane_length,...
-                obj.physical_sampling_interval);
+                basis_vecs(:,2), CT_point, plane_sz, plane_sample_sz);
             
             % * Execute cubic inperpolation on CT
             plane_intensities = interp3(x_domain,y_domain,z_domain,...
@@ -710,39 +732,58 @@ classdef AirQuant < handle % handle class
                 [plane_length plane_length]);
         end
         
+        function approx_diameter = ComputeDmapD(obj, CT_point)
+            % Convert CT_point mm back to voxel ind
+            vox_point = CT_point'./obj.CTinfo.PixelDimensions;
+            % find nearest skeleton point to voxpoint
+            if isempty(obj.skel_points)
+                ComputeSkelPoints(obj)
+            end
+            P = obj.skel_points;
+            k = dsearchn(P,vox_point);
+            % Get radius and convert to diameter
+            approx_diameter = obj.Dmap(P(k,1),P(k,2),P(k,3))*2;
+            % incase of edge case, unit radius
+            if approx_diameter == 0
+                approx_diameter = 2;
+            end
+            % TODO: diameter conversion to mm
+        end
+        
         
         %% MEASUREMENT METHODS
         function obj = FindAirwayBoundariesFWHM(obj, link_index)
             %Based on function by Kin Quan 2018 that is based on Kiraly06
             
-            slices_size = size(obj.TraversedImage{link_index, 1}, 3);
+            slices_sz = size(obj.TraversedImage{link_index, 1}, 1);
             
             % Prepping the outputs
-            raycast_FWHMl = cell(slices_size, 1);
-            raycast_FWHMp = cell(slices_size, 1);
-            raycast_FWHMr = cell(slices_size, 1);
+            raycast_FWHMl = cell(slices_sz, 1);
+            raycast_FWHMp = cell(slices_sz, 1);
+            raycast_FWHMr = cell(slices_sz, 1);
             
             % For every traversed slice
-            for k = 1:slices_size
+            for k = 1:slices_sz
                 try
                     % * Compute airway centre
                     % Check that airway centre is slice centre
                     center = ...
                         Return_centre_pt_image(...
-                        obj.TraversedSeg{link_index, 1}(:,:,k));
+                        obj.TraversedSeg{link_index, 1}{k,1});
                     
                     % Recompute new centre if necessary
                     [centre_ind , new_centre] =  ...
-                        Check_centre_with_segmentation(obj.TraversedImage{link_index, 1}(:,:,k), ...
-                        obj.TraversedSeg{link_index, 1}(:,:,k));
+                        Check_centre_with_segmentation(...
+                        obj.TraversedImage{link_index, 1}{k,1}, ...
+                        obj.TraversedSeg{link_index, 1}{k,1});
                     if ~centre_ind
                         center = fliplr(new_centre);
                     end
                     
                     % * Raycast
                     [CT_rays, seg_rays, coords]= Raycast(obj, ...
-                        obj.TraversedImage{link_index, 1}(:,:,k), ...
-                        obj.TraversedSeg{link_index, 1}(:,:,k), center);
+                        obj.TraversedImage{link_index, 1}{k,1}, ...
+                        obj.TraversedSeg{link_index, 1}{k,1}, center);
                     
                     % * Compute FWHM
                     [FWHMl, FWHMp, FWHMr] = AirQuant.computeFWHM(CT_rays,...
@@ -775,9 +816,9 @@ classdef AirQuant < handle % handle class
             % Getting the range limit of the ray which will be the shortest
             % distance from the centre to the bounadry Need to find the
             % limits of the raw
-            image_size = size(interpslice);
-            limit_row = abs(image_size(1) - center(1));
-            limit_col = abs(image_size(2) - center(2));
+            image_sz = size(interpslice);
+            limit_row = abs(image_sz(1) - center(1));
+            limit_col = abs(image_sz(2) - center(2));
             ray_length_limit = min(limit_row, limit_col);
             
             %Compute rays in polar coords
@@ -820,7 +861,7 @@ classdef AirQuant < handle % handle class
             elliptical_sturct.area = ...
                 elliptical_sturct.elliptical_info(3)*...
                 elliptical_sturct.elliptical_info(4)*...
-                pi*obj.physical_sampling_interval.^2;
+                pi*obj.plane_sample_sz.^2;
         end
         
         %% EXTENT Methods
@@ -1346,7 +1387,7 @@ classdef AirQuant < handle % handle class
             f = figure('Position',  [100, 100, 850, 600]);
             slide = 1;
             PlotAirway(obj, link_index, slide)
-            numSteps = size(obj.TraversedImage{link_index,1}, 3);
+            numSteps = size(obj.TraversedImage{link_index,1}, 1);
             
             b = uicontrol('Parent',f,'Style','slider','Position',[50,10,750,23],...
                 'value',slide, 'min',1, 'max',numSteps, 'SliderStep', [1/(numSteps-1) , 1/(numSteps-1)]);
@@ -1367,8 +1408,14 @@ classdef AirQuant < handle % handle class
         
         function PlotAirway(obj, link_index, slide)
             % display image
-            imagesc(obj.TraversedImage{link_index, 1}(:,:,slide))
-            hold on
+            canvas_sz = floor(obj.max_plane_sz/obj.plane_sample_sz);
+            canvas = nan(canvas_sz);
+            image = obj.TraversedImage{link_index, 1}{slide,1};
+            image_sz = size(image,1);
+            min_centre = canvas_sz/2 - image_sz/2;
+            max_centre = canvas_sz/2 + image_sz/2;
+            canvas(min_centre+1:max_centre, min_centre+1:max_centre) = image;
+            imagesc(canvas)
             colormap gray
             
             try % try block incase FWHMesl has not been executed.
@@ -1380,16 +1427,16 @@ classdef AirQuant < handle % handle class
                 
                 % plot ellipse fitting
                 ellipse(obj.FWHMesl{link_index, 1}{slide, 1}.elliptical_info(3),obj.FWHMesl{link_index, 1}{slide, 1}.elliptical_info(4),...
-                    obj.FWHMesl{link_index, 1}{slide, 1}.elliptical_info(5),obj.FWHMesl{link_index, 1}{slide, 1}.elliptical_info(1),...
-                    obj.FWHMesl{link_index, 1}{slide, 1}.elliptical_info(2),'m');
+                    obj.FWHMesl{link_index, 1}{slide, 1}.elliptical_info(5),obj.FWHMesl{link_index, 1}{slide, 1}.elliptical_info(1)+min_centre,...
+                    obj.FWHMesl{link_index, 1}{slide, 1}.elliptical_info(2)+min_centre,'m');
                 
 %                 ellipse(obj.FWHMesl{link_index, 2}{slide, 1}.elliptical_info(3),obj.FWHMesl{link_index, 2}{slide, 1}.elliptical_info(4),...
 %                     obj.FWHMesl{link_index, 2}{slide, 1}.elliptical_info(5),obj.FWHMesl{link_index, 2}{slide, 1}.elliptical_info(1),...
 %                     obj.FWHMesl{link_index, 2}{slide, 1}.elliptical_info(2),'b');
                 
                 ellipse(obj.FWHMesl{link_index, 3}{slide, 1}.elliptical_info(3),obj.FWHMesl{link_index, 3}{slide, 1}.elliptical_info(4),...
-                    obj.FWHMesl{link_index, 3}{slide, 1}.elliptical_info(5),obj.FWHMesl{link_index, 3}{slide, 1}.elliptical_info(1),...
-                    obj.FWHMesl{link_index, 3}{slide, 1}.elliptical_info(2),'y');
+                    obj.FWHMesl{link_index, 3}{slide, 1}.elliptical_info(5),obj.FWHMesl{link_index, 3}{slide, 1}.elliptical_info(1)+min_centre,...
+                    obj.FWHMesl{link_index, 3}{slide, 1}.elliptical_info(2)+min_centre,'y');
                 %TODO: set third colour more appropiately
                 
             catch
@@ -1400,16 +1447,17 @@ classdef AirQuant < handle % handle class
             % TODO: is this needed?
             %dim = [.15 .85 .24 .05];
             %a = annotation('textbox',dim,'String',str,'FitBoxToText','on','BackgroundColor','y');
-            a = rectangle('Position',[0,0,133,10],'FaceColor','y','LineWidth',2);
-            ax = gca;
-            try
-                text(ax, 1,5,sprintf('Arc Length = %4.2f mm; Inner area = %4.2f mm^2; Peak area = %4.2f mm^2; Outer area = %4.2f mm^2; %3.0i of %3.0i', ...
-                    obj.arclength{link_index, 1}(slide), obj.FWHMesl{link_index, 1}{slide, 1}.area, obj.FWHMesl{link_index, 2}{slide, 1}.area ,...
-                    obj.FWHMesl{link_index, 3}{slide, 1}.area, slide, size(obj.TraversedImage{link_index, 1},3)));
-            catch
-                text(ax, 1,5,sprintf('Arc Length = %4.1f mm; %3.0i of %3.0i', ...
-                    obj.arclength{link_index, 1}(slide), slide, size(obj.TraversedImage{link_index, 1},3)));
-            end
+
+%             a = rectangle('Position',[0,0,133,10],'FaceColor','y','LineWidth',2);
+%             ax = gca;
+%             try
+%                 text(ax, 1,5,sprintf('Arc Length = %4.2f mm; Inner area = %4.2f mm^2; Peak area = %4.2f mm^2; Outer area = %4.2f mm^2; %3.0i of %3.0i', ...
+%                     obj.arclength{link_index, 1}(slide), obj.FWHMesl{link_index, 1}{slide, 1}.area, obj.FWHMesl{link_index, 2}{slide, 1}.area ,...
+%                     obj.FWHMesl{link_index, 3}{slide, 1}.area, slide, size(obj.TraversedImage{link_index, 1},3)));
+%             catch
+%                 text(ax, 1,5,sprintf('Arc Length = %4.1f mm; %3.0i of %3.0i', ...
+%                     obj.arclength{link_index, 1}(slide), slide, size(obj.TraversedImage{link_index, 1},3)));
+%             end
         end
         
         %% EXPORT METHODS
