@@ -1027,7 +1027,7 @@ classdef AirQuant < handle % handle class
                 % Appending arclengths
                 max_current_arclength = max(cum_arclength);
                 current_arclength_array = max_current_arclength+obj.arclength{i,1}(2:end);
-                cum_arclength = [cum_arclength; current_arclength_array];
+                cum_arclength = [cum_arclength; current_arclength_array'];
                 
                 for j = 2:length(obj.arclength{i,1})
                     try
@@ -1090,6 +1090,96 @@ classdef AirQuant < handle % handle class
 %             if nargout > 1
             obj.Specs.AllTaperResults = AllTaperResults;
 %             end
+        end
+        
+        function [intrataper, averagearea] = ComputeIntraTaperAll(obj, prunelength)
+            % loop through branches
+            intrataper = NaN(length(obj.arclength), 3);
+            averagearea = NaN(length(obj.arclength), 3);
+            for ii = 1:length(obj.arclength)
+                if ii == obj.trachea_path
+                    continue
+                end
+                
+                [intrataper(ii,:), averagearea(ii,:)] = ComputeIntraTaper(obj, prunelength, ii);
+            end
+        end
+        
+        function [intrataper, averagearea] = ComputeIntraTaper(obj, prunelength, idx, plotflag)
+            % prunelength given as a 2 element vector, the length in mm to
+            % ignore at the begining and end of the branch.
+            intrataper = NaN(1, 3);
+            averagearea = NaN(1, 3);
+            
+            % get arclength
+            al = obj.arclength{idx, 1};
+            
+            % get branch radii
+            areas = zeros(length(obj.FWHMesl{idx,1}), 3);
+            for jj = 1:length(areas)
+                try % incase area is NaN
+                    areas(jj,1) = obj.FWHMesl{idx, 1}{jj, 1}.area;
+                    areas(jj,2) = obj.FWHMesl{idx, 2}{jj, 1}.area;
+                    areas(jj,3) = obj.FWHMesl{idx, 3}{jj, 1}.area;
+                catch
+                    areas(jj,1) = NaN;
+                    areas(jj,2) = NaN;
+                    areas(jj,3) = NaN;
+                end
+            end
+            
+            % prune ends
+            prune = (al >= prunelength(1) & al <= al(end) - prunelength(2));
+            al = al(prune);
+%             areas = areas(repmat(prune',1,3));
+            coeff = NaN(2,3);
+            % convert area to radii
+            areas = sqrt(areas/pi);
+            for jj = 1:3
+                try % incase no branch left after pruning/too few points
+                    areavec = areas(prune,jj);
+                    % fit bisquare method
+                    coeff(:,jj) = robustfit(al, areavec,'bisquare');
+                    % compute intra-branch tapering as percentage
+                    intrataper(jj) = -coeff(2,jj)/length(al) * 100;
+                    % compute average area
+                    averagearea(jj) = mean(areavec, 'omitnan');
+                catch
+                    % leave as NaN
+                end
+            end
+            
+            if plotflag == 1 && ~any(isnan(intrataper))
+                titlevec = ["inner"; "peak"; "outer"];
+                for jj = 1:3
+                subplot(3,1,jj)
+                plot(al, areas(prune,jj), 'k.')
+                hold on
+                plot(al, coeff(2,jj)*al + coeff(1,jj),'r')
+                legend('data', 'bisquare fit', 'Location', 'best')
+                xlabel('arclength (mm)')
+                ylabel('area mm^2')
+                title(sprintf('Branch idx: %i %s intrataper value: %.2f%% average: %.2f mm.',...
+                idx, titlevec(jj), intrataper(jj), averagearea(jj)))
+                hold off
+                
+                end
+            end
+            
+            end
+        
+        function intertaper = ComputeInterTaper(obj, averagearea)
+            % use output from intrataperall
+        % loop through branches
+            intertaper = NaN(length(obj.arclength), 3);
+            for ii = 1:length(obj.averagearea)
+                for jj = 1:3
+                    parent = 2;
+                    intertaper(ii,jj) = (averagearea(parent, jj) - averagearea(ii,jj))...
+                        /(averagearea(parent, jj)) * 100;
+                end
+            end
+
         end
         
         %% TAPERING VISUALISATION METHODS
@@ -1448,16 +1538,16 @@ classdef AirQuant < handle % handle class
             %dim = [.15 .85 .24 .05];
             %a = annotation('textbox',dim,'String',str,'FitBoxToText','on','BackgroundColor','y');
 
-%             a = rectangle('Position',[0,0,133,10],'FaceColor','y','LineWidth',2);
-%             ax = gca;
-%             try
-%                 text(ax, 1,5,sprintf('Arc Length = %4.2f mm; Inner area = %4.2f mm^2; Peak area = %4.2f mm^2; Outer area = %4.2f mm^2; %3.0i of %3.0i', ...
-%                     obj.arclength{link_index, 1}(slide), obj.FWHMesl{link_index, 1}{slide, 1}.area, obj.FWHMesl{link_index, 2}{slide, 1}.area ,...
-%                     obj.FWHMesl{link_index, 3}{slide, 1}.area, slide, size(obj.TraversedImage{link_index, 1},3)));
-%             catch
-%                 text(ax, 1,5,sprintf('Arc Length = %4.1f mm; %3.0i of %3.0i', ...
-%                     obj.arclength{link_index, 1}(slide), slide, size(obj.TraversedImage{link_index, 1},3)));
-%             end
+            a = rectangle('Position',[0,0,133,10],'FaceColor','y','LineWidth',2);
+            ax = gca;
+            try
+                text(ax, 1,5,sprintf('Arc Length = %4.2f mm; Inner area = %4.2f mm^2; Peak area = %4.2f mm^2; Outer area = %4.2f mm^2; %3.0i of %3.0i', ...
+                    obj.arclength{link_index, 1}(slide), obj.FWHMesl{link_index, 1}{slide, 1}.area, obj.FWHMesl{link_index, 2}{slide, 1}.area ,...
+                    obj.FWHMesl{link_index, 3}{slide, 1}.area, slide, size(obj.TraversedImage{link_index, 1},3)));
+            catch
+                text(ax, 1,5,sprintf('Arc Length = %4.1f mm; %3.0i of %3.0i', ...
+                    obj.arclength{link_index, 1}(slide), slide, size(obj.TraversedImage{link_index, 1},3)));
+            end
         end
         
         %% EXPORT METHODS
