@@ -1108,6 +1108,11 @@ classdef AirQuant < handle % handle class
         function [intrataper, averagearea] = ComputeIntraTaper(obj, prunelength, idx, plotflag)
             % prunelength given as a 2 element vector, the length in mm to
             % ignore at the begining and end of the branch.
+            
+            if nargin < 4
+                plotflag = 0;
+            end
+            
             intrataper = NaN(1, 3);
             averagearea = NaN(1, 3);
             
@@ -1141,7 +1146,7 @@ classdef AirQuant < handle % handle class
                     % fit bisquare method
                     coeff(:,jj) = robustfit(al, areavec,'bisquare');
                     % compute intra-branch tapering as percentage
-                    intrataper(jj) = -coeff(2,jj)/length(al) * 100;
+                    intrataper(jj) = -coeff(2,jj)/coeff(1,jj) * 100;
                     % compute average area
                     averagearea(jj) = mean(areavec, 'omitnan');
                 catch
@@ -1172,14 +1177,59 @@ classdef AirQuant < handle % handle class
             % use output from intrataperall
         % loop through branches
             intertaper = NaN(length(obj.arclength), 3);
-            for ii = 1:length(obj.averagearea)
+            for ii = 1:length(averagearea)
+                if ii == obj.trachea_path
+                    continue
+                end
                 for jj = 1:3
-                    parent = 2;
+                    % identify parent by predecessor node
+                    parent = find([obj.Glink.n2] == obj.Glink(ii).n1);
                     intertaper(ii,jj) = (averagearea(parent, jj) - averagearea(ii,jj))...
                         /(averagearea(parent, jj)) * 100;
                 end
             end
 
+        end
+        
+        function SegmentTaperResults = SegmentTaperAll(obj, prunelength)
+            
+            % compute taper results by segment
+            [intrataper, avg] = ComputeIntraTaperAll(obj, prunelength);
+            intertaper = ComputeInterTaper(obj, avg);
+            
+            % organise into column headings
+            branch = 1:length(obj.Glink);
+            
+            inner_intra = intrataper(:, 1);
+            peak_intra = intrataper(:, 2);
+            outer_intra = intrataper(:, 3);
+            
+            inner_avg = avg(:, 1);
+            peak_avg = avg(:, 2);
+            outer_avg = avg(:, 3);
+            
+            inner_inter = intertaper(:, 1);
+            peak_inter = intertaper(:, 2);
+            outer_inter = intertaper(:, 3);
+            
+            % convert to table
+            SegmentTaperResults = table(branch', inner_intra, peak_intra, ...
+                outer_intra, inner_avg, peak_avg, outer_avg, ...
+                inner_inter, peak_inter, outer_inter);
+            
+            % add gen info
+            SegmentTaperResults.generation = [obj.Glink.generation]';
+            
+            % add lobe info if available
+            try % only add lobe information if it exists
+                SegmentTaperResults.lobe = [obj.Glink.lobe]';
+                % sort by lobe
+                SegmentTaperResults = sortrows(SegmentTaperResults, 'lobe');
+            catch
+            end
+            
+            % Save to AQ object
+            obj.Specs.SegmentTaperResults = SegmentTaperResults;
         end
         
         %% TAPERING VISUALISATION METHODS
