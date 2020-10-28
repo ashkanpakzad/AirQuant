@@ -530,11 +530,11 @@ classdef AirQuant < handle % handle class
            
             % check for each airway arclength and FWHM failures
             for i = 1:length(obj.Glink)
-                report(i).arclength = ~any(isnan(obj.arclength{i}));
+                report(i).arclength = ~any(isnan(obj.arclength{i})) & ~any(isempty(obj.arclength{i}));
                 try
-                report(i).FWHM_inner = all(~cellfun(@isempty,obj.FWHMesl{i,1}));
-                report(i).FWHM_peak = all(~cellfun(@isempty,obj.FWHMesl{i,2}));
-                report(i).FWHM_outer = all(~cellfun(@isempty,obj.FWHMesl{i,3}));
+                report(i).FWHM_inner = ~isempty(obj.FWHMesl{i,1});
+                report(i).FWHM_peak = ~isempty(obj.FWHMesl{i,2});
+                report(i).FWHM_outer = ~isempty(obj.FWHMesl{i,3});
                 catch
                 end
             end
@@ -1134,6 +1134,7 @@ classdef AirQuant < handle % handle class
             end
             
             % prune ends
+            disp(idx)
             prune = (al >= prunelength(1) & al <= al(end) - prunelength(2));
             al = al(prune);
 %             areas = areas(repmat(prune',1,3));
