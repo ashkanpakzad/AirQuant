@@ -62,7 +62,7 @@ classdef PTKCustomAirwayCentreline < PTKPlugin
             coronal_mode = false;
             start_point = trachea_results.top_of_trachea;
 
-            maximum_number_of_generations = 15;
+            maximum_number_of_generations = 50;
             
             explosion_multiplier = 4;
 
