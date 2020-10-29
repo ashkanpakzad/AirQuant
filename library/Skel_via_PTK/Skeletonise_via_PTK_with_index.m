@@ -11,16 +11,16 @@ function binary_image = ...
 binary_image = int8(binary_image ~= 0);
 binary_image(index_fixed_points) = 3;
 
-
-%%
-
+% pad borders
 binary_image = AddBorder_adapted(binary_image,2);
+
+% set up direction vectors
 [i, j, k] = ind2sub([3 3 3], 1 : 27);
 direction_vectors = [i' - 2, j' - 2, k' - 2];
+
+% set up while loop
 raw_image = binary_image;
-
 previous_image = zeros(size(raw_image), 'uint8');
-
 iteration = 0;
 
 while ~isequal(previous_image, raw_image)
@@ -46,7 +46,7 @@ while ~isequal(previous_image, raw_image)
         % it is a simple point
         for ii = 1 : length(b_i)
             i = b_i(ii); j = b_j(ii); k = b_k(ii);
-            raw_image(b_i(ii), b_j(ii), b_k(ii)) = ~PTKIsSimplePoint(binary_image(i-1:i+1, j-1:j+1, k-1:k+1));
+            raw_image(b_i(ii), b_j(ii), b_k(ii)) = ~PTKIsSimplePoint(raw_image(i-1:i+1, j-1:j+1, k-1:k+1));
         end
     end
 end
