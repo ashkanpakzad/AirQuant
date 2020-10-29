@@ -47,7 +47,14 @@ for i = 2:length(s)
     % set up integral such that it equals to 0
     l_integral0 = @(t) integral(l_integral,t0,t) - l;
     % identify where t=0 between expected intervals.
-    t1 = fzero(l_integral0, [t0, breaks(pp_1+1)]);
+    l_int = t0;
+    u_int = breaks(pp_1+1);
+    % ensure left and right intervals differ in sign
+    while l_integral0(l_int) > 0 || l_integral0(u_int) < 0
+        l_int = l_int - 5;
+        u_int = u_int + 5;
+    end
+    t1 = fzero(l_integral0, [l_int, u_int]);
     t_points(i) = t1;
 
 end
