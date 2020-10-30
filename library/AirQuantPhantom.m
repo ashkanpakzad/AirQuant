@@ -214,7 +214,6 @@ classdef AirQuantPhantom < handle % handle class
                 end
             end
                         % remove trachea branch. 
-            report(obj.trachea_path) = [];
             report = struct2table(report);
         end
                   
