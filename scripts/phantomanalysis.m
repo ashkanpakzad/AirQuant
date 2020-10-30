@@ -8,15 +8,22 @@
 AirQuantDir = AirQuantAddPath();
 results_dir = fullfile(AirQuantDir,'results');
 recontype = 'Lung'; % phantom reconstruction kernel. Lung or Body.
-phantomtype = 'taper';
+phantomtype = 'constant'; % taper or constant
 casename = ['Phantom_',recontype,'_',phantomtype];
 
 % fixed points for taper tubes
-I = [   335, 214, 179; 335, 215, 124; 
-        294, 201, 179; 295, 201, 124; 
-        350, 174, 179; 349, 176, 124; 
-        375, 227, 179; 372, 226, 124;
-        323, 251, 179; 323, 249, 124;   ];
+% I = [   335, 214, 179; 335, 215, 124; 
+%         294, 201, 179; 295, 201, 124; 
+%         350, 174, 179; 349, 176, 124; 
+%         375, 227, 179; 372, 226, 124;
+%         323, 251, 179; 323, 249, 124;   ];
+
+% fixed points for constant tubes
+I = [   243, 362, 179; 246, 362, 124;
+        213, 360, 179; 215, 360, 124;
+        184, 359, 179; 187, 358, 124;
+        215, 333, 179; 217, 333, 124;
+        211, 387, 179; 213, 387, 124;   ];
 
 %% Get filenames
 
@@ -42,53 +49,21 @@ savename = fullfile(results_dir, [casename, '_AQ.mat']);
 AQ = AirQuantPhantom(CT, meta, S, skel, savename);
 
 %% Display Airway Graph in 3D and 2D
-figure
-PlotTree(AQ)
-
-%%
-figure
-plot(AQ,'gen')
-
-%% Plot the skeleton inside the segmentation
-figure
-patch(isosurface(S),'EdgeColor', 'none','FaceAlpha',0.3);
-hold on
-isosurface(skel)
-axis vis3d
-ax = gca;
-ax.XDir = 'reverse';
-
-%% traverse the first indexed airway, measure and display results
-% this may take >20 minutes
-% given the Airway index of interest (use the plottree and plot function to 
-% identify branch indices) this function interpolates slices along that
-% branch and then attempts to fit an ellipse to the inner lumen, wall peak
-% attenuation and outer wall boundaries.
-idx = 1;
-tic;
-AQ = CreateAirwayImage(AQ, idx);
-AQ = FindAirwayBoundariesFWHM(AQ, idx);
-disp(toc/60)
-
-% the interpolated slices and fitted ellipses can be viewed with the below
-% function. interpolated slice shows 1x1 mm pixels, if the voxel size of
-% the original image is greater than this then the interpolated slices will
-% be noticibly blurry and results poor.
-PlotAirway3(AQ, idx)
-
-% AirQuant doesn't save tapering measurements automatically 
-% (only interpolated slices), so we can manually invoke the save method after
-% performing measurements on a single branch.
-save(AQ)
-%%
-PlotAirway3(AQ, 2)
-
-%%
-idx = 2;
-tic;
-AQ = CreateAirwayImage(AQ, idx);
-AQ = FindAirwayBoundariesFWHM(AQ, idx);
-disp(toc/60)
+% figure
+% PlotTree(AQ)
+% 
+% figure
+% plot(AQ,'gen')
+% 
+% Plot the skeleton inside the segmentation
+% skel = logical(Skeletonise_via_PTK_with_index(S, fixedpoints));
+% figure
+% patch(isosurface(S),'EdgeColor', 'none','FaceAlpha',0.3);
+% hold on
+% isosurface(skel)
+% axis vis3d
+% ax = gca;
+% ax.XDir = 'reverse';
 
 %% traverse all airways
 % this could take a number of hours, results will be saved along the way so
@@ -109,19 +84,3 @@ save(AQ)
 % if both the AirwayImageAll and FindFWHMall functions have been run to
 % completion successfully then the results of this should show all 1s.
 report = debuggingreport(AQ);
-
-%% Display taper results of a single gradient path
-% plot taper grad results from carina to a given end-node.
-figure
-PlotTaperResults(AQ, AllTaperResults.terminalnode(1), 'inner')
-figure
-PlotTaperResults(AQ, AllTaperResults.terminalnode(1))
-
-%% Construct single taper gradient path
-% this demonstrates more hands on functions to process data as desired.
-% list of terminal node, refer to airway graph.
-terminalnodelist = ListTerminalNodes(AQ);
-% get branch data for carina to terminal node for given node.
-% note a positive taper gradient shows that the branch is tapering.
-[logtaperrate, cum_arclength, cum_area, path] = ConstructTaperPath(AQ, terminalnodelist(1)); 
-
