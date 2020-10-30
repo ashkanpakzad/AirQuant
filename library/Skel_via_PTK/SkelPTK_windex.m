@@ -1,5 +1,5 @@
 function binary_image = ...
-    Skeletonise_via_PTK_with_index(binary_image, index_fixed_points)
+    SkelPTK_windex(binary_image, index_fixed_points)
 % This function has been apadted from PTKSkeletonise.
 
 % The input is the binary image and the fixed point- the finxed point will 
@@ -8,22 +8,20 @@ function binary_image = ...
 
 %% Marking the end point of the image
 % Marks endpoints with 3
-binary_image = MarkEndpoints(binary_image, index_fixed_points);
+binary_image = int8(binary_image ~= 0);
+binary_image(index_fixed_points) = 3;
 
-
-%%
-
+% pad borders
 binary_image = AddBorder_adapted(binary_image,2);
-direction_vectors = CalculateDirectionVectors;
 
+% set up direction vectors
+[i, j, k] = ind2sub([3 3 3], 1 : 27);
+direction_vectors = [i' - 2, j' - 2, k' - 2];
+
+% set up while loop
 raw_image = binary_image;
-
 previous_image = zeros(size(raw_image), 'uint8');
-
 iteration = 0;
-
-%Need to set the flag
-use_mex_simple_point = false;
 
 while ~isequal(previous_image, raw_image)
     previous_image = raw_image;
@@ -46,12 +44,17 @@ while ~isequal(previous_image, raw_image)
         
         % Iterate through each border point and delete (set to zero) if
         % it is a simple point
-        for i = 1 : length(b_i)
-            raw_image(b_i(i), b_j(i), b_k(i)) = ~IsPointSimple(raw_image, b_i(i), b_j(i), b_k(i), use_mex_simple_point);
-            
+        for ii = 1 : length(b_i)
+            i = b_i(ii); j = b_j(ii); k = b_k(ii);
+            raw_image(b_i(ii), b_j(ii), b_k(ii)) = ~PTKIsSimplePoint(raw_image(i-1:i+1, j-1:j+1, k-1:k+1));
         end
     end
 end
+
 binary_image = ChangeRawImage_adapted(binary_image,raw_image);
-binary_image = RemoveBorder_adapted(binary_image,2);
+% remove border
+border_size = 2;
+binary_image = binary_image(1+border_size : end-border_size,...
+    1+border_size : end-border_size, 1+border_size : end-border_size);
+
 end

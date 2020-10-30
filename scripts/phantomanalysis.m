@@ -40,7 +40,7 @@ S = logical(niftiread(seg_name));
 % convert skel fixed indices to linear idx
 fixedpoints = sub2ind(size(CT), I(:,1), I(:,2), I(:,3));
 % get skel using basic PTK method
-skel = logical(Skeletonise_via_PTK_with_index(S, fixedpoints));
+skel = logical(SkelPTK_windex(S, fixedpoints));
 
 %% Initialise AirQuant
 % Parses CT, segmentation and skeleton to compute airway tree graph
