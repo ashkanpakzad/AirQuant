@@ -9,7 +9,12 @@ AirQuantDir = AirQuantAddPath();
 results_dir = fullfile(AirQuantDir,'results');
 recontype = 'Lung'; % phantom reconstruction kernel. Lung or Body.
 phantomtype = 'constant'; % taper or constant
-casename = ['Phantom_',recontype,'_',phantomtype];
+extra = 'planesample0p6';
+
+casename = ['Phantom_',recontype,'_',phantomtype,'_',extra];
+
+plane_sample_sz = 0.6; % Set parameters for AQ
+
 
 % fixed points for taper tubes
 % I = [   335, 214, 179; 335, 215, 124; 
@@ -47,6 +52,7 @@ skel = logical(SkelPTK_windex(S, fixedpoints));
 % savename is given to automatically save/load results.
 savename = fullfile(results_dir, [casename, '_AQ.mat']);
 AQ = AirQuantPhantom(CT, meta, S, skel, savename);
+AQ.plane_sample_sz = plane_sample_sz;
 
 %% Display Airway Graph in 3D and 2D
 % figure
