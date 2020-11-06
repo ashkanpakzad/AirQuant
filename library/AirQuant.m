@@ -5,9 +5,10 @@ classdef AirQuant < handle % handle class
         seg % binary airway segmentation
         % CT Properties/resampling params
         max_plane_sz = 40;% max interpolated slice size
-        plane_sample_sz = 0.3;% interpolated slice pixel size
-        spline_sample_sz = 0.25;% mm interval to sample along branch arclength
+        plane_sample_sz % interpolated slice pixel size
+        spline_sample_sz % mm interval to sample along branch arclength
         plane_scaling_sz = 5; % scale airway diameter approx measurement.
+        min_tube_sz % smallest measurable lumen Diameter.
         % Ray params
         num_rays = 50; % check methods
         ray_interval = 0.2; % check methods
@@ -36,7 +37,7 @@ classdef AirQuant < handle % handle class
     
     methods
         %% INITIALISATION METHODS
-        function obj = AirQuant(CTimage, CTinfo, segimage, skel, savename, params)
+        function obj = AirQuant(CTimage, CTinfo, segimage, skel, savename)
             % Initialise the AirQuant class object.
             % if using default settings, do not provide params argument.
             
@@ -51,19 +52,16 @@ classdef AirQuant < handle % handle class
                 obj.savename = savename;
             else
                 obj.CTinfo = CTinfo;
-                obj.CT = reorientvolume(CTimage, obj.CTinfo);
+                obj.CT = reorientvolume(CTimage, obj.CTinfo);                
                 % TODO: consider preprocess segmentation to keep largest
                 % connected component.
                 % ensure no holes in segmentation
                 obj.seg = reorientvolume(imfill(segimage,'holes'), obj.CTinfo);
-                % set params
-                if nargin > 5
-                    obj.max_plane_sz = params.max_plane_sz;
-                    obj.plane_sample_sz = params.plane_sample_sz;
-                    obj.spline_sample_sz = params.spline_sample_sz;
-                    obj.num_rays = params.num_rays;
-                    obj.ray_interval = params.ray_interval;
-                end
+                % Set Resampling parameters and limits
+                measure_limit = floor((min(obj.CTinfo.PixelDimensions)/2)*10)/10;
+                obj.plane_sample_sz = measure_limit;
+                obj.spline_sample_sz = measure_limit;
+                obj.min_tube_sz = 4*max(obj.CTinfo.PixelDimensions);
                 % graph airway skeleton
                 obj = GenerateSkel(obj,skel);
                 % Identify trachea
