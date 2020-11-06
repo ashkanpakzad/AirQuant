@@ -1,4 +1,4 @@
-classdef AirQuant < handle % handle class
+classdef AirQuantPhantom < handle % handle class
     properties
         CT % CT image
         CTinfo % CT metadata
@@ -20,9 +20,6 @@ classdef AirQuant < handle % handle class
         Gnode % Graph node info
         Glink % Graph edge info
         Gdigraph % digraph object
-        trachea_node % node corresponding to top of trachea
-        trachea_path % edges that form a connect subgraph above the carina
-        carina_node % node that corresponds to the carina
         skel_points % list of skeleton points
         % Resampled image slices along graph paths/airway segments.
         Dmap % distance transform of seg
@@ -36,7 +33,7 @@ classdef AirQuant < handle % handle class
     
     methods
         %% INITIALISATION METHODS
-        function obj = AirQuant(CTimage, CTinfo, segimage, skel, savename, params)
+        function obj = AirQuantPhantom(CTimage, CTinfo, segimage, skel, savename, params)
             % Initialise the AirQuant class object.
             % if using default settings, do not provide params argument.
             
@@ -66,16 +63,8 @@ classdef AirQuant < handle % handle class
                 end
                 % graph airway skeleton
                 obj = GenerateSkel(obj,skel);
-                % Identify trachea
-                obj = FindTrachea(obj);
                 % Convert into digraph
                 obj = AirwayDigraph(obj);
-                % Identify Carina
-                obj = FindCarina(obj);
-                % Identify paths that belong to trachea
-                obj = FindTracheaPaths(obj);
-                % classify airway generations
-                obj = ComputeAirwayGen(obj);
                 % Compute distance transform
                 obj.Dmap = bwdist(~obj.seg);
                 % set up empty cell for traversed CT and segmentation
@@ -87,11 +76,6 @@ classdef AirQuant < handle % handle class
                 obj.Specs = struct();
                 % set up empty cell for recording raycast/fwhmesl method
                 obj.FWHMesl = cell(length(obj.Glink),3);
-                try
-                    ComputeAirwayLobes(obj)
-                catch
-                    warning('Airway classification by Lobe unsuccessful. Lobe dependent functions will not work.')
-                end
                 % save class
                 obj.savename = savename;
                 save(obj)
@@ -111,16 +95,6 @@ classdef AirQuant < handle % handle class
             
         end
         
-        
-        function obj = FindTrachea(obj)
-            % Identify the Trachea node. FindFWHMall
-            % Assumes trachea fully segmented and towards greater Z.
-            % Smoothen
-            [~, obj.trachea_node] = max([obj.Gnode.comz]);
-            %obj.trachea_path = obj.Gnode(obj.trachea_node).links;
-        end
-        
-        
         function obj = AirwayDigraph(obj)
             % Converts the output from skel2graph into a digraph tree
             % network, such that there are no loops and edges point from
@@ -129,16 +103,14 @@ classdef AirQuant < handle % handle class
             % Create digraph with edges in both directions, loop through
             % and remove if found later in the BF search.
             G = digraph(obj.Gadj);
-            % BF search from carina node to distal.
-            node_discovery = bfsearch(G,obj.trachea_node);
             % half of the edges will be removed
             removal = zeros(height(G.Edges)/2 , 1);
             j = 1;
             for i = 1:height(G.Edges)
-                % identify the rank in order of discovery
-                rank1 = find(~(node_discovery-G.Edges.EndNodes(i,1)));
-                rank2 = find(~(node_discovery-G.Edges.EndNodes(i,2)));
-                if rank1 > rank2
+                % identify the z slice of endnodes
+                rank1 = obj.Gnode(G.Edges.EndNodes(i,1)).comz;
+                rank2 = obj.Gnode(G.Edges.EndNodes(i,2)).comz;
+                if rank2 > rank1
                     % record if not central-->distal
                     removal(j) = i;
                     j = j + 1;
@@ -177,303 +149,6 @@ classdef AirQuant < handle % handle class
             obj.Gdigraph.Nodes.comz(:) = [obj.Gnode(:).comz];
             obj.Gdigraph.Nodes.ep(:) = [obj.Gnode(:).ep];
             obj.Gdigraph.Nodes.label(:) = [1:length(obj.Gnode)]';
-            
-        end
-        
-        function obj = FindCarina(obj)
-            % Finds the carina node by analysis of the directed graph
-            % produced by a breadth first search from the trachea node.
-            [~, obj.carina_node] = max(centrality(obj.digraph,'outcloseness'));
-        end
-        
-        function obj = FindTracheaPaths(obj)
-            % Check if there are any edges between carina and trachea
-            % due to skeletonisation error (trachea is prone to
-            % skeletonisation errors)
-            
-            % identify outgoing nodes from carina
-            [eid, nid] = outedges(obj.Gdigraph,obj.carina_node);
-            % identify their importance and sort in that order
-            outcloseness = centrality(obj.digraph,'outcloseness');
-            [~, I_sort] = sort(outcloseness(nid),'descend');
-            % remove most important === bronchi.
-            G = rmedge(obj.Gdigraph,eid(I_sort(1:2)));
-            % identify smallest connected graph corresponding to trachea.
-            [bin,binsize] = conncomp(G,'Type','weak');
-            idx = binsize(bin) == min(binsize);
-            % idx corresponds to nodes in trachea group
-            SG = subgraph(G, idx);
-            % identify labels
-            obj.trachea_path=table2array(SG.Edges(:, {'Label'}));
-        end
-        
-        function obj = ComputeAirwayGen(obj)
-            % loop through graph nodes
-            G = obj.Gdigraph;
-            gens = zeros(length(obj.Glink),1);
-            gens(obj.trachea_path) = 0;
-            for i = 1:height(G.Nodes)
-                if i == obj.trachea_path
-                    break
-                end
-                % get path from carina to current node
-                path = shortestpath(G, obj.carina_node, i);
-                % edges out of carina, gen = 1
-                generation = length(path);
-                edge_idx = outedges(G, i);
-                % assign generation from number of nodes traversed to out
-                % edges.
-                gens(G.Edges.Label(edge_idx)) = generation;
-            end
-            % add gens field to glink
-            gens = num2cell(gens);
-            [obj.Glink(:).generation] = gens{:};
-        end
-        
-        function obj = ComputeAirwayLobes(obj)
-            % Get airway graph
-            G = obj.Gdigraph;
-            % Set up lobe store vector
-            lobes = cell(length(obj.Glink),1);
-            % Assign trachea to itself
-            for i = 1:length(obj.trachea_path)
-                lobes{obj.trachea_path(i)} = 'B';
-            end
-            
-            % % Identify left and right lung nodes first
-            lungN = successors(G, obj.carina_node);
-            if obj.Gnode(lungN(1)).comx > obj.Gnode(lungN(2)).comx
-                leftN = lungN(1);
-                rightN = lungN(2);
-            else 
-                leftN = lungN(2);
-                rightN = lungN(1);
-            end
-            
-            % assign labels to major bronchi
-            classedgenonlobes(obj.carina_node, leftN, 'B')
-            classedgenonlobes(obj.carina_node, rightN, 'B')
-                        
-            % % Identify node of upper-lingular and lower left lobe 'LL'
-            LlungN = successors(G, leftN);
-            
-            if obj.Gnode(LlungN(1)).comz > obj.Gnode(LlungN(2)).comz
-                LUL_L = LlungN(1);
-                LLLN = LlungN(2);
-            else
-                LUL_L = LlungN(2);
-                LLLN = LlungN(1);
-            end
-            
-            % Assign branches of the lower left lobe
-            classedgelobes(LLLN, 'LL')
-            classedgelobes(LUL_L, 'LU')
-
-            % assign branch from left lobe divider to upper itk node
-            classedgenonlobes(leftN, LUL_L, 'LU')
-            
-            % identify upper lobe and lingular
-            LUL_LN = successors(G, LUL_L);
-            
-            if obj.Gnode(LUL_LN(1)).comz > obj.Gnode(LUL_LN(2)).comz
-                LULN = LUL_LN(1);
-                LN = LUL_LN(2);
-            else
-                LULN = LUL_LN(2);
-                LN = LUL_LN(1);
-            end
-            
-            % assign branches of the upper left lobe.
-            classedgelobes(LULN, 'LU')
-            classedgelobes(LN, 'LUlin')
-                        
-            % % Identify right upper lobe
-            RlungN = successors(G, rightN);
-            [~, I] = max([obj.Gnode(RlungN).comz]);
-            RULN = RlungN(I);
-            
-            % class branches of right upper lobe
-            classedgelobes(RULN, 'RU')
-            
-            % % Identify mid and lower lobes in right lung
-            switch length(RlungN) 
-                case 3 % all 3 lobes branch off same node (low res CT)
-                    G_copy = G; % make copy and remove upper lobe
-                    G_copy = rmnode(G_copy,bfsearch(G_copy,RULN));
-                    Gsub = subgraph(G_copy,bfsearch(G_copy,(find(G_copy.Nodes.label == rightN))));
-                case 2 % Much more likely
-                    % check if following node also belongs to upper lobe
-                    upper_ratio = G.Edges.Weight(findedge(G,rightN,RlungN(RlungN ~= RULN)));
-                    lower_ratio = G.Edges.Weight(findedge(G,obj.carina_node,rightN));
-                    if upper_ratio/lower_ratio < 0.5
-                        % non standard upper lobe branching
-                        RlungN2 = successors(G, RlungN(RlungN ~= RULN));
-                        [~, I] = max([obj.Gnode(RlungN2).comz]);
-                        RULN2 = RlungN2(I);
-                        classedgelobes(RULN2, 'RU')
-                        Gsub = subgraph(G,bfsearch(G,RlungN2(RlungN2~=RULN2)));
-                    else
-                        % create subgraph of following nodes
-                        Gsub = subgraph(G,bfsearch(G,RlungN(RlungN ~= RULN)));
-                    end
-                otherwise
-                    error('Lobe classification failed to distinguish right lobes, airway segmentation may be incomplete.')
-            end
-
-            
-            % get list of endpoint nodes
-            endpoint = Gsub.Nodes(Gsub.Nodes.ep == 1, :);
-            % compute z - y.
-            z_minus_y = [endpoint.comz] - [endpoint.comy];
-            % identify end node of right middle lobe.
-            [~, I] = max(z_minus_y);
-            RML_end = endpoint.label(I);
-            % identify end node of right lower lobe.
-            [~, I] = min(z_minus_y);
-            RLL_end = endpoint.label(I);
-            % identify bifurcation point of the two end points.
-            RML_endpath = flip(shortestpath(G,obj.carina_node, RML_end));
-            RLL_endpath = flip(shortestpath(G,obj.carina_node, RLL_end));
-            [~, I] = intersect(RML_endpath, RLL_endpath);
-            RML_RLLN = RML_endpath(min(I));
-            % assign bronchi edges between right node and bifurcating node.
-            classedgenonlobes(rightN, RML_RLLN, 'B')
-            % identify RML node
-            RMLN = RML_endpath(min(I)-1);
-            % assign labels to RM edges, not RL
-            classedgelobes(RMLN, 'RM') 
-            
-            % assign remaining labels to RLL
-            lobes(cellfun(@isempty,lobes)) = {'RL'};
-            
-            % add lobe field to glink
-            lobe = num2cell(lobes);
-            [obj.Glink(:).lobe] = lobe{:};
-           
-            function classedgelobes(node, label)
-                % identify all edges from node outwards
-                [~, E] = bfsearch(G, node, 'edgetonew');
-                % add predecessing edge
-                E = [E; inedges(G, node)];
-                lobes(G.Edges.Label(E)) = {label};
-            end
-            
-            function classedgenonlobes(s, t, label)
-            [~, ~, E] = shortestpath(G, s, t);
-            lobes(G.Edges.Label(E)) = {label};
-            end
-        end
-        
-        %% GRAPH NETWORK ANOMOLY ANALYSIS
-        
-        function [debugseg, debugskel, erroredge] = DebugGraph(obj)
-            % TODO: consider moving graph plot to the default plot.
-            % First check for multiple 'inedges' to all nodes.
-            multiinedgenodes = cell(height(obj.Gdigraph.Edges),1);
-            j = 1;
-            for i = 1:height(obj.Gdigraph.Nodes)
-                eid = inedges(obj.Gdigraph,i);
-                if length(eid) > 1
-                    multiinedgenodes{j} = eid;
-                    j = j + 1;
-                end
-            end
-            multiinedgenodes(j:end)=[];
-            % convert cell of different shapes to vector, by Wolfie on
-            % stackoverflow.
-            
-            % 1. Get maximum size of T elements
-            %    Pad all elements of T up to maxn values with NaN
-            maxn = max(cellfun( @numel, multiinedgenodes ));
-            Tpadded = cellfun( @(x) [x; NaN(maxn-numel(x))], multiinedgenodes, 'uni', 0);
-            % 2. Convert to array.
-            Tpadded = cat(2, Tpadded{:} );
-            % 3. Reshape to be one row and remove NaNs
-            Trow = reshape( Tpadded.', 1, [] );
-            erroredge = Trow(~isnan(Trow));
-            
-            % return empty debug if no errors found.
-            if isempty(erroredge)
-                debugseg = [];
-                debugskel = [];
-                erroredge = [];
-                disp('No errors found in skeleton/segmentation')
-            else
-                warning([int2str(length(multiinedgenodes)) ' errors found in seg/skel. Check output of AirQuant.DebugGraph'])
-                % identify edge indices in Glink
-                Glink_ind = obj.Gdigraph.Edges.Label(erroredge);
-                % get branch labelled segmentation
-                branch_seg = ClassifySegmentation(obj);
-                % copy over segmentation
-                debugseg = double(obj.seg);
-                % identify voxels of error branch in seg
-                errorvox = ismember(branch_seg, Glink_ind);
-                debugseg(errorvox == 1) = 2;
-                % identify voxels in skel of 'error' branches
-                errorvox = [obj.Glink(Glink_ind).point];
-                %copy skel and relabel 'error' branches
-                debugskel = double(obj.skel);
-                debugskel(errorvox) = 2;
-                % also show debug graph plot
-%                 figure
-%                 G = obj.Gdigraph;
-%                 h = plot(G,'EdgeLabel',G.Edges.Label, 'Layout','layered');
-%                 h.NodeColor = 'k';
-%                 h.EdgeColor = 'k';
-%                 highlight(h,'Edges',erroredge,'EdgeColor','r')
-                
-            end
-        end
-        
-        function [data1, data2] = Remove2nodeinedge(obj, erroredge)
-            % identify erroredges that appear more than once 
-            % (with same node)
-            % TODO: edit to hand >2.
-            
-            % only assumes that no more than 2 edges can share the same
-            % nodes in error.
-            erroredge = erroredge';
-            
-            % get node pairs for each edge
-            node_pairs = table2array(obj.Gdigraph.Edges(erroredge,'EndNodes'));
-            % identify which ones repeat
-            [~,uniqueInd] = unique(node_pairs,'rows','stable');
-            duplicateInd = setdiff(1:size(node_pairs,1),uniqueInd);
-            % copy one half of the duplicate indices
-            duplicateNode = node_pairs(duplicateInd,:);
-            duplicateedges = erroredge(duplicateInd);
-            
-            % Find the other paired duplicate indices.
-            paired_edges = cell(length(duplicateedges),1);
-            j = 1;
-            for i = 1:length(duplicateNode)
-                paired_edges{j} = zeros(2,1);
-                paired_edges{j}(1,1) = duplicateInd(i);
-                [~,~,paired_edges{j}(2,1)] = intersect(duplicateNode(i,:),node_pairs,'rows');
-                j = j + 1;
-            end
-            
-            for i = 1:length(paired_edges)
-            
-            % get skel points of edges and convert to sub
-            Glink_ind = obj.Gdigraph.Edges.Label(paired_edges{i});
-            edge1 = obj.Glink(Glink_ind(1)).point;
-            edge2 = obj.Glink(Glink_ind(2)).point;
-            [Y1, X1, Z1] = ind2sub(size(obj.skel), edge1);
-            [Y2, X2, Z2] = ind2sub(size(obj.skel), edge2);
-
-            % compute best fit cubic curve
-            data1 = [X1', Y1', Z1'];
-            data2 = [X2', Y2', Z2'];
-
-            %Generating the spline
-            
-            end
-            % rewrite skeleton with new spline
-            
-            % overwrite skeleton
-            
-            % recompute Tree digraph
             
         end
         
@@ -539,7 +214,6 @@ classdef AirQuant < handle % handle class
                 end
             end
                         % remove trachea branch. 
-            report(obj.trachea_path) = [];
             report = struct2table(report);
         end
                   
@@ -578,9 +252,6 @@ classdef AirQuant < handle % handle class
             
             for i = 1:length(obj.Glink)
                 % skip the trachea or already processed branches
-                if i == obj.trachea_path || incomplete(i) == 0
-                    continue
-                end
                 obj = CreateAirwayImage(obj, i);
                 disp(['Traversing: Completed ', num2str(i), ' of ', num2str(total_branches)])
             end
@@ -600,9 +271,6 @@ classdef AirQuant < handle % handle class
 
             for i = 1:length(obj.Glink)
                 % skip the trachea
-                if i == obj.trachea_path || incomplete(i) == 0
-                    continue
-                end
                 obj = FindAirwayBoundariesFWHM(obj, i);
                 disp(['FWHMesl: Completed ', num2str(i), ' of ', num2str(total_branches)])
             end
@@ -862,123 +530,6 @@ classdef AirQuant < handle % handle class
                 elliptical_sturct.elliptical_info(3)*...
                 elliptical_sturct.elliptical_info(4)*...
                 pi*obj.plane_sample_sz.^2;
-        end
-        
-        %% EXTENT Methods
-        function counts = searchgenperlobe(obj, gen, lobe)
-            Nawy = length(obj.Glink);
-            counts = 0;
-            for i = 1:Nawy
-                if obj.Glink(i).generation == gen && strcmp(obj.Glink(i).lobe, lobe)
-                counts = counts + 1;
-                end
-            end
-        end
-        
-        function genperlobe = extentstats(obj)
-            % make table of lobes
-            maxgen = max([obj.Glink(:).generation]);
-            sz = [maxgen, 6];
-            varTypes = cell(1, 6);
-            varTypes(:) = {'double'};
-            varNames = {'RU','RM','RL','LU','LUlin','LL'};
-            genperlobe = table('Size',sz,'VariableTypes',varTypes,'VariableNames',varNames);
-            % get number of airways of that generation in that lobe
-            for lobe = 1:6
-                lobeid = varNames{1,lobe};
-                for gen = 1:maxgen
-                    genperlobe.(lobeid)(gen) = searchgenperlobe(obj, gen, lobeid);
-                end
-            end
-        end
-        
-        function [overextentidx, compare] = compareextent(obj, populationstats, threshold)
-            % threshold = minimum gen expected
-            % populationstats = table generated by summarising results from
-            % genperlobe over several images.
-            subject_genperlobe = table2array(extentstats(obj));
-            if istable(populationstats)
-                populationstats = table2array(populationstats);
-            end
-            gendiff = size(populationstats, 1) - size(subject_genperlobe, 1);
-            if gendiff < 0
-                populationstats = [populationstats; zeros(abs(gendiff),6)];
-            elseif gendiff > 0
-                subject_genperlobe = [subject_genperlobe; zeros(abs(gendiff),6)];
-            end
-                
-            % compare this subject to population
-            compare = floor(subject_genperlobe - populationstats);
-            
-            overextentidx = false(length(obj.Glink),1);
-%             safenodes = [];
-            varNames = {'RU','RM','RL','LU','LUlin','LL'};
-            % BF search
-            [~,bfs_Gind] = bfsearch(obj.Gdigraph, obj.trachea_node,'edgetonew');
-            % convert graph idx into link index
-            bfs_Lind = zeros(size(bfs_Gind));
-            for ind = 1:length(bfs_Gind)
-                bfs_Lind(ind) = obj.Gdigraph.Edges.Label(bfs_Gind(ind));
-            end
-            % reverse order
-            bfs_Lind = flip(bfs_Lind);
-            for lobe = 1:6
-                lobeid = varNames{1,lobe};
-                for gen = size(subject_genperlobe, 1):-1:threshold+1
-                    n_overextent = compare(gen, lobe);
-                    if n_overextent <= 0
-                        continue
-                    end
-                    overextentawy(obj, gen, lobeid, n_overextent);
-                end
-            end
-%             for awy = 1:length(obj.Glink)
-%                 if ~isempty(ismember(obj.Glink(awy).generation,[1:threshold]))
-%                     overextentidx(awy) = false;
-%                 end
-%             end
-%             function overextentawy(obj, gen, lobe, n_overextent)
-%             Nawy = length(obj.Glink);
-%             counts = 1;
-%             mode = 0;
-%             for i = 1:Nawy
-%                 if counts > n_overextent
-%                     mode = 1; % safe mode
-%                 end
-%                 checksafe = isempty(ismember([obj.Glink(i).n1, obj.Glink(i).n2], safenodes));
-%                 if obj.Glink(i).generation == gen && strcmp(obj.Glink(i).lobe, lobe) && checksafe == 0
-%                     if mode == 0
-%                         overextentidx(i) = true; % highlight as excess
-%                         counts = counts + 1;
-%                     elseif mode == 1
-%                         safenodes = [safenodes; obj.Glink(i).n1; obj.Glink(i).n2];
-%                     end
-%                 end
-%             end
-%             end    
-%         end
-
-            function overextentawy(obj, gen, lobe, n_overextent)
-            counts = 1;
-            for i = 1:length(bfs_Lind)
-                if counts > n_overextent
-                    break
-                end
-                awyind = bfs_Lind(i);
-                if obj.Glink(awyind).generation == gen && strcmp(obj.Glink(awyind).lobe, lobe)
-                   overextentidx(awyind) = true; % highlight as excess
-                   counts = counts + 1;
-                end
-            end
-            end    
-        end
-        
-
-       
-        function h = plotoverextent(obj, overextentidx, type)
-            overextentedge = overextentidx(obj.Gdigraph.Edges.Label);
-            h = plot(obj, type);
-            highlight(h,'Edges',overextentedge, 'LineStyle', ':', 'LineWidth',1)
         end
      
         %% TAPERING ANALYSIS METHODS
@@ -1370,11 +921,6 @@ classdef AirQuant < handle % handle class
 %             h = plot(G, 'Layout', 'layered');
             h.NodeColor = 'r';
             h.EdgeColor = 'k';
-            % check for error edges
-            [~,~,erroredge] = DebugGraph(obj);
-            if ~isempty(erroredge)
-                highlight(h,'Edges',erroredge,'EdgeColor','r');
-            end
         end
         
         function h = plotgenlabels(obj)
@@ -1383,55 +929,35 @@ classdef AirQuant < handle % handle class
             h = plot(obj, genslabels);
         end
         
-        function PlotTree(obj, gen)
+        function PlotTree(obj)
             % Plot the airway tree with nodes and links in image space. Set
             % gen to the maximum number of generations to show.
             % Original Function by Ashkan Pakzad on 27th July 2019.
-                            
-            if nargin == 1
-                gen = max([obj.Glink(:).generation]);
-            end
+
             
 %             isosurface(obj.skel);
 %             alpha(0.7)
-            % set up reduced link graph and skel 
-            vis_Glink_logical = [obj.Glink(:).generation] <= gen;
-            vis_Glink_ind = find(vis_Glink_logical == 1);
-            vis_Glink = obj.Glink(vis_Glink_logical);
-            % set up reduced node graph
-            vis_Gnode_logical = false(length(obj.Gnode),1);
-            for i = 1:length(obj.Gnode)
-                if ~isempty(intersect(obj.Gnode(i).links, vis_Glink_ind))
-                    vis_Gnode_logical(i) = 1;
-                end
-            end
-            vis_Gnode_ind = find(vis_Gnode_logical == 1);
-            vis_Gnode = obj.Gnode(vis_Gnode_logical);
-            % set up reduced skel
-            vis_skel = zeros(size(obj.skel));
-            vis_skel([vis_Glink.point]) = 1;
-            %vis_skel([vis_Gnode.idx]) = 1;
             
-            isosurface(vis_skel)
+            isosurface(obj.skel)
             alpha(0.7)
             
             hold on
             
             % edges
-            ind = zeros(length(vis_Glink), 1);
-            for i = 1:length(vis_Glink)
-                ind(i) = vis_Glink(i).point(ceil(end/2));
+            ind = zeros(length(obj.Glink), 1);
+            for i = 1:length(obj.Glink)
+                ind(i) = obj.Glink(i).point(ceil(end/2));
             end
             [Y, X, Z] = ind2sub(size(obj.skel),ind);
-            nums_link = string(vis_Glink_ind);
+            nums_link = string(1:length(obj.Glink));
             %plot3(X,Y,Z, 'b.', 'MarkerFaceColor', 'none');
             text(X+1,Y+1,Z+1, nums_link, 'Color', [0, 0.3, 0])
             
             % nodes
-            X_node = [vis_Gnode.comy];
-            Y_node = [vis_Gnode.comx]; 
-            Z_node = [vis_Gnode.comz];
-            nums_node = string(vis_Gnode_ind);
+            X_node = [obj.Gnode.comy];
+            Y_node = [obj.Gnode.comx]; 
+            Z_node = [obj.Gnode.comz];
+            nums_node = string(1:length(obj.Gnode));
             plot3(X_node,Y_node,Z_node, 'r.', 'MarkerSize', 18, 'Color', 'r');
             text(X_node+1,Y_node+1,Z_node+1, nums_node, 'Color', [0.8, 0, 0])
             
