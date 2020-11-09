@@ -1090,20 +1090,23 @@ classdef AirQuant < handle % handle class
 %             end
         end
         
-        function [intrataper, averagearea] = ComputeIntraTaperAll(obj, prunelength)
+        function [intrataper, averagediameter] = ComputeIntraTaperAll(obj, prunelength)
+            if nargin < 2
+                prunelength = [0 0];
+            end
             % loop through branches
             intrataper = NaN(length(obj.arclength), 3);
-            averagearea = NaN(length(obj.arclength), 3);
+            averagediameter = NaN(length(obj.arclength), 3);
             for ii = 1:length(obj.arclength)
                 if ii == obj.trachea_path
                     continue
                 end
                 
-                [intrataper(ii,:), averagearea(ii,:)] = ComputeIntraTaper(obj, prunelength, ii);
+                [intrataper(ii,:), averagediameter(ii,:)] = ComputeIntraTaper(obj, prunelength, ii);
             end
         end
         
-        function [intrataper, averagearea] = ComputeIntraTaper(obj, prunelength, idx, plotflag)
+        function [intrataper, averagediameter] = ComputeIntraTaper(obj, prunelength, idx, plotflag)
             % prunelength given as a 2 element vector, the length in mm to
             % ignore at the begining and end of the branch.
             
@@ -1112,7 +1115,7 @@ classdef AirQuant < handle % handle class
             end
             
             intrataper = NaN(1, 3);
-            averagearea = NaN(1, 3);
+            averagediameter = NaN(1, 3);
             
             % get arclength
             al = obj.arclength{idx, 1};
@@ -1137,17 +1140,17 @@ classdef AirQuant < handle % handle class
             al = al(prune);
 %             areas = areas(repmat(prune',1,3));
             coeff = NaN(2,3);
-            % convert area to radii
-            areas = sqrt(areas/pi);
+            % convert area to diameters
+            diameters = sqrt(areas/pi)*2;
             for jj = 1:3
                 try % incase no branch left after pruning/too few points
-                    areavec = areas(prune,jj);
+                    Dvec = diameters(prune,jj);
                     % fit bisquare method
-                    coeff(:,jj) = robustfit(al, areavec,'bisquare');
+                    coeff(:,jj) = robustfit(al, Dvec,'bisquare');
                     % compute intra-branch tapering as percentage
                     intrataper(jj) = -coeff(2,jj)/coeff(1,jj) * 100;
                     % compute average area
-                    averagearea(jj) = mean(areavec, 'omitnan');
+                    averagediameter(jj) = mean(Dvec, 'omitnan');
                 catch
                     % leave as NaN
                 end
@@ -1164,7 +1167,7 @@ classdef AirQuant < handle % handle class
                 xlabel('arclength (mm)')
                 ylabel('area mm^2')
                 title(sprintf('Branch idx: %i %s intrataper value: %.2f%% average: %.2f mm.',...
-                idx, titlevec(jj), intrataper(jj), averagearea(jj)))
+                idx, titlevec(jj), intrataper(jj), averagediameter(jj)))
                 hold off
                 
                 end
@@ -1172,19 +1175,23 @@ classdef AirQuant < handle % handle class
             
             end
         
-        function intertaper = ComputeInterTaper(obj, averagearea)
+        function intertaper = ComputeInterTaper(obj, prunelength)
+            if nargin < 2
+                prunelength = [0 0];
+            end
             % use output from intrataperall
-        % loop through branches
+            [~, averagediameter] = ComputeIntraTaperAll(obj, prunelength);
+            % loop through branches
             intertaper = NaN(length(obj.arclength), 3);
-            for ii = 1:length(averagearea)
+            for ii = 1:length(averagediameter)
                 if ii == obj.trachea_path
                     continue
                 end
                 for jj = 1:3
                     % identify parent by predecessor node
                     parent = find([obj.Glink.n2] == obj.Glink(ii).n1);
-                    intertaper(ii,jj) = (averagearea(parent, jj) - averagearea(ii,jj))...
-                        /(averagearea(parent, jj)) * 100;
+                    intertaper(ii,jj) = (averagediameter(parent, jj) - averagediameter(ii,jj))...
+                        /(averagediameter(parent, jj)) * 100;
                 end
             end
 
