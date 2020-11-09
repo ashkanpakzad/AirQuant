@@ -61,7 +61,7 @@ classdef AirQuant < handle % handle class
                 measure_limit = floor((min(obj.CTinfo.PixelDimensions)/2)*10)/10;
                 obj.plane_sample_sz = measure_limit;
                 obj.spline_sample_sz = measure_limit;
-                obj.min_tube_sz = 4*max(obj.CTinfo.PixelDimensions);
+                obj.min_tube_sz = 3*max(obj.CTinfo.PixelDimensions);
                 % graph airway skeleton
                 obj = GenerateSkel(obj,skel);
                 % Identify trachea
@@ -1650,7 +1650,6 @@ classdef AirQuant < handle % handle class
                 end
                 maxlen = max(cellfun(@length, innerareas));
                 innerareas = cellfun(@(x)([x nan(1, maxlen - length(x))]), innerareas, 'UniformOutput', false);
-                innerareas = cellfun(@(x) sqrt(x/pi)*2,innerareas,'un',0);
                 innerareas = cell2mat(innerareas);
                 obj.Specs.innerareas = innerareas;
             else
