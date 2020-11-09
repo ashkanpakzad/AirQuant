@@ -1627,6 +1627,65 @@ classdef AirQuant < handle % handle class
             niftiwrite(lobe_airway_seg, savename, header, 'Compressed', true);
         end
         
+        function innerareas = GetAreas(obj)
+            % Extract the inner area of all branches from FWHM results and output
+            
+            if  ~isfield(obj.Specs, 'innerareas')
+                innerareas = cell(length(obj.Glink), 1);
+                for ii = 1:length(obj.Glink)
+                    for jj = 1:length(obj.FWHMesl{ii,1})
+                        try
+                            innerareas{ii, 1} = [innerareas{ii, 1}, obj.FWHMesl{ii,1}{jj, 1}.area];
+                        catch
+                            innerareas{ii, 1} = [innerareas{ii, 1}, NaN];
+                        end
+                    end
+                end
+                maxlen = max(cellfun(@length, innerareas));
+                innerareas = cellfun(@(x)([x nan(1, maxlen - length(x))]), innerareas, 'UniformOutput', false);
+                innerareas = cellfun(@(x) sqrt(x/pi)*2,innerareas,'un',0);
+                innerareas = cell2mat(innerareas);
+                obj.Specs.innerareas = innerareas;
+            else
+                innerareas = obj.Specs.innerareas;
+            end
+            
+        end
+        
+        function innerdiameters = GetDiameters(obj)
+            % Extract the inner area of all branches from FWHM results,
+            % convert to diameter and output.
+            if  ~isfield(obj.Specs, 'innerdiameters')
+                innerareas = GetAreas(obj);
+                innerdiameters = sqrt(innerareas/pi)*2;
+                obj.Specs.innerdiameters = innerdiameters;
+            else
+                innerdiameters = obj.Specs.innerdiameters;
+            end
+        end
+        
+        function exportraw(obj, savename)
+            % export Glink table and arclengths and inner diameter
+            % measurements
+            
+            % Glink to table
+            BranchInfo = struct2table(obj.Glink);
+            
+            % arclengths to table
+            arclengths = obj.arclength;
+            maxlen = max(cellfun(@length, arclengths));
+            arclengths = cellfun(@(x)([x nan(1, maxlen - length(x))]), arclengths, 'UniformOutput', false);
+            arclengths = cell2mat(arclengths);
+            
+            % diameters
+            innerdiameters = GetDiameters(obj);
+            
+            % export csvs
+            writetable(BranchInfo, ['BranchInfo_',savename, '.csv']);
+            writematrix(arclengths, ['ArcLengths_',savename, '.csv']);
+            writematrix(innerdiameters, ['InnerDiameters_',savename, '.csv']);
+
+        end
     end
     %% STATIC METHODS
     methods (Static)
