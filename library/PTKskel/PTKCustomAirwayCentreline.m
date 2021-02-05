@@ -20,7 +20,7 @@ classdef PTKCustomAirwayCentreline < PTKPlugin
     %     Licence
     %     -------
     %     Part of the TD Pulmonary Toolkit. https://github.com/tomdoel/pulmonarytoolkit
-    %     Author: Ashkan Pakzad, 2020. ashkanpakzad.github.io
+    %     Author: Ashkan Pakzad, 2020 ashkanpakzad.github.io
     %     Author: Tom Doel, 2012.  www.tomdoel.com
     %     Distributed under the GNU GPL v3 licence. Please see website for details.
     %    

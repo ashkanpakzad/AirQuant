@@ -5,9 +5,10 @@ classdef AirQuant < handle % handle class
         seg % binary airway segmentation
         % CT Properties/resampling params
         max_plane_sz = 40;% max interpolated slice size
-        plane_sample_sz = 0.3;% interpolated slice pixel size
-        spline_sample_sz = 0.25;% mm interval to sample along branch arclength
+        plane_sample_sz % interpolated slice pixel size
+        spline_sample_sz % mm interval to sample along branch arclength
         plane_scaling_sz = 5; % scale airway diameter approx measurement.
+        min_tube_sz % smallest measurable lumen Diameter.
         % Ray params
         num_rays = 50; % check methods
         ray_interval = 0.2; % check methods
@@ -36,7 +37,7 @@ classdef AirQuant < handle % handle class
     
     methods
         %% INITIALISATION METHODS
-        function obj = AirQuant(CTimage, CTinfo, segimage, skel, savename, params)
+        function obj = AirQuant(CTimage, CTinfo, segimage, skel, savename)
             % Initialise the AirQuant class object.
             % if using default settings, do not provide params argument.
             
@@ -51,19 +52,16 @@ classdef AirQuant < handle % handle class
                 obj.savename = savename;
             else
                 obj.CTinfo = CTinfo;
-                obj.CT = reorientvolume(CTimage, obj.CTinfo);
+                obj.CT = reorientvolume(CTimage, obj.CTinfo);                
                 % TODO: consider preprocess segmentation to keep largest
                 % connected component.
                 % ensure no holes in segmentation
                 obj.seg = reorientvolume(imfill(segimage,'holes'), obj.CTinfo);
-                % set params
-                if nargin > 5
-                    obj.max_plane_sz = params.max_plane_sz;
-                    obj.plane_sample_sz = params.plane_sample_sz;
-                    obj.spline_sample_sz = params.spline_sample_sz;
-                    obj.num_rays = params.num_rays;
-                    obj.ray_interval = params.ray_interval;
-                end
+                % Set Resampling parameters and limits
+                measure_limit = floor((min(obj.CTinfo.PixelDimensions)/2)*10)/10;
+                obj.plane_sample_sz = measure_limit;
+                obj.spline_sample_sz = measure_limit;
+                obj.min_tube_sz = 3*max(obj.CTinfo.PixelDimensions);
                 % graph airway skeleton
                 obj = GenerateSkel(obj,skel);
                 % Identify trachea
@@ -1092,20 +1090,23 @@ classdef AirQuant < handle % handle class
 %             end
         end
         
-        function [intrataper, averagearea] = ComputeIntraTaperAll(obj, prunelength)
+        function [intrataper, averagediameter] = ComputeIntraTaperAll(obj, prunelength)
+            if nargin < 2
+                prunelength = [0 0];
+            end
             % loop through branches
             intrataper = NaN(length(obj.arclength), 3);
-            averagearea = NaN(length(obj.arclength), 3);
+            averagediameter = NaN(length(obj.arclength), 3);
             for ii = 1:length(obj.arclength)
                 if ii == obj.trachea_path
                     continue
                 end
                 
-                [intrataper(ii,:), averagearea(ii,:)] = ComputeIntraTaper(obj, prunelength, ii);
+                [intrataper(ii,:), averagediameter(ii,:)] = ComputeIntraTaper(obj, prunelength, ii);
             end
         end
         
-        function [intrataper, averagearea] = ComputeIntraTaper(obj, prunelength, idx, plotflag)
+        function [intrataper, averagediameter] = ComputeIntraTaper(obj, prunelength, idx, plotflag)
             % prunelength given as a 2 element vector, the length in mm to
             % ignore at the begining and end of the branch.
             
@@ -1114,7 +1115,7 @@ classdef AirQuant < handle % handle class
             end
             
             intrataper = NaN(1, 3);
-            averagearea = NaN(1, 3);
+            averagediameter = NaN(1, 3);
             
             % get arclength
             al = obj.arclength{idx, 1};
@@ -1139,17 +1140,17 @@ classdef AirQuant < handle % handle class
             al = al(prune);
 %             areas = areas(repmat(prune',1,3));
             coeff = NaN(2,3);
-            % convert area to radii
-            areas = sqrt(areas/pi);
+            % convert area to diameters
+            diameters = sqrt(areas/pi)*2;
             for jj = 1:3
                 try % incase no branch left after pruning/too few points
-                    areavec = areas(prune,jj);
+                    Dvec = diameters(prune,jj);
                     % fit bisquare method
-                    coeff(:,jj) = robustfit(al, areavec,'bisquare');
+                    coeff(:,jj) = robustfit(al, Dvec,'bisquare');
                     % compute intra-branch tapering as percentage
                     intrataper(jj) = -coeff(2,jj)/coeff(1,jj) * 100;
                     % compute average area
-                    averagearea(jj) = mean(areavec, 'omitnan');
+                    averagediameter(jj) = mean(Dvec, 'omitnan');
                 catch
                     % leave as NaN
                 end
@@ -1166,7 +1167,7 @@ classdef AirQuant < handle % handle class
                 xlabel('arclength (mm)')
                 ylabel('area mm^2')
                 title(sprintf('Branch idx: %i %s intrataper value: %.2f%% average: %.2f mm.',...
-                idx, titlevec(jj), intrataper(jj), averagearea(jj)))
+                idx, titlevec(jj), intrataper(jj), averagediameter(jj)))
                 hold off
                 
                 end
@@ -1174,19 +1175,23 @@ classdef AirQuant < handle % handle class
             
             end
         
-        function intertaper = ComputeInterTaper(obj, averagearea)
+        function intertaper = ComputeInterTaper(obj, prunelength)
+            if nargin < 2
+                prunelength = [0 0];
+            end
             % use output from intrataperall
-        % loop through branches
+            [~, averagediameter] = ComputeIntraTaperAll(obj, prunelength);
+            % loop through branches
             intertaper = NaN(length(obj.arclength), 3);
-            for ii = 1:length(averagearea)
+            for ii = 1:length(averagediameter)
                 if ii == obj.trachea_path
                     continue
                 end
                 for jj = 1:3
                     % identify parent by predecessor node
                     parent = find([obj.Glink.n2] == obj.Glink(ii).n1);
-                    intertaper(ii,jj) = (averagearea(parent, jj) - averagearea(ii,jj))...
-                        /(averagearea(parent, jj)) * 100;
+                    intertaper(ii,jj) = (averagediameter(parent, jj) - averagediameter(ii,jj))...
+                        /(averagediameter(parent, jj)) * 100;
                 end
             end
 
@@ -1629,6 +1634,64 @@ classdef AirQuant < handle % handle class
             niftiwrite(lobe_airway_seg, savename, header, 'Compressed', true);
         end
         
+        function innerareas = GetAreas(obj)
+            % Extract the inner area of all branches from FWHM results and output
+            
+            if  ~isfield(obj.Specs, 'innerareas')
+                innerareas = cell(length(obj.Glink), 1);
+                for ii = 1:length(obj.Glink)
+                    for jj = 1:length(obj.FWHMesl{ii,1})
+                        try
+                            innerareas{ii, 1} = [innerareas{ii, 1}, obj.FWHMesl{ii,1}{jj, 1}.area];
+                        catch
+                            innerareas{ii, 1} = [innerareas{ii, 1}, NaN];
+                        end
+                    end
+                end
+                maxlen = max(cellfun(@length, innerareas));
+                innerareas = cellfun(@(x)([x nan(1, maxlen - length(x))]), innerareas, 'UniformOutput', false);
+                innerareas = cell2mat(innerareas);
+                obj.Specs.innerareas = innerareas;
+            else
+                innerareas = obj.Specs.innerareas;
+            end
+            
+        end
+        
+        function innerdiameters = GetDiameters(obj)
+            % Extract the inner area of all branches from FWHM results,
+            % convert to diameter and output.
+            if  ~isfield(obj.Specs, 'innerdiameters')
+                innerareas = GetAreas(obj);
+                innerdiameters = sqrt(innerareas/pi)*2;
+                obj.Specs.innerdiameters = innerdiameters;
+            else
+                innerdiameters = obj.Specs.innerdiameters;
+            end
+        end
+        
+        function exportraw(obj, savename)
+            % export Glink table and arclengths and inner diameter
+            % measurements
+            
+            % Glink to table
+            BranchInfo = struct2table(obj.Glink);
+            
+            % arclengths to table
+            arclengths = obj.arclength;
+            maxlen = max(cellfun(@length, arclengths));
+            arclengths = cellfun(@(x)([x nan(1, maxlen - length(x))]), arclengths, 'UniformOutput', false);
+            arclengths = cell2mat(arclengths);
+            
+            % diameters
+            innerdiameters = GetDiameters(obj);
+            
+            % export csvs
+            writetable(BranchInfo, ['BranchInfo_',savename, '.csv']);
+            writematrix(arclengths, ['ArcLengths_',savename, '.csv']);
+            writematrix(innerdiameters, ['InnerDiameters_',savename, '.csv']);
+
+        end
     end
     %% STATIC METHODS
     methods (Static)
