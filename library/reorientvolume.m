@@ -3,7 +3,7 @@
 % orientation by applying necessary axes permutations and flips based on
 % the metadata affine.
 
-function output = reorientvolume(img, meta)
+function [output, outvoxdim] = reorientvolume(img, meta)
 
 % get affine matrix
 aff_raw_RAS = meta.Transform.T;
@@ -51,4 +51,12 @@ for i = 1:3
     output = flip(output, i);
     end
 end
+
+% Change the meta if requested
+if (nargout > 1)
+    v_sz = meta.PixelDimensions;
+    outvoxdim = [v_sz(newaxes(1)), v_sz(newaxes(2)),...
+        v_sz(newaxes(3))];
+end
+
 end
