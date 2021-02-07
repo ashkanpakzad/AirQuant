@@ -1,22 +1,24 @@
 classdef AirQuant < handle % handle class
     properties
+        %%% Volumes and Metadata
         CT % CT image
         CTinfo % CT metadata
         seg % binary airway segmentation
-        % CT Properties/resampling params
+        skel % skeleton based on segementation
+        savename % filename to load/save
+        %%% CT resampling params
         max_plane_sz = 40;% max interpolated slice size
         plane_sample_sz % interpolated slice pixel size
         spline_sample_sz % mm interval to sample along branch arclength
         plane_scaling_sz = 5; % scale airway diameter approx measurement.
         min_tube_sz % smallest measurable lumen Diameter.
-        % Ray params
+        %%% Ray params
         num_rays = 50; % check methods
         ray_interval = 0.2; % check methods
-        skel % skeleton based on segementation
-        savename % filename to load/save
+
     end
     properties (SetAccess = private)
-        % Graph Properties
+        %%% Graph Properties
         Gadj % undirected Graph Adjacency matrix
         Gnode % Graph node info
         Glink % Graph edge info
@@ -25,18 +27,20 @@ classdef AirQuant < handle % handle class
         trachea_path % edges that form a connect subgraph above the carina
         carina_node % node that corresponds to the carina
         skel_points % list of skeleton points
-        % Resampled image slices along graph paths/airway segments.
+        %%% Resampled image slices along graph paths/airway segments.
         Dmap % distance transform of seg
         Splines % pp splines of branches
         TraversedImage % perpendicular CT slices of all airways
         TraversedSeg % perpendicular segmentation slices of all airways
         arclength % corresponding arclength measurement traversed slices
-        FWHMesl % FWHMesl algorithm results for every airway
-        Specs % Airway specs
+        FWHMesl % FWHMesl algorithm results for every airway {inner, peak, outer}
+        Specs % Store of end metrics
     end
     
     methods
         %% INITIALISATION METHODS
+        % Methods used to call and make AQ object before any further
+        % processing takes place.
         function obj = AirQuant(CTimage, CTinfo, segimage, skel, savename)
             % Initialise the AirQuant class object.
             % if using default settings, do not provide params argument.
@@ -109,7 +113,6 @@ classdef AirQuant < handle % handle class
             
         end
         
-        
         function obj = FindTrachea(obj)
             % Identify the Trachea node. FindFWHMall
             % Assumes trachea fully segmented and towards greater Z.
@@ -117,7 +120,6 @@ classdef AirQuant < handle % handle class
             [~, obj.trachea_node] = max([obj.Gnode.comz]);
             %obj.trachea_path = obj.Gnode(obj.trachea_node).links;
         end
-        
         
         function obj = AirwayDigraph(obj)
             % Converts the output from skel2graph into a digraph tree
@@ -363,7 +365,8 @@ classdef AirQuant < handle % handle class
         end
         
         %% GRAPH NETWORK ANOMOLY ANALYSIS
-        
+        % Methods that analyse the airway structural graph checking for
+        % anomalies such as loops and reporting them.
         function [debugseg, debugskel, erroredge] = DebugGraph(obj)
             % TODO: consider moving graph plot to the default plot.
             % First check for multiple 'inedges' to all nodes.
@@ -476,7 +479,7 @@ classdef AirQuant < handle % handle class
         end
         
         %% UTILITIES
-        
+        % Useful functions.
         function save(obj)
             save(obj.savename, 'obj', '-v7.3')
         end
@@ -566,7 +569,10 @@ classdef AirQuant < handle % handle class
             end
             
         end
+        
         %% HIGH LEVEL METHODS
+        % methods that package lower level methods, often to apply analysis
+        % to all airways rather than just individual airways.
         function obj = AirwayImageAll(obj)
             % Traverse all airway segments except the trachea.
             disp('Start traversing all airway segments')
@@ -608,6 +614,7 @@ classdef AirQuant < handle % handle class
         end
         
         %% SPLINE METHODS
+        % Technical: These methods compute the central airway spline.
         function ComputeSpline(obj, link_index)
             % Computes a smooth spline of a single graph edge.
             % Based on original function by Kin Quan 2018
@@ -645,6 +652,8 @@ classdef AirQuant < handle % handle class
     end
         
         %% TRAVERSING AIRWAYS METHODS %%%
+        % Technical: These methods traverse the airway centreline spline 
+        % interpolating the CT image at each spline sample point.
         function obj = CreateAirwayImage(obj, link_index)
             % Constructs perpendicular images as if travelling along an
             % airway segment in CT image and Segmentation.
@@ -747,8 +756,8 @@ classdef AirQuant < handle % handle class
             % TODO: diameter conversion to mm
         end
         
-        
         %% MEASUREMENT METHODS
+        % Methods that measure the airway size on interpolated CT images.
         function obj = FindAirwayBoundariesFWHM(obj, link_index)
             %Based on function by Kin Quan 2018 that is based on Kiraly06
             
@@ -862,6 +871,8 @@ classdef AirQuant < handle % handle class
         end
         
         %% EXTENT Methods
+        % Analysis: Methods looking at the extent of airway existance that
+        % the segmentation covers.
         function counts = searchgenperlobe(obj, gen, lobe)
             Nawy = length(obj.Glink);
             counts = 0;
@@ -977,6 +988,7 @@ classdef AirQuant < handle % handle class
         end
      
         %% TAPERING ANALYSIS METHODS
+        % Analysis: Airway tapering metrics.
         
         function [logtapergrad, cum_arclength, cum_area, edgepath] = ConstructTaperPath(obj, terminal_node_idx, type)
             if nargin < 3
@@ -1236,6 +1248,7 @@ classdef AirQuant < handle % handle class
         end
         
         %% TAPERING VISUALISATION METHODS
+        % Visualisation: viewing results of taper metrics.
         function PlotTaperResults(obj, terminal_node_idx, type)
             if nargin < 3
                 type = 'other';
@@ -1329,7 +1342,7 @@ classdef AirQuant < handle % handle class
             G = digraph([obj.Glink(:).n1],[obj.Glink(:).n2], weights);
         end
         
-        %% VISUALISATION METHODS
+        %% VISUALISATION
         function h = plot(obj, type)
             % Default plot is a graph network representation. Optional input is to
             % provide a list of edge labels indexed by the Glink property.
@@ -1673,6 +1686,7 @@ classdef AirQuant < handle % handle class
         end
         
         %% EXPORT METHODS
+        % methods for exporting processed data.
         function exportlobes(obj, savename)
             % export airway segmentation labelled by lobes to nii.gz
             
