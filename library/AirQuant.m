@@ -585,7 +585,6 @@ classdef AirQuant < handle % handle class
             disp('Traversing: Done')
         end
         
-        
         function obj = FindFWHMall(obj)
             % Clear all FWHMesl cells
             obj.FWHMesl = cell(length(obj.Glink),3);
@@ -970,9 +969,7 @@ classdef AirQuant < handle % handle class
             end
             end    
         end
-        
-
-       
+         
         function h = plotoverextent(obj, overextentidx, type)
             overextentedge = overextentidx(obj.Gdigraph.Edges.Label);
             h = plot(obj, type);
@@ -1467,6 +1464,9 @@ classdef AirQuant < handle % handle class
         end
         
         function PlotMap3D(obj, mode)
+            % Legacy. Recommend to use View3D as colour labels can be very
+            % buggy in parts of figure.
+            
             % mode = 'TaperGradient', 'generation', 'lobes'
             axis([0 size(obj.CT, 1) 0 size(obj.CT, 2) 0 size(obj.CT, 3)])
             
@@ -1525,6 +1525,45 @@ classdef AirQuant < handle % handle class
             % undo matlab display flip
             ax = gca;
             ax.XDir = 'reverse';
+        end
+        
+        function View3D(obj, mode)
+            % View segmentation volume with different labels. In MATLAB's
+            % volviewer.
+            % mode = 'TaperGradient', 'generation', 'lobes'
+            
+            % generating the color data
+            labelvol = zeros(size(obj.seg));
+            branch_seg = ClassifySegmentation(obj);
+            switch mode 
+                case 'Generation'
+                    for i = 1:length(obj.Glink)
+                        labelvol(branch_seg == i) = obj.Glink(i).generation;
+                    end
+                case 'Lobe'
+                    % convert lobe id to number
+                    lobeid = {'B','RU','RM','RL','LU','LUlin','LL'};
+                    for i = 1:length(obj.Glink)
+                        labelvol(branch_seg == i) = find(strcmp(lobeid, obj.Glink(i).lobe))-1;
+                    end
+                otherwise
+                    error('Choose appropiate mode. "Generation" or "Lobe".')
+            end
+            
+            % undo matlabs X-axis flip for viewing.
+            labelvol = flip(labelvol,1);
+            seg_view =flip(obj.seg,1);
+            
+            % Generate suitable label colours
+            map = linspecer(max(labelvol(:))+1);
+
+            % vol viewer with labels to display.
+            figure;
+            labelvolshow(labelvol, seg_view, ...
+                'ScaleFactors', obj.CTinfo.PixelDimensions, ...
+                'LabelColor', map, 'BackgroundColor', [1,1,1], ...
+                'CameraPosition', [-4.2 0.8  2], 'CameraViewAngle', 10, ...
+                'CameraTarget', [0, 0, 0.1]);
         end
         
         function PlotAirway3(obj, link_index)
@@ -1604,6 +1643,33 @@ classdef AirQuant < handle % handle class
                 text(ax, 1,5,sprintf('Arc Length = %4.1f mm; %3.0i of %3.0i', ...
                     obj.arclength{link_index, 1}(slide), slide, size(obj.TraversedImage{link_index, 1},3)));
             end
+        end
+        
+        function OrthoViewAirway(obj, link_index)
+        % View a series of an airway segment's slices as a volume image 
+        % stack using MATLAB's inbuilt othogonal 3d viewer.
+        
+        % convert from cell stack to 3D array.
+        awycell =  obj.TraversedImage{link_index,1};
+        canvas_sz = floor(obj.max_plane_sz/obj.plane_sample_sz);
+        awyarray = zeros([canvas_sz, canvas_sz, length(awycell)]);
+        for slice = 1:length(awycell)
+            image = obj.TraversedImage{link_index, 1}{slice,1};
+            image_sz = size(image,1);
+            min_centre = canvas_sz/2 - image_sz/2;
+            max_centre = canvas_sz/2 + image_sz/2;
+            awyarray(min_centre+1:max_centre, min_centre+1:max_centre, slice) = image;
+        end
+        % display with orthoview
+        figure;
+        orthosliceViewer(awyarray, 'DisplayRangeInteraction','off', ...
+            'ScaleFactors',[obj.plane_sample_sz, obj.plane_sample_sz, obj.spline_sample_sz],...
+            'CrosshairLineWidth', 0.3);
+        % Can only alter size of figure window after orthosliceviewer.
+        fig = gcf;
+        fig.Name = ['AirQuant: Airway Ortho View. Idx ', mat2str(link_index), '.'];
+        fig.Units = 'normalized';
+        fig.Position = [0.1,0.01,0.6,0.9];
         end
         
         %% EXPORT METHODS
