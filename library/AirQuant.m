@@ -29,7 +29,7 @@ classdef AirQuant < handle % handle class
         skel_points % list of skeleton points
         %%% Resampled image slices along graph paths/airway segments.
         Dmap % distance transform of seg
-        Splines % pp splines of branches
+        Splines % spline data of branches
         TraversedImage % perpendicular CT slices of all airways
         TraversedSeg % perpendicular segmentation slices of all airways
         arclength % corresponding arclength measurement traversed slices
@@ -647,6 +647,10 @@ classdef AirQuant < handle % handle class
             
             [t_points, arc_length] = spline_points(spline, obj.spline_sample_sz);
             
+            % save parametrised sample points in second column.
+            obj.Splines{link_index, 2} = t_points;
+            
+            % save arc_length measurement of each sample point.
             obj.arclength{link_index, 1} = arc_length;
             
     end
@@ -662,36 +666,27 @@ classdef AirQuant < handle % handle class
             TransAirwayImage = cell(length(spline_t_points),1);
             TransSegImage = cell(length(spline_t_points),1);
             for i = 1:length(spline_t_points)
-%                 try
-                    spline = obj.Splines{link_index, 1};
-                    % * Compute Normal Vector per spline point
-                    [normal, CT_point] = AirQuant.ComputeNormal(spline, ...
-                        spline_t_points(i));
-                    % get approx airway size from distance map
-                    approx_diameter = ComputeDmapD(obj, CT_point);
-                    % compute intepolated slice size
-                    plane_sz = ceil(approx_diameter*obj.plane_scaling_sz);
-                    % use max plane size if current plane size exceeds it
-                    if plane_sz > obj.max_plane_sz
-                        plane_sz = obj.max_plane_sz;
-                    end
-                    % * Interpolate Perpendicular Slice per spline point
-                    [InterpAirwayImage, InterpSegImage] = ...
-                        InterpolateCT(obj, normal, CT_point,  ...
-                        plane_sz, obj.plane_sample_sz);
-                    % * Replace NaN entries in images with zero.
-                    InterpAirwayImage(isnan(InterpAirwayImage)) = 0;
-                    InterpSegImage(isnan(InterpSegImage)) = 0;
-                    TransAirwayImage{i,1} = InterpAirwayImage;
-                    TransSegImage{i,1} = InterpSegImage;
-%                 catch
-%                     % TODO identify why arc_length cannot be calculated in
-%                     % some cases.
-%                     warning('Failed to interpolate slice/identify arclength')
-%                     TransAirwayImage(:,:,i) = zeros(133);
-%                     TransSegImage(:,:,i) = zeros(133);
-%                     obj.arclength{link_index, 1}(i) = NaN;
-%                 end
+                spline = obj.Splines{link_index, 1};
+                % * Compute Normal Vector per spline point
+                [normal, CT_point] = AirQuant.ComputeNormal(spline, ...
+                    spline_t_points(i));
+                % get approx airway size from distance map
+                approx_diameter = ComputeDmapD(obj, CT_point);
+                % compute intepolated slice size
+                plane_sz = ceil(approx_diameter*obj.plane_scaling_sz);
+                % use max plane size if current plane size exceeds it
+                if plane_sz > obj.max_plane_sz
+                    plane_sz = obj.max_plane_sz;
+                end
+                % * Interpolate Perpendicular Slice per spline point
+                [InterpAirwayImage, InterpSegImage] = ...
+                    InterpolateCT(obj, normal, CT_point,  ...
+                    plane_sz, obj.plane_sample_sz);
+                % * Replace NaN entries in images with zero.
+                InterpAirwayImage(isnan(InterpAirwayImage)) = 0;
+                InterpSegImage(isnan(InterpSegImage)) = 0;
+                TransAirwayImage{i,1} = InterpAirwayImage;
+                TransSegImage{i,1} = InterpSegImage;
             end
             % * Save traversed image and arclength for each image
             obj.TraversedImage{link_index, 1} = TransAirwayImage;
@@ -730,7 +725,6 @@ classdef AirQuant < handle % handle class
                 plane_grid.z(:),'cubic');
             
             % Reshape
-            % TODO: Look at what these two lines do.
             plane_length = sqrt(length(plane_grid.y(:)));
             CT_plane = reshape(plane_intensities,...
                 [plane_length plane_length]);
@@ -1343,6 +1337,7 @@ classdef AirQuant < handle % handle class
         end
         
         %% VISUALISATION
+        %%% Airway Strucutral Tree
         function h = plot(obj, type)
             % Default plot is a graph network representation. Optional input is to
             % provide a list of edge labels indexed by the Glink property.
@@ -1459,6 +1454,7 @@ classdef AirQuant < handle % handle class
             
         end
         
+        %%% Splines
         function PlotSplineTree(obj)
             % loop through every branch, check spline has already been
             % computed, compute if necessary. Skip trachea. Plot spline.
@@ -1476,6 +1472,80 @@ classdef AirQuant < handle % handle class
             end
         end
         
+        function h = PlotSplineVecs(obj, subsamp, link_index)
+            % Plot and Visualise tangental vectors off spline sample
+            % points. 1/subsamp = proportion of spline points to sample,
+            % default subsamp = 2. link_index = airway indices to plot,
+            % default link_index = all.
+            
+            % plot all branches if specific airway not provided
+            if nargin < 2
+                subsamp = 2;
+            end
+            
+            if nargin < 3
+                link_index = 1:length(obj.Glink);
+            end
+            
+            for iidx = link_index
+                % generate spline and points if it doesnt exist
+                if isempty(obj.Splines{iidx, 1})
+                    ComputeSplinePoints(obj, iidx);
+                end
+                
+                % get vecs and origin for spline
+                spline = obj.Splines{iidx, 1};
+                samplepnts = obj.Splines{iidx, 2};
+                vecs = zeros(3, length(samplepnts));
+                origins = zeros(3, length(samplepnts));
+                for jj = 1:length(samplepnts)
+                    point = samplepnts(jj);
+                    [vecs(:,jj), origins(:,jj)]= AirQuant.ComputeNormal(spline, point);
+                end
+                
+                % subsample data, i.e. delete a portion
+                vecs = vecs(:,1:subsamp:end); origins = origins(:,1:subsamp:end);
+                
+                % rescale origins from mm to vox and swap x and y in plot.
+                origins = origins./obj.CTinfo.PixelDimensions';
+                
+                % plot vectors with translucent airway volume
+                %             figure;
+                h = quiver3(origins(2,:),origins(1,:),origins(3,:),...
+                    vecs(2,:),vecs(1,:),vecs(3,:));
+                branch_seg = obj.ClassifySegmentation(); % get labelled segmentation
+                patch(isosurface(branch_seg == iidx), ...
+                    'FaceAlpha', 0.3, 'FaceColor', [0 .55 .55], 'EdgeAlpha', 0);
+                hold on
+            end
+            
+            % visualise the connecting airway segs if only 1 airway
+            % requested
+            if length(link_index) < 2
+                % find connecting airways
+                nodes = [obj.Glink(link_index).n1, obj.Glink(link_index).n2];
+                conn_awy = [];
+                for connii = 1:length(obj.Glink)
+                    for nodeii = nodes
+                        conn_awy = [conn_awy find([obj.Glink.n1] == nodeii | ...
+                            [obj.Glink.n2] == nodeii)];
+                    end
+                end
+                conn_awy = unique(conn_awy);
+                conn_awy(conn_awy == link_index) = [];
+                % visualise them
+                for awyii = conn_awy
+                    patch(isosurface(branch_seg == awyii), ...
+                        'FaceAlpha', 0.3, 'FaceColor', [.93 .79 0], 'EdgeAlpha', 0);
+                end
+            end
+            axis vis3d
+            ax = gca;
+            ax.DataAspectRatio = 1./obj.CTinfo.PixelDimensions;
+            hold off
+        end
+        
+        %%% Volumetric
         function PlotMap3D(obj, mode)
             % Legacy. Recommend to use View3D as colour labels can be very
             % buggy in parts of figure.
@@ -1579,6 +1649,7 @@ classdef AirQuant < handle % handle class
                 'CameraTarget', [0, 0, 0.1]);
         end
         
+        %%% CT Airway slices
         function PlotAirway3(obj, link_index)
             % Plot resampled airway slices overlayed with FWHMesl ray cast
             % points and fitted ellipse
@@ -1658,7 +1729,7 @@ classdef AirQuant < handle % handle class
             end
         end
         
-        function OrthoViewAirway(obj, link_index)
+        function s = OrthoViewAirway(obj, link_index)
         % View a series of an airway segment's slices as a volume image 
         % stack using MATLAB's inbuilt othogonal 3d viewer.
         
@@ -1674,12 +1745,11 @@ classdef AirQuant < handle % handle class
             awyarray(min_centre+1:max_centre, min_centre+1:max_centre, slice) = image;
         end
         % display with orthoview
-        figure;
-        orthosliceViewer(awyarray, 'DisplayRangeInteraction','off', ...
+        fig = figure;
+        s = orthosliceViewer(awyarray, 'DisplayRangeInteraction','off', ...
             'ScaleFactors',[obj.plane_sample_sz, obj.plane_sample_sz, obj.spline_sample_sz],...
             'CrosshairLineWidth', 0.3);
         % Can only alter size of figure window after orthosliceviewer.
-        fig = gcf;
         fig.Name = ['AirQuant: Airway Ortho View. Idx ', mat2str(link_index), '.'];
         fig.Units = 'normalized';
         fig.Position = [0.1,0.01,0.6,0.9];
