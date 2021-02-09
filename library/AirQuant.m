@@ -23,7 +23,6 @@ classdef AirQuant < handle % handle class
         Gnode % Graph node info
         Glink % Graph edge info
         Gdigraph % digraph object
-        trachea_node % node corresponding to top of trachea
         trachea_path % edges that form a connect subgraph above the carina
         carina_node % node that corresponds to the carina
         skel_points % list of skeleton points
@@ -68,8 +67,6 @@ classdef AirQuant < handle % handle class
                 obj.min_tube_sz = 3*max(obj.CTinfo.PixelDimensions);
                 % graph airway skeleton
                 obj = GenerateSkel(obj,skel);
-                % Identify trachea
-                obj = FindTrachea(obj);
                 % Convert into digraph
                 obj = AirwayDigraph(obj);
                 % Identify Carina
@@ -112,38 +109,52 @@ classdef AirQuant < handle % handle class
             [obj.Gadj,obj.Gnode,obj.Glink] = Skel2Graph3D(obj.skel,0);
             
         end
-        
-        function obj = FindTrachea(obj)
-            % Identify the Trachea node. FindFWHMall
-            % Assumes trachea fully segmented and towards greater Z.
-            % Smoothen
-            [~, obj.trachea_node] = max([obj.Gnode.comz]);
-            %obj.trachea_path = obj.Gnode(obj.trachea_node).links;
-        end
+       
         
         function obj = AirwayDigraph(obj)
             % Converts the output from skel2graph into a digraph tree
             % network, such that there are no loops and edges point from
             % the trachea distally outwards.
             
+            % Identify the Trachea node. FindFWHMall
+            % Assumes trachea fully segmented and towards greater Z.
+            % Smoothen
+            [~, trachea_node] = max([obj.Gnode.comz]);
+            
             % Create digraph with edges in both directions, loop through
             % and remove if found later in the BF search.
             G = digraph(obj.Gadj);
             % BF search from carina node to distal.
-            node_discovery = bfsearch(G,obj.trachea_node);
+            node_discovery = bfsearch(G,trachea_node);
+            %%% reorder nodes by bfs
+            G = reordernodes(G, node_discovery);
+            % reorder in gnodes and glinks
+            obj.Gnode = obj.Gnode(node_discovery);
+            for iinode = 1:length(obj.Gnode)
+            conns = obj.Gnode(iinode).conn;
+                for iiconn = 1:length(conns)
+                    obj.Gnode(iinode).conn(iiconn) = find(node_discovery == conns(iiconn));
+                end
+            end
+            for iilink = 1:length(obj.Glink)
+                obj.Glink(iilink).n1 = find(node_discovery == obj.Glink(iilink).n1);
+                obj.Glink(iilink).n2 = find(node_discovery == obj.Glink(iilink).n2);
+            end
+            % NB: Trachea node now always  = 1.
+                          
+            % organise into peripheral facing digraph
             % half of the edges will be removed
             removal = zeros(height(G.Edges)/2 , 1);
             j = 1;
             for i = 1:height(G.Edges)
-                % identify the rank in order of discovery
-                rank1 = find(~(node_discovery-G.Edges.EndNodes(i,1)));
-                rank2 = find(~(node_discovery-G.Edges.EndNodes(i,2)));
-                if rank1 > rank2
+                % edges should be connected by smaller to larger node.
+                if (G.Edges.EndNodes(i,1) - G.Edges.EndNodes(i,2)) > 0
                     % record if not central-->distal
                     removal(j) = i;
                     j = j + 1;
                 end
             end
+            % remove recorded edges at end in opposite direction.
             removal(removal == 0) = [];
             G = rmedge(G,removal);
             
@@ -927,7 +938,7 @@ classdef AirQuant < handle % handle class
 %             safenodes = [];
             varNames = {'RU','RM','RL','LU','LUlin','LL'};
             % BF search
-            [~,bfs_Gind] = bfsearch(obj.Gdigraph, obj.trachea_node,'edgetonew');
+            [~,bfs_Gind] = bfsearch(obj.Gdigraph, 1,'edgetonew');
             % convert graph idx into link index
             bfs_Lind = zeros(size(bfs_Gind));
             for ind = 1:length(bfs_Gind)
@@ -1061,7 +1072,7 @@ classdef AirQuant < handle % handle class
         function terminalnodelist = ListTerminalNodes(obj)
             terminalnodelist = find([obj.Gnode(:).ep] == 1);
             % remove trachea node
-            terminalnodelist(terminalnodelist ==  obj.trachea_node) = [];
+            terminalnodelist(terminalnodelist ==  1) = [];
         end
         
         
