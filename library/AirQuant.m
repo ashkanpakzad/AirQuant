@@ -535,7 +535,7 @@ classdef AirQuant < handle % handle class
             end
         end
         
-        function report = debuggingreport(obj)
+        function out = DebuggingReport(obj)
             % produce a table showing success of processing for each airway
             % branch.
             report = struct('airway',num2cell(1:length(obj.Glink)));
@@ -553,32 +553,101 @@ classdef AirQuant < handle % handle class
                         % remove trachea branch. 
             report(obj.trachea_path) = [];
             report = struct2table(report);
+            disp('Debugging report. Success of executing each stage of the algorithm for each airway.')
+            disp(report)
+            if nargout > 0 
+                out = report;
+            end
         end
                   
-        function report = characteristicsreport(obj, type, showfig)
-            % produce a table showing 
+        function [out, h] = AirwayCounts(obj, type, showfig)
+            % produce a table and barchart showing 
             % number of airways per generation
             % number of airways per generation per lobe
-            rawgen = [obj.Glink(:).generation];
-            generations = unique(rawgen);
-%             gencount = zeros(size(generations));
-%             for i = 1:length(generations)
-%                 for j = 1:length(obj.Glink)
-%                     if obj.Glink(j).generation == generations(i)
-%                     end
-%                 end
-%             end
-            [gencount, ~] = histcounts(rawgen,generations);
-
-            switch type
-                case 'generation'
-                    report = table(generations, gencount);
-                case 'lobe'
-                    
-                otherwise
-                    error('Choose type generation or lobe')
+            % type is either generation or lobe
+            % showfig is a flag for plotting true by default
+            
+            if nargin < 3
+                showfig = 1;
             end
             
+            % get generation index for each branch
+            awygen = [obj.Glink(:).generation]';
+            % get 1:max generations
+            generations = unique(awygen);
+            % set up cell for each gen
+            rownames = compose('%d', generations);
+            rownames = cellstr(string(rownames));
+            
+            % count for all gens
+            [gencount, ~] = histcounts(awygen, [generations; generations(end)+1]);
+            
+            switch type
+                case 'generation'
+                    % Generate count for each generation used bin edges
+                    % method
+                    if showfig == 1
+                        % show figure result as bar chart
+                        figure;
+                        bar(0:length(gencount)-1, gencount)
+                        title('Number of airways per generation')
+                        xlabel('Generation')
+                        ylabel('count')
+                        grid on
+                    end
+                    
+                    reporttable = table(gencount', 'RowNames', rownames, 'VariableNames', {'NGenerations'});
+                    disp('Number of airways per generation')
+                    disp(reporttable)
+                    
+                case 'lobe'
+                    % also get lobe index of each branch
+                    awylobes = [obj.Glink(:).lobe]';
+                    % get list of lobe labels and make table
+                    varNames = AirQuant.LobeLabels();
+
+                    % loop though each lobe label and generate histogram
+                    % count for each generation.
+                    lobecount = zeros(length(varNames), length(generations));
+                    for iilobe = 1:length(varNames)
+                        currentgens = awygen(strcmp(awylobes,varNames{1,iilobe}));
+                        [lobecount(iilobe, :), ~] = ...
+                            histcounts(currentgens, [generations; ...
+                            generations(end)+1]);
+                    end
+                    reporttable = array2table(lobecount');
+                    reporttable.Properties.VariableNames = varNames;
+                    reporttable.Properties.RowNames = rownames;
+                    disp('Number of airways per generation per lobe')
+                    disp(reporttable)
+                    if showfig == 1
+                        % show figure result as bar chart
+                        % The index according to your preferred ordering (column-wise)
+                        f = figure;
+                        iilobe = 0;
+                        for plotind = [1,3,5,2,4,6]
+                            iilobe = iilobe + 1;
+                            subplot(3,2,plotind);
+                            bar(0:length(gencount)-1, lobecount(iilobe,:));
+                            title(varNames(iilobe))
+                            xlabel('Generation')
+                            ylabel('count')
+                            grid on
+                        end
+                        allax = findall(f,'type','axes');
+                        linkaxes(allax,'xy');
+                    end
+                    
+                otherwise
+                    error('Choose type: generation or lobe')
+            end
+            
+            if nargout > 0
+                out = reporttable;
+            end
+            if nargout > 1
+                h = 1; % change to plot later
+            end
         end
         
         %% HIGH LEVEL METHODS
@@ -905,7 +974,7 @@ classdef AirQuant < handle % handle class
             sz = [maxgen, 6];
             varTypes = cell(1, 6);
             varTypes(:) = {'double'};
-            varNames = {'RU','RM','RL','LU','LUlin','LL'};
+            varNames = AirQuant.LobeLabels();
             genperlobe = table('Size',sz,'VariableTypes',varTypes,'VariableNames',varNames);
             % get number of airways of that generation in that lobe
             for lobe = 1:6
@@ -936,7 +1005,7 @@ classdef AirQuant < handle % handle class
             
             overextentidx = false(length(obj.Glink),1);
 %             safenodes = [];
-            varNames = {'RU','RM','RL','LU','LUlin','LL'};
+            varNames = AirQuant.lobelabels();
             % BF search
             [~,bfs_Gind] = bfsearch(obj.Gdigraph, 1,'edgetonew');
             % convert graph idx into link index
@@ -1571,8 +1640,7 @@ classdef AirQuant < handle % handle class
         
         %%% Volumetric
         function PlotMap3D(obj, mode)
-            % Legacy. Recommend to use View3D as colour labels can be very
-            % buggy in parts of figure.
+            % Recommend to use View3D if colour labels appear buggy.
             
             % mode = 'TaperGradient', 'generation', 'lobes'
             axis([0 size(obj.CT, 1) 0 size(obj.CT, 2) 0 size(obj.CT, 3)])
@@ -1986,6 +2054,11 @@ classdef AirQuant < handle % handle class
             FWHMl = cat(2, FWHMl_x, FWHMl_y);
             FWHMp = cat(2, FWHMp_x, FWHMp_y);
             FWHMr = cat(2, FWHMr_x, FWHMr_y);
+        end
+        
+        function labels = LobeLabels()
+            % returns cell of lobe lables used in AirQuant
+            labels = {'RU','RM','RL','LU','LUlin','LL'};
         end
     end
 end
