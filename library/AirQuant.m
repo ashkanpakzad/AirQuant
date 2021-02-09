@@ -81,7 +81,7 @@ classdef AirQuant < handle % handle class
                 % Compute distance transform
                 obj.Dmap = bwdist(~obj.seg);
                 % set up empty cell for traversed CT and segmentation
-                obj.Splines = cell(length(obj.Glink),1);
+                obj.Splines = cell(length(obj.Glink),2);
                 obj.TraversedImage = cell(length(obj.Glink),1);
                 obj.TraversedSeg = cell(length(obj.Glink),1);
                 % set up empty specs doubles
@@ -622,17 +622,28 @@ classdef AirQuant < handle % handle class
             % The input is the list of ordered index
             % The output is the smooth spline as a matlab sturct
             
-            %Convert into 3d Points
-            [x_point, y_point, z_point] = ind2sub(size(obj.CT),obj.Glink(link_index).point);
-            
-            %Smoothing the data
+            % get linear indexed points of current and previous branch,
+            % combine.
+            previous_awy = find([obj.Glink(:).n2] == obj.Glink(link_index).n1);
+            [x_p1, y_p1, z_p1] = ind2sub(size(obj.CT), obj.Glink(previous_awy).point);
+            [x_p2, y_p2, z_p2] = ind2sub(size(obj.CT), obj.Glink(link_index).point);
+            x_point = [x_p1, x_p2];
+            y_point = [y_p1, y_p2];
+            z_point = [z_p1, z_p2];
+
+            %Smooth all points using moving average
             voxel_sz = obj.CTinfo.PixelDimensions;
-            smooth_x = smooth(x_point*voxel_sz(1));
-            smooth_y = smooth(y_point*voxel_sz(2));
-            smooth_z = smooth(z_point*voxel_sz(3));
+            smooth_x = smooth(x_point*voxel_sz(1),11, 'moving');
+            smooth_y = smooth(y_point*voxel_sz(2),11, 'moving');
+            smooth_z = smooth(z_point*voxel_sz(3),11, 'moving');
+            
+            % extract just current airway smoothed points
+            csmooth_x = smooth_x(length(x_p1)+1:end);
+            csmooth_y = smooth_y(length(x_p1)+1:end);
+            csmooth_z = smooth_z(length(x_p1)+1:end);
             
             %Complete smooth data
-            smooth_data_points = [smooth_x smooth_y smooth_z]';
+            smooth_data_points = [csmooth_x csmooth_y csmooth_z]';
             
             %Generating the spline
             obj.Splines{link_index, 1} = cscvn(smooth_data_points);
@@ -1508,6 +1519,8 @@ classdef AirQuant < handle % handle class
                 
                 % rescale origins from mm to vox and swap x and y in plot.
                 origins = origins./obj.CTinfo.PixelDimensions';
+                vecs = vecs./obj.CTinfo.PixelDimensions';
+
                 
                 % plot vectors with translucent airway volume
                 %             figure;
