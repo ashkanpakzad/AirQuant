@@ -51,9 +51,11 @@ classdef AirQuant < handle % handle class
             end
             
             if isfile(savename)
+                disp(['Found case stored at', savename, 'loading ...'])
                 load(savename)
                 obj.savename = savename;
             else
+                disp(['New case to be saved at', savename, 'saving...'])
                 obj.CTinfo = CTinfo;
                 obj.CT = reorientvolume(CTimage, obj.CTinfo);                
                 % TODO: consider preprocess segmentation to keep largest
@@ -94,6 +96,7 @@ classdef AirQuant < handle % handle class
                 % save class
                 obj.savename = savename;
                 save(obj)
+                disp('New case AirQuant Object successfully initialised.')
             end
         end
         
@@ -535,7 +538,7 @@ classdef AirQuant < handle % handle class
             end
         end
         
-        function out = DebuggingReport(obj)
+        function out = SuccessReport(obj)
             % produce a table showing success of processing for each airway
             % branch.
             report = struct('airway',num2cell(1:length(obj.Glink)));
@@ -622,7 +625,6 @@ classdef AirQuant < handle % handle class
                     disp(reporttable)
                     if showfig == 1
                         % show figure result as bar chart
-                        % The index according to your preferred ordering (column-wise)
                         f = figure;
                         iilobe = 0;
                         for plotind = [1,3,5,2,4,6]
@@ -1632,9 +1634,7 @@ classdef AirQuant < handle % handle class
                         'FaceAlpha', 0.3, 'FaceColor', [.93 .79 0], 'EdgeAlpha', 0);
                 end
             end
-            axis vis3d
-            ax = gca;
-            ax.DataAspectRatio = 1./obj.CTinfo.PixelDimensions;
+            vol3daxes(obj)
             hold off
         end
         
@@ -1649,57 +1649,61 @@ classdef AirQuant < handle % handle class
             cdata = zeros(size(obj.seg));
             branch_seg = ClassifySegmentation(obj);
             switch mode 
-                case 'TaperGradient'
+                case 'tapergradient'
                     % TODO: rewrite this bit....
                     for i = 1:length(obj.Specs)
                         cdata(branch_seg == i) = obj.Specs(i).FWHMl_logtaper*-1;
                     end
-                case 'Generation'
+                case 'generation'
                     for i = 1:length(obj.Glink)
-                        cdata(branch_seg == i) = obj.Glink(i).generation;
+                        % add 1 to gen index to differentiate from bg 0.
+                        cdata(branch_seg == i) = obj.Glink(i).generation+1;
                     end
-                    clims = [0 max(cdata(:))];
-%                     colorbarstring = 'Generation Number';
-                case 'Lobe'
+                    clims = [1 max(cdata(:))];
+                    colourshow = clims(1):clims(2);
+                    colorbarstring = 'Generation Number';
+                    % reduce colourlabels by 1 from cdata to reflect true
+                    % gen.
+                    colourlabels = 0:max(cdata(:))-1;
+                    maptype = 'sequential';
+
+                case 'lobe'
                     % convert lobe id to number
                     lobeid = {'B','RU','RM','RL','LU','LUlin','LL'};
                     for i = 1:length(obj.Glink)
-                        cdata(branch_seg == i) = find(strcmp(lobeid, obj.Glink(i).lobe))-1;
+                        cdata(branch_seg == i) = find(strcmp(lobeid, obj.Glink(i).lobe));
                     end
-                    clims = [0 max(cdata(:))+1];
-%                     colorbarstring = 'Lobe';
-%                     colourshow = clims(1):clims(2);
-%                     colourlabels = lobeid;
+                    clims = [1 max(cdata(:))];
+                    colorbarstring = 'Lobe';
+                    colourshow = clims(1):clims(2);
+                    colourlabels = lobeid;
+                    maptype = 'qualitative';
                     
                 otherwise
                     error('Choose appropiate mode.')
             end
-            % producing segmentation 3d object
+            % produce segmentation 3d object
             p = patch(isosurface(obj.seg));
-            % map colour indices to 3d object vertices
-            isocolors(cdata, p);
-            % % Reassign colors to meaningful values
-            Vertcolour = p.FaceVertexCData;
-            vcolours = uniquetol(Vertcolour);
-            colourind = unique(cdata);
-            for i = 1:length(vcolours)
-                Vertcolour(Vertcolour==vcolours(i)) = colourind(i);
-            end
-            % overwrite vertices colour with meaningful values
-            p.FaceVertexCData = Vertcolour;
             
-            p.FaceColor = 'interp';
+            %%% assign vertex face colour index by nearest point on volume.
+            % get volume points
+            cdata_pnt = find(cdata > 0);
+            % convert to list of subindices
+            [y,x,z] = ind2sub(size(cdata), cdata_pnt);
+            % search for nearest point of each vertex origin
+            near_i = dsearchn([x,y,z], p.Vertices);
+            % assign colour index to that vertex
+            p.FaceVertexCData = cdata(cdata_pnt(near_i));
+            p.FaceColor = 'flat';
             p.EdgeColor = 'none';
-            map = linspecer(max(cdata(:))+2);
+            
+            % set up colourmap
+            map = linspecer(max(cdata(:)), maptype);
             colormap(map)
-%             c = colorbar('Ticks', colourshow, 'TickLabels', colourlabels);
-%             c.Label.String = colorbarstring;
+            c = colorbar('Ticks', colourshow, 'TickLabels', colourlabels);
+            c.Label.String = colorbarstring;
             caxis(clims)
-            view(80,0)
-            axis vis3d
-            % undo matlab display flip
-            ax = gca;
-            ax.XDir = 'reverse';
+            vol3daxes(obj)
         end
         
         function View3D(obj, mode)
@@ -1711,11 +1715,11 @@ classdef AirQuant < handle % handle class
             labelvol = zeros(size(obj.seg));
             branch_seg = ClassifySegmentation(obj);
             switch mode 
-                case 'Generation'
+                case 'generation'
                     for i = 1:length(obj.Glink)
                         labelvol(branch_seg == i) = obj.Glink(i).generation;
                     end
-                case 'Lobe'
+                case 'lobe'
                     % convert lobe id to number
                     lobeid = {'B','RU','RM','RL','LU','LUlin','LL'};
                     for i = 1:length(obj.Glink)
@@ -1739,6 +1743,31 @@ classdef AirQuant < handle % handle class
                 'LabelColor', map, 'BackgroundColor', [1,1,1], ...
                 'CameraPosition', [-4.2 0.8  2], 'CameraViewAngle', 10, ...
                 'CameraTarget', [0, 0, 0.1]);
+        end
+        
+        function PlotSegSkel(obj)
+        % plot segmentation and skeleton within each other.
+        patch(isosurface(obj.seg),'EdgeColor', 'none','FaceAlpha',0.3);
+        hold on
+        isosurface(obj.skel)
+        vol3daxes(obj)
+        
+        end
+        
+        function vol3daxes(obj, ax)
+            % utility function for 3D volumetric plotting. Sets the aspect
+            % ratio according to voxel size and reverses the x axes for LPS
+            % viewing.
+            
+            if nargin < 2 % current axes if not specified
+                ax = gca;
+            end
+            axis vis3d
+            view(80,0)
+            % aspect ratio
+            ax.DataAspectRatio = 1./obj.CTinfo.PixelDimensions;
+            % undo matlab display flip
+            ax.XDir = 'reverse';
         end
         
         %%% CT Airway slices
