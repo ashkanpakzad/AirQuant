@@ -228,7 +228,7 @@ classdef AirQuant < handle % handle class
             gens(obj.trachea_path) = 0;
             for i = 1:height(G.Nodes)
                 if i == obj.trachea_path
-                    break
+                    continue
                 end
                 % get path from carina to current node
                 path = shortestpath(G, obj.carina_node, i);
@@ -1488,13 +1488,7 @@ classdef AirQuant < handle % handle class
                 highlight(h,'Edges',erroredge,'EdgeColor','r');
             end
         end
-        
-        function h = plotgenlabels(obj)
-            gens = [AS.Glink(:).generation];
-            genslabels = gens(obj.Gdigraph.Edges.Label);
-            h = plot(obj, genslabels);
-        end
-        
+
         function PlotTree(obj, gen)
             % Plot the airway tree with nodes and links in image space. Set
             % gen to the maximum number of generations to show.
