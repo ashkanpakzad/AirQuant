@@ -10,7 +10,7 @@ function skelvol = PTKskel(SegImage, saveflag)
 % is already in the MATLAB search path.
 % add PTK main directory to path if necessary
 if nargin < 2
-    saveflag = 0;
+    saveflag = 1;
 end
 % prevent PTK from creating dialog boxes
 ptk_main = PTKMain();
