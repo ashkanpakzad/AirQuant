@@ -51,8 +51,8 @@ figure; PlotSegSkel(AQ);
 % attenuation and outer wall boundaries.
 idx = 24;
 tic;
-AQ = CreateAirwayImage(AQ, idx);
-AQ = FindAirwayBoundariesFWHM(AQ, idx);
+CreateAirwayImage(AQ, idx);
+FindAirwayBoundariesFWHM(AQ, idx);
 disp(toc/60)
 
 % the interpolated slices and fitted ellipses can be viewed with the below
@@ -71,7 +71,7 @@ save(AQ)
 % this could take a number of hours, results will be saved along the way so
 % can be interrupted and rerun at a later time.
 tic;
-AQ = AirwayImageAll(AQ);
+AirwayImageAll(AQ);
 % show how long it took
 time = toc;
 disp(toc/60)
@@ -79,7 +79,7 @@ disp(toc/60)
 %% compute area of all airways
 % This should only take a few minutes and automatically saves once all
 % measurements are complete.
-AQ = FindFWHMall(AQ);
+FindFWHMall(AQ);
 save(AQ)
 
 %% This will tell you which branches have been processed.
