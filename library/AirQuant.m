@@ -51,11 +51,11 @@ classdef AirQuant < handle % handle class
             end
             
             if isfile(savename)
-                disp(['Found case stored at', savename, 'loading ...'])
+                disp(['Found case stored at ', savename, ' loading ...'])
                 load(savename)
                 obj.savename = savename;
-            else
-                disp(['New case to be saved at', savename, 'saving...'])
+            else 
+                disp(['New case to be saved at ', savename, ' saving...'])
                 obj.CTinfo = CTinfo;
                 obj.CT = reorientvolume(CTimage, obj.CTinfo);                
                 % TODO: consider preprocess segmentation to keep largest
@@ -542,11 +542,20 @@ classdef AirQuant < handle % handle class
             % produce a table showing success of processing for each airway
             % branch.
             report = struct('airway',num2cell(1:length(obj.Glink)));
-           
+            notanyall = @(x) ~any(x,'all');
             % check for each airway arclength and FWHM failures
             for i = 1:length(obj.Glink)
+                if i == obj.trachea_path
+                    continue
+                end
+                % no nan or empty entries arclength
                 report(i).arclength = ~any(isnan(obj.arclength{i})) & ~any(isempty(obj.arclength{i}));
+                % no nan or empty entries interpolated ct
+                intepolatedCT_nonan = all(cellfun(notanyall, cellfun(@isnan,obj.TraversedImage{i,1},'UniformOutput',false)));
+                interpolatedCT_noempty = all(cellfun(notanyall, cellfun(@isempty,obj.TraversedImage{i,1},'UniformOutput',false)));
+                report(i).InterpolatedCT = intepolatedCT_nonan & interpolatedCT_noempty;
                 try
+                % nans acceptable, none empty
                 report(i).FWHM_inner = ~isempty(obj.FWHMesl{i,1});
                 report(i).FWHM_peak = ~isempty(obj.FWHMesl{i,2});
                 report(i).FWHM_outer = ~isempty(obj.FWHMesl{i,3});
@@ -591,7 +600,6 @@ classdef AirQuant < handle % handle class
                     % method
                     if showfig == 1
                         % show figure result as bar chart
-                        figure;
                         bar(0:length(gencount)-1, gencount)
                         title('Number of airways per generation')
                         xlabel('Generation')
@@ -625,7 +633,6 @@ classdef AirQuant < handle % handle class
                     disp(reporttable)
                     if showfig == 1
                         % show figure result as bar chart
-                        f = figure;
                         iilobe = 0;
                         for plotind = [1,3,5,2,4,6]
                             iilobe = iilobe + 1;
@@ -636,6 +643,7 @@ classdef AirQuant < handle % handle class
                             ylabel('count')
                             grid on
                         end
+                        f = gcf;
                         allax = findall(f,'type','axes');
                         linkaxes(allax,'xy');
                     end
@@ -665,6 +673,7 @@ classdef AirQuant < handle % handle class
             for i = 1:length(obj.Glink)
                 % skip the trachea or already processed branches
                 if i == obj.trachea_path || incomplete(i) == 0
+                    disp(['Traversing: ', num2str(i), ' trachea skipped or already complete'])
                     continue
                 end
                 obj = CreateAirwayImage(obj, i);
@@ -1605,7 +1614,6 @@ classdef AirQuant < handle % handle class
 
                 
                 % plot vectors with translucent airway volume
-                %             figure;
                 h = quiver3(origins(2,:),origins(1,:),origins(3,:),...
                     vecs(2,:),vecs(1,:),vecs(3,:));
                 branch_seg = obj.ClassifySegmentation(); % get labelled segmentation
@@ -1731,7 +1739,7 @@ classdef AirQuant < handle % handle class
             
             % undo matlabs X-axis flip for viewing.
             labelvol = flip(labelvol,1);
-            seg_view =flip(obj.seg,1);
+            seg_view = flip(obj.seg,1);
             
             % Generate suitable label colours
             map = linspecer(max(labelvol(:))+1);
