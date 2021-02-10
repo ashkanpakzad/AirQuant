@@ -1,21 +1,21 @@
-AirwaySkel is a MATLAB class for extracting airway measurements from a fully segmented chest CT of the desired airways.
+AirQuant is a software tool based in MATLAB primarily for extracting airway measurements from fully segmented airways of a chest CT.
 
 ## Dependencies
-* MATLAB (9.7)
-* MATLAB Signal Processing Toolbox (8.3)
-* MATLAB Image Processing Toolbox (11.0)
-* MATLAB Curve Fitting Toolbox (3.5.10)
-(Denotes known working versions)
+* MATLAB 2020b (>9.9)
+* MATLAB Signal Processing Toolbox (>8.3)
+* MATLAB Image Processing Toolbox (>11.0)
+* MATLAB Curve Fitting Toolbox (>3.5.10)
 
 ## Install
 * In Terminal:
 ```
 $ git clone https://github.com/ashkanpakzad/AirQuant.git
 ```
-
+* To use recommended skeletonisation/centreline algorithm, please install Pulmonary Toolkit, by Tom Doel. https://github.com/tomdoel/pulmonarytoolkits.
 * Example use: see [scripts/example.m](scripts/example.m)
 
-## Use
+## Development
+See [docs/main.md](docs/main.md).
 
 ## Packaged Dependencies
 * skel2graph3d-matlab (https://github.com/phi-max/skel2graph3d-matlab)

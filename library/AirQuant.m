@@ -1,42 +1,45 @@
 classdef AirQuant < handle % handle class
     properties
+        %%% Volumes and Metadata
         CT % CT image
         CTinfo % CT metadata
         seg % binary airway segmentation
-        % CT Properties/resampling params
+        skel % skeleton based on segementation
+        savename % filename to load/save
+        %%% CT resampling params
         max_plane_sz = 40;% max interpolated slice size
         plane_sample_sz % interpolated slice pixel size
         spline_sample_sz % mm interval to sample along branch arclength
         plane_scaling_sz = 5; % scale airway diameter approx measurement.
         min_tube_sz % smallest measurable lumen Diameter.
-        % Ray params
+        %%% Ray params
         num_rays = 50; % check methods
         ray_interval = 0.2; % check methods
-        skel % skeleton based on segementation
-        savename % filename to load/save
+
     end
     properties (SetAccess = private)
-        % Graph Properties
+        %%% Graph Properties
         Gadj % undirected Graph Adjacency matrix
         Gnode % Graph node info
         Glink % Graph edge info
         Gdigraph % digraph object
-        trachea_node % node corresponding to top of trachea
         trachea_path % edges that form a connect subgraph above the carina
         carina_node % node that corresponds to the carina
         skel_points % list of skeleton points
-        % Resampled image slices along graph paths/airway segments.
+        %%% Resampled image slices along graph paths/airway segments.
         Dmap % distance transform of seg
-        Splines % pp splines of branches
+        Splines % spline data of branches
         TraversedImage % perpendicular CT slices of all airways
         TraversedSeg % perpendicular segmentation slices of all airways
         arclength % corresponding arclength measurement traversed slices
-        FWHMesl % FWHMesl algorithm results for every airway
-        Specs % Airway specs
+        FWHMesl % FWHMesl algorithm results for every airway {inner, peak, outer}
+        Specs % Store of end metrics
     end
     
     methods
         %% INITIALISATION METHODS
+        % Methods used to call and make AQ object before any further
+        % processing takes place.
         function obj = AirQuant(CTimage, CTinfo, segimage, skel, savename)
             % Initialise the AirQuant class object.
             % if using default settings, do not provide params argument.
@@ -48,9 +51,11 @@ classdef AirQuant < handle % handle class
             end
             
             if isfile(savename)
+                disp(['Found case stored at ', savename, ' loading ...'])
                 load(savename)
                 obj.savename = savename;
-            else
+            else 
+                disp(['New case to be saved at ', savename, ' saving...'])
                 obj.CTinfo = CTinfo;
                 obj.CT = reorientvolume(CTimage, obj.CTinfo);                
                 % TODO: consider preprocess segmentation to keep largest
@@ -64,8 +69,6 @@ classdef AirQuant < handle % handle class
                 obj.min_tube_sz = 3*max(obj.CTinfo.PixelDimensions);
                 % graph airway skeleton
                 obj = GenerateSkel(obj,skel);
-                % Identify trachea
-                obj = FindTrachea(obj);
                 % Convert into digraph
                 obj = AirwayDigraph(obj);
                 % Identify Carina
@@ -77,7 +80,7 @@ classdef AirQuant < handle % handle class
                 % Compute distance transform
                 obj.Dmap = bwdist(~obj.seg);
                 % set up empty cell for traversed CT and segmentation
-                obj.Splines = cell(length(obj.Glink),1);
+                obj.Splines = cell(length(obj.Glink),2);
                 obj.TraversedImage = cell(length(obj.Glink),1);
                 obj.TraversedSeg = cell(length(obj.Glink),1);
                 % set up empty specs doubles
@@ -93,6 +96,7 @@ classdef AirQuant < handle % handle class
                 % save class
                 obj.savename = savename;
                 save(obj)
+                disp('New case AirQuant Object successfully initialised.')
             end
         end
         
@@ -108,40 +112,52 @@ classdef AirQuant < handle % handle class
             [obj.Gadj,obj.Gnode,obj.Glink] = Skel2Graph3D(obj.skel,0);
             
         end
-        
-        
-        function obj = FindTrachea(obj)
-            % Identify the Trachea node. FindFWHMall
-            % Assumes trachea fully segmented and towards greater Z.
-            % Smoothen
-            [~, obj.trachea_node] = max([obj.Gnode.comz]);
-            %obj.trachea_path = obj.Gnode(obj.trachea_node).links;
-        end
-        
+       
         
         function obj = AirwayDigraph(obj)
             % Converts the output from skel2graph into a digraph tree
             % network, such that there are no loops and edges point from
             % the trachea distally outwards.
             
+            % Identify the Trachea node. FindFWHMall
+            % Assumes trachea fully segmented and towards greater Z.
+            % Smoothen
+            [~, trachea_node] = max([obj.Gnode.comz]);
+            
             % Create digraph with edges in both directions, loop through
             % and remove if found later in the BF search.
             G = digraph(obj.Gadj);
             % BF search from carina node to distal.
-            node_discovery = bfsearch(G,obj.trachea_node);
+            node_discovery = bfsearch(G,trachea_node);
+            %%% reorder nodes by bfs
+            G = reordernodes(G, node_discovery);
+            % reorder in gnodes and glinks
+            obj.Gnode = obj.Gnode(node_discovery);
+            for iinode = 1:length(obj.Gnode)
+            conns = obj.Gnode(iinode).conn;
+                for iiconn = 1:length(conns)
+                    obj.Gnode(iinode).conn(iiconn) = find(node_discovery == conns(iiconn));
+                end
+            end
+            for iilink = 1:length(obj.Glink)
+                obj.Glink(iilink).n1 = find(node_discovery == obj.Glink(iilink).n1);
+                obj.Glink(iilink).n2 = find(node_discovery == obj.Glink(iilink).n2);
+            end
+            % NB: Trachea node now always  = 1.
+                          
+            % organise into peripheral facing digraph
             % half of the edges will be removed
             removal = zeros(height(G.Edges)/2 , 1);
             j = 1;
             for i = 1:height(G.Edges)
-                % identify the rank in order of discovery
-                rank1 = find(~(node_discovery-G.Edges.EndNodes(i,1)));
-                rank2 = find(~(node_discovery-G.Edges.EndNodes(i,2)));
-                if rank1 > rank2
+                % edges should be connected by smaller to larger node.
+                if (G.Edges.EndNodes(i,1) - G.Edges.EndNodes(i,2)) > 0
                     % record if not central-->distal
                     removal(j) = i;
                     j = j + 1;
                 end
             end
+            % remove recorded edges at end in opposite direction.
             removal(removal == 0) = [];
             G = rmedge(G,removal);
             
@@ -363,7 +379,8 @@ classdef AirQuant < handle % handle class
         end
         
         %% GRAPH NETWORK ANOMOLY ANALYSIS
-        
+        % Methods that analyse the airway structural graph checking for
+        % anomalies such as loops and reporting them.
         function [debugseg, debugskel, erroredge] = DebugGraph(obj)
             % TODO: consider moving graph plot to the default plot.
             % First check for multiple 'inedges' to all nodes.
@@ -476,7 +493,7 @@ classdef AirQuant < handle % handle class
         end
         
         %% UTILITIES
-        
+        % Useful functions.
         function save(obj)
             save(obj.savename, 'obj', '-v7.3')
         end
@@ -521,15 +538,24 @@ classdef AirQuant < handle % handle class
             end
         end
         
-        function report = debuggingreport(obj)
+        function out = SuccessReport(obj)
             % produce a table showing success of processing for each airway
             % branch.
             report = struct('airway',num2cell(1:length(obj.Glink)));
-           
+            notanyall = @(x) ~any(x,'all');
             % check for each airway arclength and FWHM failures
             for i = 1:length(obj.Glink)
+                if i == obj.trachea_path
+                    continue
+                end
+                % no nan or empty entries arclength
                 report(i).arclength = ~any(isnan(obj.arclength{i})) & ~any(isempty(obj.arclength{i}));
+                % no nan or empty entries interpolated ct
+                intepolatedCT_nonan = all(cellfun(notanyall, cellfun(@isnan,obj.TraversedImage{i,1},'UniformOutput',false)));
+                interpolatedCT_noempty = all(cellfun(notanyall, cellfun(@isempty,obj.TraversedImage{i,1},'UniformOutput',false)));
+                report(i).InterpolatedCT = intepolatedCT_nonan & interpolatedCT_noempty;
                 try
+                % nans acceptable, none empty
                 report(i).FWHM_inner = ~isempty(obj.FWHMesl{i,1});
                 report(i).FWHM_peak = ~isempty(obj.FWHMesl{i,2});
                 report(i).FWHM_outer = ~isempty(obj.FWHMesl{i,3});
@@ -539,34 +565,104 @@ classdef AirQuant < handle % handle class
                         % remove trachea branch. 
             report(obj.trachea_path) = [];
             report = struct2table(report);
+            disp('Debugging report. Success of executing each stage of the algorithm for each airway.')
+            disp(report)
+            if nargout > 0 
+                out = report;
+            end
         end
                   
-        function report = characteristicsreport(obj, type, showfig)
-            % produce a table showing 
+        function [out, h] = AirwayCounts(obj, type, showfig)
+            % produce a table and barchart showing 
             % number of airways per generation
             % number of airways per generation per lobe
-            rawgen = [obj.Glink(:).generation];
-            generations = unique(rawgen);
-%             gencount = zeros(size(generations));
-%             for i = 1:length(generations)
-%                 for j = 1:length(obj.Glink)
-%                     if obj.Glink(j).generation == generations(i)
-%                     end
-%                 end
-%             end
-            [gencount, ~] = histcounts(rawgen,generations);
-
-            switch type
-                case 'generation'
-                    report = table(generations, gencount);
-                case 'lobe'
-                    
-                otherwise
-                    error('Choose type generation or lobe')
+            % type is either generation or lobe
+            % showfig is a flag for plotting true by default
+            
+            if nargin < 3
+                showfig = 1;
             end
             
+            % get generation index for each branch
+            awygen = [obj.Glink(:).generation]';
+            % get 1:max generations
+            generations = unique(awygen);
+            % set up cell for each gen
+            rownames = compose('%d', generations);
+            rownames = cellstr(string(rownames));
+            
+            % count for all gens
+            [gencount, ~] = histcounts(awygen, [generations; generations(end)+1]);
+            
+            switch type
+                case 'generation'
+                    % Generate count for each generation used bin edges
+                    % method
+                    if showfig == 1
+                        % show figure result as bar chart
+                        bar(0:length(gencount)-1, gencount)
+                        title('Number of airways per generation')
+                        xlabel('Generation')
+                        ylabel('count')
+                        grid on
+                    end
+                    
+                    reporttable = table(gencount', 'RowNames', rownames, 'VariableNames', {'NGenerations'});
+                    disp('Number of airways per generation')
+                    disp(reporttable)
+                    
+                case 'lobe'
+                    % also get lobe index of each branch
+                    awylobes = [obj.Glink(:).lobe]';
+                    % get list of lobe labels and make table
+                    varNames = AirQuant.LobeLabels();
+
+                    % loop though each lobe label and generate histogram
+                    % count for each generation.
+                    lobecount = zeros(length(varNames), length(generations));
+                    for iilobe = 1:length(varNames)
+                        currentgens = awygen(strcmp(awylobes,varNames{1,iilobe}));
+                        [lobecount(iilobe, :), ~] = ...
+                            histcounts(currentgens, [generations; ...
+                            generations(end)+1]);
+                    end
+                    reporttable = array2table(lobecount');
+                    reporttable.Properties.VariableNames = varNames;
+                    reporttable.Properties.RowNames = rownames;
+                    disp('Number of airways per generation per lobe')
+                    disp(reporttable)
+                    if showfig == 1
+                        % show figure result as bar chart
+                        iilobe = 0;
+                        for plotind = [1,3,5,2,4,6]
+                            iilobe = iilobe + 1;
+                            subplot(3,2,plotind);
+                            bar(0:length(gencount)-1, lobecount(iilobe,:));
+                            title(varNames(iilobe))
+                            xlabel('Generation')
+                            ylabel('count')
+                            grid on
+                        end
+                        f = gcf;
+                        allax = findall(f,'type','axes');
+                        linkaxes(allax,'xy');
+                    end
+                    
+                otherwise
+                    error('Choose type: generation or lobe')
+            end
+            
+            if nargout > 0
+                out = reporttable;
+            end
+            if nargout > 1
+                h = 1; % change to plot later
+            end
         end
+        
         %% HIGH LEVEL METHODS
+        % methods that package lower level methods, often to apply analysis
+        % to all airways rather than just individual airways.
         function obj = AirwayImageAll(obj)
             % Traverse all airway segments except the trachea.
             disp('Start traversing all airway segments')
@@ -577,6 +673,7 @@ classdef AirQuant < handle % handle class
             for i = 1:length(obj.Glink)
                 % skip the trachea or already processed branches
                 if i == obj.trachea_path || incomplete(i) == 0
+                    disp(['Traversing: ', num2str(i), ' trachea skipped or already complete'])
                     continue
                 end
                 obj = CreateAirwayImage(obj, i);
@@ -584,7 +681,6 @@ classdef AirQuant < handle % handle class
             end
             disp('Traversing: Done')
         end
-        
         
         function obj = FindFWHMall(obj)
             % Clear all FWHMesl cells
@@ -609,6 +705,7 @@ classdef AirQuant < handle % handle class
         end
         
         %% SPLINE METHODS
+        % Technical: These methods compute the central airway spline.
         function ComputeSpline(obj, link_index)
             % Computes a smooth spline of a single graph edge.
             % Based on original function by Kin Quan 2018
@@ -616,17 +713,28 @@ classdef AirQuant < handle % handle class
             % The input is the list of ordered index
             % The output is the smooth spline as a matlab sturct
             
-            %Convert into 3d Points
-            [x_point, y_point, z_point] = ind2sub(size(obj.CT),obj.Glink(link_index).point);
-            
-            %Smoothing the data
+            % get linear indexed points of current and previous branch,
+            % combine.
+            previous_awy = find([obj.Glink(:).n2] == obj.Glink(link_index).n1);
+            [x_p1, y_p1, z_p1] = ind2sub(size(obj.CT), obj.Glink(previous_awy).point);
+            [x_p2, y_p2, z_p2] = ind2sub(size(obj.CT), obj.Glink(link_index).point);
+            x_point = [x_p1, x_p2];
+            y_point = [y_p1, y_p2];
+            z_point = [z_p1, z_p2];
+
+            %Smooth all points using moving average
             voxel_sz = obj.CTinfo.PixelDimensions;
-            smooth_x = smooth(x_point*voxel_sz(1));
-            smooth_y = smooth(y_point*voxel_sz(2));
-            smooth_z = smooth(z_point*voxel_sz(3));
+            smooth_x = smooth(x_point*voxel_sz(1),11, 'moving');
+            smooth_y = smooth(y_point*voxel_sz(2),11, 'moving');
+            smooth_z = smooth(z_point*voxel_sz(3),11, 'moving');
+            
+            % extract just current airway smoothed points
+            csmooth_x = smooth_x(length(x_p1)+1:end);
+            csmooth_y = smooth_y(length(x_p1)+1:end);
+            csmooth_z = smooth_z(length(x_p1)+1:end);
             
             %Complete smooth data
-            smooth_data_points = [smooth_x smooth_y smooth_z]';
+            smooth_data_points = [csmooth_x csmooth_y csmooth_z]';
             
             %Generating the spline
             obj.Splines{link_index, 1} = cscvn(smooth_data_points);
@@ -641,11 +749,17 @@ classdef AirQuant < handle % handle class
             
             [t_points, arc_length] = spline_points(spline, obj.spline_sample_sz);
             
+            % save parametrised sample points in second column.
+            obj.Splines{link_index, 2} = t_points;
+            
+            % save arc_length measurement of each sample point.
             obj.arclength{link_index, 1} = arc_length;
             
     end
         
         %% TRAVERSING AIRWAYS METHODS %%%
+        % Technical: These methods traverse the airway centreline spline 
+        % interpolating the CT image at each spline sample point.
         function obj = CreateAirwayImage(obj, link_index)
             % Constructs perpendicular images as if travelling along an
             % airway segment in CT image and Segmentation.
@@ -654,36 +768,27 @@ classdef AirQuant < handle % handle class
             TransAirwayImage = cell(length(spline_t_points),1);
             TransSegImage = cell(length(spline_t_points),1);
             for i = 1:length(spline_t_points)
-%                 try
-                    spline = obj.Splines{link_index, 1};
-                    % * Compute Normal Vector per spline point
-                    [normal, CT_point] = AirQuant.ComputeNormal(spline, ...
-                        spline_t_points(i));
-                    % get approx airway size from distance map
-                    approx_diameter = ComputeDmapD(obj, CT_point);
-                    % compute intepolated slice size
-                    plane_sz = ceil(approx_diameter*obj.plane_scaling_sz);
-                    % use max plane size if current plane size exceeds it
-                    if plane_sz > obj.max_plane_sz
-                        plane_sz = obj.max_plane_sz;
-                    end
-                    % * Interpolate Perpendicular Slice per spline point
-                    [InterpAirwayImage, InterpSegImage] = ...
-                        InterpolateCT(obj, normal, CT_point,  ...
-                        plane_sz, obj.plane_sample_sz);
-                    % * Replace NaN entries in images with zero.
-                    InterpAirwayImage(isnan(InterpAirwayImage)) = 0;
-                    InterpSegImage(isnan(InterpSegImage)) = 0;
-                    TransAirwayImage{i,1} = InterpAirwayImage;
-                    TransSegImage{i,1} = InterpSegImage;
-%                 catch
-%                     % TODO identify why arc_length cannot be calculated in
-%                     % some cases.
-%                     warning('Failed to interpolate slice/identify arclength')
-%                     TransAirwayImage(:,:,i) = zeros(133);
-%                     TransSegImage(:,:,i) = zeros(133);
-%                     obj.arclength{link_index, 1}(i) = NaN;
-%                 end
+                spline = obj.Splines{link_index, 1};
+                % * Compute Normal Vector per spline point
+                [normal, CT_point] = AirQuant.ComputeNormal(spline, ...
+                    spline_t_points(i));
+                % get approx airway size from distance map
+                approx_diameter = ComputeDmapD(obj, CT_point);
+                % compute intepolated slice size
+                plane_sz = ceil(approx_diameter*obj.plane_scaling_sz);
+                % use max plane size if current plane size exceeds it
+                if plane_sz > obj.max_plane_sz
+                    plane_sz = obj.max_plane_sz;
+                end
+                % * Interpolate Perpendicular Slice per spline point
+                [InterpAirwayImage, InterpSegImage] = ...
+                    InterpolateCT(obj, normal, CT_point,  ...
+                    plane_sz, obj.plane_sample_sz);
+                % * Replace NaN entries in images with zero.
+                InterpAirwayImage(isnan(InterpAirwayImage)) = 0;
+                InterpSegImage(isnan(InterpSegImage)) = 0;
+                TransAirwayImage{i,1} = InterpAirwayImage;
+                TransSegImage{i,1} = InterpSegImage;
             end
             % * Save traversed image and arclength for each image
             obj.TraversedImage{link_index, 1} = TransAirwayImage;
@@ -722,7 +827,6 @@ classdef AirQuant < handle % handle class
                 plane_grid.z(:),'cubic');
             
             % Reshape
-            % TODO: Look at what these two lines do.
             plane_length = sqrt(length(plane_grid.y(:)));
             CT_plane = reshape(plane_intensities,...
                 [plane_length plane_length]);
@@ -748,8 +852,8 @@ classdef AirQuant < handle % handle class
             % TODO: diameter conversion to mm
         end
         
-        
         %% MEASUREMENT METHODS
+        % Methods that measure the airway size on interpolated CT images.
         function obj = FindAirwayBoundariesFWHM(obj, link_index)
             %Based on function by Kin Quan 2018 that is based on Kiraly06
             
@@ -863,6 +967,8 @@ classdef AirQuant < handle % handle class
         end
         
         %% EXTENT Methods
+        % Analysis: Methods looking at the extent of airway existance that
+        % the segmentation covers.
         function counts = searchgenperlobe(obj, gen, lobe)
             Nawy = length(obj.Glink);
             counts = 0;
@@ -879,7 +985,7 @@ classdef AirQuant < handle % handle class
             sz = [maxgen, 6];
             varTypes = cell(1, 6);
             varTypes(:) = {'double'};
-            varNames = {'RU','RM','RL','LU','LUlin','LL'};
+            varNames = AirQuant.LobeLabels();
             genperlobe = table('Size',sz,'VariableTypes',varTypes,'VariableNames',varNames);
             % get number of airways of that generation in that lobe
             for lobe = 1:6
@@ -910,9 +1016,9 @@ classdef AirQuant < handle % handle class
             
             overextentidx = false(length(obj.Glink),1);
 %             safenodes = [];
-            varNames = {'RU','RM','RL','LU','LUlin','LL'};
+            varNames = AirQuant.lobelabels();
             % BF search
-            [~,bfs_Gind] = bfsearch(obj.Gdigraph, obj.trachea_node,'edgetonew');
+            [~,bfs_Gind] = bfsearch(obj.Gdigraph, 1,'edgetonew');
             % convert graph idx into link index
             bfs_Lind = zeros(size(bfs_Gind));
             for ind = 1:length(bfs_Gind)
@@ -970,9 +1076,7 @@ classdef AirQuant < handle % handle class
             end
             end    
         end
-        
-
-       
+         
         function h = plotoverextent(obj, overextentidx, type)
             overextentedge = overextentidx(obj.Gdigraph.Edges.Label);
             h = plot(obj, type);
@@ -980,6 +1084,7 @@ classdef AirQuant < handle % handle class
         end
      
         %% TAPERING ANALYSIS METHODS
+        % Analysis: Airway tapering metrics.
         
         function [logtapergrad, cum_arclength, cum_area, edgepath] = ConstructTaperPath(obj, terminal_node_idx, type)
             if nargin < 3
@@ -1047,7 +1152,7 @@ classdef AirQuant < handle % handle class
         function terminalnodelist = ListTerminalNodes(obj)
             terminalnodelist = find([obj.Gnode(:).ep] == 1);
             % remove trachea node
-            terminalnodelist(terminalnodelist ==  obj.trachea_node) = [];
+            terminalnodelist(terminalnodelist ==  1) = [];
         end
         
         
@@ -1239,6 +1344,7 @@ classdef AirQuant < handle % handle class
         end
         
         %% TAPERING VISUALISATION METHODS
+        % Visualisation: viewing results of taper metrics.
         function PlotTaperResults(obj, terminal_node_idx, type)
             if nargin < 3
                 type = 'other';
@@ -1332,7 +1438,8 @@ classdef AirQuant < handle % handle class
             G = digraph([obj.Glink(:).n1],[obj.Glink(:).n2], weights);
         end
         
-        %% VISUALISATION METHODS
+        %% VISUALISATION
+        %%% Airway Strucutral Tree
         function h = plot(obj, type)
             % Default plot is a graph network representation. Optional input is to
             % provide a list of edge labels indexed by the Glink property.
@@ -1449,6 +1556,7 @@ classdef AirQuant < handle % handle class
             
         end
         
+        %%% Splines
         function PlotSplineTree(obj)
             % loop through every branch, check spline has already been
             % computed, compute if necessary. Skip trachea. Plot spline.
@@ -1466,7 +1574,82 @@ classdef AirQuant < handle % handle class
             end
         end
         
+        function h = PlotSplineVecs(obj, subsamp, link_index)
+            % Plot and Visualise tangental vectors off spline sample
+            % points. 1/subsamp = proportion of spline points to sample,
+            % default subsamp = 2. link_index = airway indices to plot,
+            % default link_index = all.
+            
+            % plot all branches if specific airway not provided
+            if nargin < 2
+                subsamp = 2;
+            end
+            
+            if nargin < 3
+                link_index = 1:length(obj.Glink);
+            end
+            
+            for iidx = link_index
+                % generate spline and points if it doesnt exist
+                if isempty(obj.Splines{iidx, 1})
+                    ComputeSplinePoints(obj, iidx);
+                end
+                
+                % get vecs and origin for spline
+                spline = obj.Splines{iidx, 1};
+                samplepnts = obj.Splines{iidx, 2};
+                vecs = zeros(3, length(samplepnts));
+                origins = zeros(3, length(samplepnts));
+                for jj = 1:length(samplepnts)
+                    point = samplepnts(jj);
+                    [vecs(:,jj), origins(:,jj)]= AirQuant.ComputeNormal(spline, point);
+                end
+                
+                % subsample data, i.e. delete a portion
+                vecs = vecs(:,1:subsamp:end); origins = origins(:,1:subsamp:end);
+                
+                % rescale origins from mm to vox and swap x and y in plot.
+                origins = origins./obj.CTinfo.PixelDimensions';
+                vecs = vecs./obj.CTinfo.PixelDimensions';
+
+                
+                % plot vectors with translucent airway volume
+                h = quiver3(origins(2,:),origins(1,:),origins(3,:),...
+                    vecs(2,:),vecs(1,:),vecs(3,:));
+                branch_seg = obj.ClassifySegmentation(); % get labelled segmentation
+                patch(isosurface(branch_seg == iidx), ...
+                    'FaceAlpha', 0.3, 'FaceColor', [0 .55 .55], 'EdgeAlpha', 0);
+                hold on
+            end
+            
+            % visualise the connecting airway segs if only 1 airway
+            % requested
+            if length(link_index) < 2
+                % find connecting airways
+                nodes = [obj.Glink(link_index).n1, obj.Glink(link_index).n2];
+                conn_awy = [];
+                for connii = 1:length(obj.Glink)
+                    for nodeii = nodes
+                        conn_awy = [conn_awy find([obj.Glink.n1] == nodeii | ...
+                            [obj.Glink.n2] == nodeii)];
+                    end
+                end
+                conn_awy = unique(conn_awy);
+                conn_awy(conn_awy == link_index) = [];
+                % visualise them
+                for awyii = conn_awy
+                    patch(isosurface(branch_seg == awyii), ...
+                        'FaceAlpha', 0.3, 'FaceColor', [.93 .79 0], 'EdgeAlpha', 0);
+                end
+            end
+            vol3daxes(obj)
+            hold off
+        end
+        
+        %%% Volumetric
         function PlotMap3D(obj, mode)
+            % Recommend to use View3D if colour labels appear buggy.
+            
             % mode = 'TaperGradient', 'generation', 'lobes'
             axis([0 size(obj.CT, 1) 0 size(obj.CT, 2) 0 size(obj.CT, 3)])
             
@@ -1474,59 +1657,128 @@ classdef AirQuant < handle % handle class
             cdata = zeros(size(obj.seg));
             branch_seg = ClassifySegmentation(obj);
             switch mode 
-                case 'TaperGradient'
+                case 'tapergradient'
                     % TODO: rewrite this bit....
                     for i = 1:length(obj.Specs)
                         cdata(branch_seg == i) = obj.Specs(i).FWHMl_logtaper*-1;
                     end
-                case 'Generation'
+                case 'generation'
                     for i = 1:length(obj.Glink)
-                        cdata(branch_seg == i) = obj.Glink(i).generation;
+                        % add 1 to gen index to differentiate from bg 0.
+                        cdata(branch_seg == i) = obj.Glink(i).generation+1;
                     end
-                    clims = [0 max(cdata(:))];
-%                     colorbarstring = 'Generation Number';
-                case 'Lobe'
+                    clims = [1 max(cdata(:))];
+                    colourshow = clims(1):clims(2);
+                    colorbarstring = 'Generation Number';
+                    % reduce colourlabels by 1 from cdata to reflect true
+                    % gen.
+                    colourlabels = 0:max(cdata(:))-1;
+                    maptype = 'sequential';
+
+                case 'lobe'
                     % convert lobe id to number
                     lobeid = {'B','RU','RM','RL','LU','LUlin','LL'};
                     for i = 1:length(obj.Glink)
-                        cdata(branch_seg == i) = find(strcmp(lobeid, obj.Glink(i).lobe))-1;
+                        cdata(branch_seg == i) = find(strcmp(lobeid, obj.Glink(i).lobe));
                     end
-                    clims = [0 max(cdata(:))+1];
-%                     colorbarstring = 'Lobe';
-%                     colourshow = clims(1):clims(2);
-%                     colourlabels = lobeid;
+                    clims = [1 max(cdata(:))];
+                    colorbarstring = 'Lobe';
+                    colourshow = clims(1):clims(2);
+                    colourlabels = lobeid;
+                    maptype = 'qualitative';
                     
                 otherwise
                     error('Choose appropiate mode.')
             end
-            % producing segmentation 3d object
+            % produce segmentation 3d object
             p = patch(isosurface(obj.seg));
-            % map colour indices to 3d object vertices
-            isocolors(cdata, p);
-            % % Reassign colors to meaningful values
-            Vertcolour = p.FaceVertexCData;
-            vcolours = uniquetol(Vertcolour);
-            colourind = unique(cdata);
-            for i = 1:length(vcolours)
-                Vertcolour(Vertcolour==vcolours(i)) = colourind(i);
-            end
-            % overwrite vertices colour with meaningful values
-            p.FaceVertexCData = Vertcolour;
             
-            p.FaceColor = 'interp';
+            %%% assign vertex face colour index by nearest point on volume.
+            % get volume points
+            cdata_pnt = find(cdata > 0);
+            % convert to list of subindices
+            [y,x,z] = ind2sub(size(cdata), cdata_pnt);
+            % search for nearest point of each vertex origin
+            near_i = dsearchn([x,y,z], p.Vertices);
+            % assign colour index to that vertex
+            p.FaceVertexCData = cdata(cdata_pnt(near_i));
+            p.FaceColor = 'flat';
             p.EdgeColor = 'none';
-            map = linspecer(max(cdata(:))+2);
+            
+            % set up colourmap
+            map = linspecer(max(cdata(:)), maptype);
             colormap(map)
-%             c = colorbar('Ticks', colourshow, 'TickLabels', colourlabels);
-%             c.Label.String = colorbarstring;
+            c = colorbar('Ticks', colourshow, 'TickLabels', colourlabels);
+            c.Label.String = colorbarstring;
             caxis(clims)
-            view(80,0)
+            vol3daxes(obj)
+        end
+        
+        function View3D(obj, mode)
+            % View segmentation volume with different labels. In MATLAB's
+            % volviewer.
+            % mode = 'TaperGradient', 'generation', 'lobes'
+            
+            % generating the color data
+            labelvol = zeros(size(obj.seg));
+            branch_seg = ClassifySegmentation(obj);
+            switch mode 
+                case 'generation'
+                    for i = 1:length(obj.Glink)
+                        labelvol(branch_seg == i) = obj.Glink(i).generation;
+                    end
+                case 'lobe'
+                    % convert lobe id to number
+                    lobeid = {'B','RU','RM','RL','LU','LUlin','LL'};
+                    for i = 1:length(obj.Glink)
+                        labelvol(branch_seg == i) = find(strcmp(lobeid, obj.Glink(i).lobe))-1;
+                    end
+                otherwise
+                    error('Choose appropiate mode. "Generation" or "Lobe".')
+            end
+            
+            % undo matlabs X-axis flip for viewing.
+            labelvol = flip(labelvol,1);
+            seg_view = flip(obj.seg,1);
+            
+            % Generate suitable label colours
+            map = linspecer(max(labelvol(:))+1);
+
+            % vol viewer with labels to display.
+            figure;
+            labelvolshow(labelvol, seg_view, ...
+                'ScaleFactors', obj.CTinfo.PixelDimensions, ...
+                'LabelColor', map, 'BackgroundColor', [1,1,1], ...
+                'CameraPosition', [-4.2 0.8  2], 'CameraViewAngle', 10, ...
+                'CameraTarget', [0, 0, 0.1]);
+        end
+        
+        function PlotSegSkel(obj)
+        % plot segmentation and skeleton within each other.
+        patch(isosurface(obj.seg),'EdgeColor', 'none','FaceAlpha',0.3);
+        hold on
+        isosurface(obj.skel)
+        vol3daxes(obj)
+        
+        end
+        
+        function vol3daxes(obj, ax)
+            % utility function for 3D volumetric plotting. Sets the aspect
+            % ratio according to voxel size and reverses the x axes for LPS
+            % viewing.
+            
+            if nargin < 2 % current axes if not specified
+                ax = gca;
+            end
             axis vis3d
+            view(80,0)
+            % aspect ratio
+            ax.DataAspectRatio = 1./obj.CTinfo.PixelDimensions;
             % undo matlab display flip
-            ax = gca;
             ax.XDir = 'reverse';
         end
         
+        %%% CT Airway slices
         function PlotAirway3(obj, link_index)
             % Plot resampled airway slices overlayed with FWHMesl ray cast
             % points and fitted ellipse
@@ -1606,7 +1858,34 @@ classdef AirQuant < handle % handle class
             end
         end
         
+        function s = OrthoViewAirway(obj, link_index)
+        % View a series of an airway segment's slices as a volume image 
+        % stack using MATLAB's inbuilt othogonal 3d viewer.
+        
+        % convert from cell stack to 3D array.
+        awycell =  obj.TraversedImage{link_index,1};
+        canvas_sz = floor(obj.max_plane_sz/obj.plane_sample_sz);
+        awyarray = zeros([canvas_sz, canvas_sz, length(awycell)]);
+        for slice = 1:length(awycell)
+            image = obj.TraversedImage{link_index, 1}{slice,1};
+            image_sz = size(image,1);
+            min_centre = canvas_sz/2 - image_sz/2;
+            max_centre = canvas_sz/2 + image_sz/2;
+            awyarray(min_centre+1:max_centre, min_centre+1:max_centre, slice) = image;
+        end
+        % display with orthoview
+        fig = figure;
+        s = orthosliceViewer(awyarray, 'DisplayRangeInteraction','off', ...
+            'ScaleFactors',[obj.plane_sample_sz, obj.plane_sample_sz, obj.spline_sample_sz],...
+            'CrosshairLineWidth', 0.3);
+        % Can only alter size of figure window after orthosliceviewer.
+        fig.Name = ['AirQuant: Airway Ortho View. Idx ', mat2str(link_index), '.'];
+        fig.Units = 'normalized';
+        fig.Position = [0.1,0.01,0.6,0.9];
+        end
+        
         %% EXPORT METHODS
+        % methods for exporting processed data.
         function exportlobes(obj, savename)
             % export airway segmentation labelled by lobes to nii.gz
             
@@ -1812,6 +2091,11 @@ classdef AirQuant < handle % handle class
             FWHMl = cat(2, FWHMl_x, FWHMl_y);
             FWHMp = cat(2, FWHMp_x, FWHMp_y);
             FWHMr = cat(2, FWHMr_x, FWHMr_y);
+        end
+        
+        function labels = LobeLabels()
+            % returns cell of lobe lables used in AirQuant
+            labels = {'RU','RM','RL','LU','LUlin','LL'};
         end
     end
 end
