@@ -1,0 +1,4 @@
+/results/*
+/data/*
+*.asv
+scripts/run*
