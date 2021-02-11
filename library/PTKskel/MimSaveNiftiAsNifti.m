@@ -55,9 +55,9 @@ function MimSaveNiftiAsNifti(image_to_save, path, filename, reporting)
         C = metadata.QuaternC;
         D = metadata.QuaternD;
         A = sqrt(1 - B^2 - C^2 - D^2);
-        d1 = [-1; -1; 1].*[A^2+B^2-C^2-D^2; 2*(B*C - A*D); 2*(B*D+A*C)];
-        d2 = [-1; -1; 1].*[2*(B*C + A*D); A^2 + C^2 - B^2 - D^2; 2*(C*D - A*B)];
-        d3 = [-1; -1; 1].*[2*(B*D - A*C); 2*(C*D + A*B); A^2 + D^2 - B^2 - C^2];
+        d1 = [A^2+B^2-C^2-D^2; 2*(B*C - A*D); 2*(B*D+A*C)];
+        d2 = [2*(B*C + A*D); A^2 + C^2 - B^2 - D^2; 2*(C*D - A*B)];
+        d3 = [2*(B*D - A*C); 2*(C*D + A*B); A^2 + D^2 - B^2 - C^2];
         affine3x3 = [d1'; d2'; d3'];
     elseif metadata.SformCode > 0
         affine3x3 = [metadata.SrowX(1:3)'; metadata.SrowY(1:3)'; metadata.SrowZ(1:3)'];

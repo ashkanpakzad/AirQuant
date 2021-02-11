@@ -13,11 +13,13 @@ casenames = ["github_demo"];
 for ii = 1:length(casenames)
     results_dir = fullfile(AirQuantDir,'results', casenames(ii));
     logname = [char(casenames(ii)), '_log.txt'];
-    diary(fullfile(results_dir, logname))
-    disp(['Running AirQuant on ', casenames(ii)]);
     if ~exist(results_dir, 'dir')
         mkdir(results_dir)
     end
+    diary(fullfile(results_dir, logname))
+    disp(['Running AirQuant on ', casenames(ii)]);
+
+
     
     %% Get filenames
     CT_name = [char(casenames(ii)), '_raw.nii.gz'];
@@ -56,8 +58,8 @@ for ii = 1:length(casenames)
 
     gf = figure;
     plot(AQ);
-    saveas(genf, fullfile(results_dir, [char(casenames(ii)), '_graph.png']))
-    saveas(lobef, fullfile(results_dir, [char(casenames(ii)), '_graph.fig']))
+    saveas(gf, fullfile(results_dir, [char(casenames(ii)), '_graph.png']))
+    saveas(gf, fullfile(results_dir, [char(casenames(ii)), '_graph.fig']))
     
     ACf = figure;
     AirwayCounts(AQ, 'generation', 1)

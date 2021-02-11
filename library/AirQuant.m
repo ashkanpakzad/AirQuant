@@ -1,3 +1,6 @@
+% Lead Author: Ashkan Pakzad 2021. ashkanpakzad.github.io.
+% See https://github.com/ashkanpakzad/AirQuant for more information.
+
 classdef AirQuant < handle % handle class
     properties
         %%% Volumes and Metadata
@@ -58,10 +61,16 @@ classdef AirQuant < handle % handle class
                 disp(['New case to be saved at ', savename, ' saving...'])
                 obj.CTinfo = CTinfo;
                 obj.CT = reorientvolume(CTimage, obj.CTinfo);                
-                % TODO: consider preprocess segmentation to keep largest
-                % connected component.
                 % ensure no holes in segmentation
-                obj.seg = reorientvolume(imfill(segimage,'holes'), obj.CTinfo);
+                segfilled = reorientvolume(imfill(segimage,'holes'), obj.CTinfo);
+                % preprocess segmentation to keep largest
+                % connected component.
+                CC = bwconncomp(segfilled);
+                numOfPixels = cellfun(@numel,CC.PixelIdxList);
+                [~,indexOfMax] = max(numOfPixels);
+                seg = zeros(size(segfilled));
+                seg(CC.PixelIdxList{indexOfMax}) = 1;
+                obj.seg = seg;
                 % Set Resampling parameters and limits
                 measure_limit = floor((min(obj.CTinfo.PixelDimensions)/2)*10)/10;
                 obj.plane_sample_sz = measure_limit;
@@ -113,7 +122,6 @@ classdef AirQuant < handle % handle class
             
         end
        
-        
         function obj = AirwayDigraph(obj)
             % Converts the output from skel2graph into a digraph tree
             % network, such that there are no loops and edges point from
@@ -227,9 +235,6 @@ classdef AirQuant < handle % handle class
             gens = zeros(length(obj.Glink),1);
             gens(obj.trachea_path) = 0;
             for i = 1:height(G.Nodes)
-                if i == obj.trachea_path
-                    break
-                end
                 % get path from carina to current node
                 path = shortestpath(G, obj.carina_node, i);
                 % edges out of carina, gen = 1
@@ -1086,6 +1091,7 @@ classdef AirQuant < handle % handle class
         %% TAPERING ANALYSIS METHODS
         % Analysis: Airway tapering metrics.
         
+        % long tapering
         function [logtapergrad, cum_arclength, cum_area, edgepath] = ConstructTaperPath(obj, terminal_node_idx, type)
             if nargin < 3
                 type = 'inner';
@@ -1195,6 +1201,7 @@ classdef AirQuant < handle % handle class
 %             end
         end
         
+        % segmental tapering
         function [intrataper, averagediameter] = ComputeIntraTaperAll(obj, prunelength)
             if nargin < 2
                 prunelength = [0 0];
@@ -1303,13 +1310,15 @@ classdef AirQuant < handle % handle class
         end
         
         function SegmentTaperResults = SegmentTaperAll(obj, prunelength)
+            % high level function to compute the segmental tapering
+            % measurement of all airways.
             
             % compute taper results by segment
             [intrataper, avg] = ComputeIntraTaperAll(obj, prunelength);
             intertaper = ComputeInterTaper(obj, avg);
             
             % organise into column headings
-            branch = 1:length(obj.Glink);
+            branch = [1:length(obj.Glink)]';
             
             inner_intra = intrataper(:, 1);
             peak_intra = intrataper(:, 2);
@@ -1324,7 +1333,7 @@ classdef AirQuant < handle % handle class
             outer_inter = intertaper(:, 3);
             
             % convert to table
-            SegmentTaperResults = table(branch', inner_intra, peak_intra, ...
+            SegmentTaperResults = table(branch, inner_intra, peak_intra, ...
                 outer_intra, inner_avg, peak_avg, outer_avg, ...
                 inner_inter, peak_inter, outer_inter);
             
@@ -1334,8 +1343,6 @@ classdef AirQuant < handle % handle class
             % add lobe info if available
             try % only add lobe information if it exists
                 SegmentTaperResults.lobe = [obj.Glink.lobe]';
-                % sort by lobe
-                SegmentTaperResults = sortrows(SegmentTaperResults, 'lobe');
             catch
             end
             
@@ -1488,13 +1495,7 @@ classdef AirQuant < handle % handle class
                 highlight(h,'Edges',erroredge,'EdgeColor','r');
             end
         end
-        
-        function h = plotgenlabels(obj)
-            gens = [AS.Glink(:).generation];
-            genslabels = gens(obj.Gdigraph.Edges.Label);
-            h = plot(obj, genslabels);
-        end
-        
+
         function PlotTree(obj, gen)
             % Plot the airway tree with nodes and links in image space. Set
             % gen to the maximum number of generations to show.
@@ -1554,6 +1555,33 @@ classdef AirQuant < handle % handle class
             ax = gca;
             ax.XDir = 'reverse';
             
+        end
+        
+        function h = GraphPlotDiameter(obj)
+            % graph plot any variable for each airway as desired. i.e.
+            % provide var which is a vector the same length as the number
+            % of airways.
+            
+            G = obj.Gdigraph;
+            
+            if ~exist('obj.Specs.SegmentTaperResults', 'var')
+                tapertable = SegmentTaperAll(obj, [0 0]);
+            else
+                tapertable = obj.Specs.SegmentTaperResults;
+            end
+            
+            % generate corresponding edgelabels
+            edgelabels = G.Edges.Label;
+            edgevar = tapertable.inner_avg(G.Edges.Label);
+            
+            title('Average Inner lumen Diameter')
+            h = plot(G,'EdgeLabel',edgelabels, 'Layout', 'layered');
+            h.NodeColor = 'r';
+            h.EdgeColor = 'k';
+            
+            % set linewidth
+            edgevar(isnan(edgevar)) = 0.001;
+            h.LineWidth = edgevar;
         end
         
         %%% Splines
@@ -1691,7 +1719,7 @@ classdef AirQuant < handle % handle class
                     error('Choose appropiate mode.')
             end
             % produce segmentation 3d object
-            p = patch(isosurface(obj.seg));
+            p = patch(isosurface(cdata > 0));
             
             %%% assign vertex face colour index by nearest point on volume.
             % get volume points
