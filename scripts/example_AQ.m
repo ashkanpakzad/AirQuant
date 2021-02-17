@@ -23,7 +23,7 @@ skel = logical(niftiread(skel_name));
 %% Initialise AirQuant
 % Parses CT, segmentation and skeleton to compute airway tree graph
 % savename is given to automatically save/load results.
-savename = fullfile(results_dir, [casename, '_AQ15.mat']);
+savename = fullfile(results_dir, [casename, '_AQ.mat']);
 AQ = AirQuant(CT, meta, S, skel, savename);
 
 %% Display Airway Graph in 3D and 2D

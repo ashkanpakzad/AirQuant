@@ -40,7 +40,7 @@ classdef AirQuant < handle % handle class
     end
     
     methods
-        %% INITIALISATION METHODS
+        %% INITIALISATION
         % Methods used to call and make AQ object before any further
         % processing takes place.
         function obj = AirQuant(CTimage, CTinfo, segimage, skel, savename)
@@ -1572,7 +1572,7 @@ classdef AirQuant < handle % handle class
             
             % generate corresponding edgelabels
             edgelabels = G.Edges.Label;
-            edgevar = tapertable.inner_avg(G.Edges.Label);
+            edgevar = real(tapertable.inner_avg(G.Edges.Label));
             
             title('Average Inner lumen Diameter')
             h = plot(G,'EdgeLabel',edgelabels, 'Layout', 'layered');
