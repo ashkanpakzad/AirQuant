@@ -9,7 +9,7 @@ Currently there is only one method for taking airway measurements, the [FWHMesl 
 
 As most of the code behind this software is in [library/AirQuant.m](library/AirQuant.m) it is recommended that you explore it in MATLAB by collapsing all code and expanding as necessary. Set code collapsing for each section MATLAB preferences.
 
-Example use can also be found in [scripts/example.m](../scripts/example.m) and example data is in [data/](../data/).
+Example use can also be found in [scripts/](../scripts/) and example data is in [data/](../data/).
 
 
 
