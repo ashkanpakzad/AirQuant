@@ -665,6 +665,37 @@ classdef AirQuant < handle % handle class
             end
         end
         
+        function obj = ReclassLobe(obj, node, lobelabel, dryrun)
+            % reclassify airways beyond a given node to a particular
+            % lobelabel. This method is useful for when the lobe
+            % classifcation algorithm fails. It performs a
+            % breadth-first-search (BFS) on the digraph starting at the
+            % given node, identifies all airways within it and reclassifys
+            % them. It also reclassifies the predecessing edge.
+            % Set dryrun = 1 if you want a preview of what edge indices
+            % will be changed without effecting any change.
+            
+            if nargin < 4
+                dryrun = 0;
+            end
+            % identify all edges from node outwards
+            [~, E] = bfsearch(obj.Gdigraph, node, 'edgetonew');
+            % add predecessing edge
+            E = [E; inedges(obj.Gdigraph, node)];
+            % convert graph index to glink index
+            GE = [obj.Gdigraph.Edges.Label(E)];
+            
+            if dryrun == 1
+                printedgeidx = num2cell(GE);
+                printlabels = {obj.Glink(GE).lobe}';
+                disp([printedgeidx, string(printlabels)])
+            else
+            % reclass given edges
+            newlabels = repmat({lobelabel},1,length(GE));
+            [obj.Glink(GE).lobe] = newlabels{:};
+            end
+        end
+        
         %% HIGH LEVEL METHODS
         % methods that package lower level methods, often to apply analysis
         % to all airways rather than just individual airways.
