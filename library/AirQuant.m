@@ -1278,7 +1278,6 @@ classdef AirQuant < handle % handle class
             end
             
             % prune ends
-            disp(idx)
             prune = (al >= prunelength(1) & al <= al(end) - prunelength(2));
             al = al(prune);
 %             areas = areas(repmat(prune',1,3));
@@ -1517,16 +1516,58 @@ classdef AirQuant < handle % handle class
             end
             
             h = plot(G,'EdgeLabel',edgelabels, 'Layout', 'layered');
-%             h = plot(G, 'Layout', 'layered');
             h.NodeColor = 'r';
             h.EdgeColor = 'k';
             % check for error edges
             [~,~,erroredge] = DebugGraph(obj);
+            
+            % highlight by lobe colour if available
+            if isfield(obj.Glink, 'lobe')
+                [h, G] = SetGraphLobeColourmap(obj, h, G);
+            end
+            
+            h.LineWidth = 3;
+            
             if ~isempty(erroredge)
                 highlight(h,'Edges',erroredge,'EdgeColor','r');
             end
+            
+            
         end
+    
+        function [h, G] = SetGraphLobeColourmap(obj, h, G)
+            % set the colours of a network graph by lobe.
+            % G is the graph object and h is the plot.
+            % i.e. h = plot(G)
+            
+        % get lobe info
+            lobes = [obj.Glink(:).lobe];
+            % convert to graph indices
+            edgelobe = lobes(G.Edges.Label);
+            % convert labels into numbers
+            lobeid = {'B','RU','RM','RL','LU','LUlin','LL'};
+            cdata = zeros(size(edgelobe));
+            for ii = 1:length(cdata)
+                [~, ~, cdata(ii)] = intersect(edgelobe(ii),lobeid);
+            end
 
+            % set edge colour by index
+            G.Edges.EdgeColors = cdata';
+            h.EdgeCData = G.Edges.EdgeColors;
+
+            % set colours map and text
+            clims = [1 max(cdata(:))];
+            colorbarstring = 'Lobe';
+            colourshow = clims(1):clims(2);
+            colourlabels = lobeid;
+            maptype = 'qualitative';
+            map = linspecer(max(cdata(:)), maptype);
+            colormap(map)
+            c = colorbar('Ticks', colourshow, 'TickLabels', colourlabels);
+            c.Label.String = colorbarstring;
+            caxis(clims)
+        end
+        
         function PlotTree(obj, gen)
             % Plot the airway tree with nodes and links in image space. Set
             % gen to the maximum number of generations to show.
@@ -1588,32 +1629,6 @@ classdef AirQuant < handle % handle class
             
         end
         
-        function h = GraphPlotDiameter(obj)
-            % graph plot any variable for each airway as desired. i.e.
-            % provide var which is a vector the same length as the number
-            % of airways.
-            
-            G = obj.Gdigraph;
-            
-            if ~exist('obj.Specs.SegmentTaperResults', 'var')
-                tapertable = SegmentTaperAll(obj, [0 0]);
-            else
-                tapertable = obj.Specs.SegmentTaperResults;
-            end
-            
-            % generate corresponding edgelabels
-            edgelabels = G.Edges.Label;
-            edgevar = real(tapertable.inner_avg(G.Edges.Label));
-            
-            title('Average Inner lumen Diameter')
-            h = plot(G,'EdgeLabel',edgelabels, 'Layout', 'layered');
-            h.NodeColor = 'r';
-            h.EdgeColor = 'k';
-            
-            % set linewidth
-            edgevar(isnan(edgevar)) = 0.001;
-            h.LineWidth = edgevar;
-        end
         
         %%% Splines
         function PlotSplineTree(obj)
@@ -1943,6 +1958,110 @@ classdef AirQuant < handle % handle class
         fig.Position = [0.1,0.01,0.6,0.9];
         end
         
+        %%% Novel/tapering visualisation
+        function h = GraphPlotDiameter(obj)
+            % graph plot any variable for each airway as desired. i.e.
+            % provide var which is a vector the same length as the number
+            % of airways.
+            
+            G = obj.Gdigraph;
+            
+            if ~exist('obj.Specs.SegmentTaperResults', 'var')
+                tapertable = SegmentTaperAll(obj, [0 0]);
+            else
+                tapertable = obj.Specs.SegmentTaperResults;
+            end
+            
+            % generate corresponding edgelabels
+            edgelabels = G.Edges.Label;
+            edgevar = real(tapertable.inner_avg(G.Edges.Label));
+            
+            title('Average Inner lumen Diameter')
+            h = plot(G,'EdgeLabel',edgelabels, 'Layout', 'layered');
+            h.NodeColor = 'r';
+            h.EdgeColor = 'k';
+            
+            % set linewidth
+            edgevar(isnan(edgevar)) = 0.001;
+            h.LineWidth = edgevar;
+            
+            % highlight by lobe colour if available
+            if isfield(obj.Glink, 'lobe')
+                [h, G] = SetGraphLobeColourmap(obj, h, G);
+            end
+        end
+        
+        function h = LobeAvgPlot(obj, metric)
+            % visualise average of each generation across upper and lower
+            % lobes for intra/inter/avg values.
+            if ~exist('obj.Specs.SegmentTaperResults', 'var')
+                tapertable = SegmentTaperAll(obj, [0 0]);
+            else
+                tapertable = obj.Specs.SegmentTaperResults;
+            end
+            
+            switch metric % 2 = intra, 5 = avg, 8 = inter
+                case 'intra'
+                    metricidx = 2;
+                    ylab = 'Mean Intratapering (%)';
+                    
+                case 'avg'
+                    metricidx = 5;
+                    ylab = 'Mean diameter (mm)';
+                    
+                case 'inter'
+                    metricidx = 8;
+                    ylab = 'Mean Intertapering (%)';
+                    
+                otherwise
+                    error('choose either intra, avg or inter.')
+ 
+            end
+            % get max number of generations
+            maxgen = max(tapertable.generation);
+            
+            % set up upper lobe and lower lobe vars
+            ulobegenavg = nan(maxgen,1);
+            llobegenavg = nan(maxgen,1);
+
+            % loop through table and average per gen per upper/lower region
+            uLobelabels = {'RU', 'LU'};
+            lLobelabels = {'RL', 'LL'};
+            
+            for ii = 2:maxgen
+                currentgen = tapertable(tapertable.generation == ii,:);
+                ulobegenavg(ii) = mean(currentgen.(metricidx)(ismember(currentgen.lobe(:), uLobelabels)),'omitnan');
+                llobegenavg(ii) = mean(currentgen.(metricidx)(ismember(currentgen.lobe(:), lLobelabels)),'omitnan');
+            end
+            
+            % get valid gen indices and flip the upperlobe vals
+            ulidx = 1:maxgen;
+            llidx = 1:maxgen;
+            ulidx =  flip(ulidx(~isnan(ulobegenavg)));
+            llidx =  llidx(~isnan(llobegenavg));
+            ulobegenavg = flip(ulobegenavg);
+            
+            lidx = [ulidx,NaN, llidx];
+            y = [ulobegenavg(~isnan(ulobegenavg)); NaN; llobegenavg(~isnan(llobegenavg))];
+            
+            h = bar(y, 'k'); % plot dropping nans
+            ax = gca;
+            
+            ax.XTick = 1:length(lidx);
+            ax.XTickLabel = [ulidx,0,llidx];
+            xlabel('generation')
+            
+            xlab1 = 'Upper Lobes';
+            xlab2 = 'Lower Lobes';
+            annotation('textbox',[0 0 .1 .2],'String',xlab1,'EdgeColor','none')
+            annotation('textbox',[.9 0 .1 .2],'String',xlab2,'EdgeColor','none')
+            
+            axis tight      
+            ylabel(ylab);
+
+            
+        end
+       
         %% EXPORT METHODS
         % methods for exporting processed data.
         function exportlobes(obj, savename)
