@@ -54,11 +54,12 @@ classdef AirQuant < handle % handle class
             end
             
             if isfile(savename)
-                disp(['Found case stored at ', savename, ' loading ...'])
+                disp(['Found case stored at ', char(savename), ' loading ...'])
                 load(savename)
+                % rewrite stored path to given path
                 obj.savename = savename;
             else 
-                disp(['New case to be saved at ', savename, ' saving...'])
+                disp(['New case to be saved at ', char(savename), ' saving...'])
                 obj.CTinfo = CTinfo;
                 obj.CT = reorientvolume(CTimage, obj.CTinfo);                
                 % ensure no holes in segmentation
@@ -368,7 +369,10 @@ classdef AirQuant < handle % handle class
             % add lobe field to glink
             lobe = num2cell(lobes);
             [obj.Glink(:).lobe] = lobe{:};
-           
+            
+            % rewrite gen by lobe 
+            ReclassLobeGen(obj);
+            
             function classedgelobes(node, label)
                 % identify all edges from node outwards
                 [~, E] = bfsearch(G, node, 'edgetonew');
@@ -381,6 +385,53 @@ classdef AirQuant < handle % handle class
             [~, ~, E] = shortestpath(G, s, t);
             lobes(G.Edges.Label(E)) = {label};
             end
+        end
+        
+        function ReclassLobeGen(obj)
+            % Reclassifies airway generations by their lobe rather than
+            % global branch distance from carina. Called automatically once
+            % lobes have been classified.
+            
+            % loop through graph nodes
+            G = obj.Gdigraph;
+            gens = zeros(length(obj.Glink),1);
+            
+            % identify 'Branch' airways outside  of lobes. gen as 1.
+            gens(string({obj.Glink.lobe}) == 'B') = 1;
+            
+            % set trachea path to 0
+            gens(obj.trachea_path) = 0;
+            
+            % identify nodes w/ 'B' airway coming out.
+            Bawyidx = string({obj.Glink.lobe}) == 'B';
+            n2 = [obj.Glink.n2];
+            Bnodes = unique(n2(Bawyidx));
+            
+            % identify pathlength from closest Bnode for each airway, set
+            % as new gen number.
+            
+            for i = 1:height(G.Nodes)
+                if any(i == Bnodes) || i == 1
+                    continue
+                end
+                % get path from carina to current node
+                path = shortestpath(G, obj.carina_node, i);
+                % identify closes Bnode to current node.
+                [~, ~, ib] = intersect(Bnodes, path);
+                closestBnode = path(max(ib));
+                
+                % count gen from here.
+                generation = length(shortestpath(G, closestBnode, i));
+                edge_idx = inedges(G, i);
+                % assign generation from number of nodes traversed to out
+                % edges.
+                
+                gens(G.Edges.Label(edge_idx)) = generation;
+            end
+      
+            % rewrite gens field to glink
+            gens = num2cell(gens);
+            [obj.Glink(:).generation] = gens{:};
         end
         
         %% GRAPH NETWORK ANOMOLY ANALYSIS
