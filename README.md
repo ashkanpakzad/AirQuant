@@ -15,7 +15,7 @@ $ git clone https://github.com/ashkanpakzad/AirQuant.git
 * Example use: see [scripts/example.m](scripts/example.m)
 
 ## Development
-See [docs/main.md](docs/main.md).
+See [docs/](docs/).
 
 ## Packaged Dependencies
 * skel2graph3d-matlab (https://github.com/phi-max/skel2graph3d-matlab)

@@ -4,8 +4,9 @@
 % names input files, give fullpaths if not in matlab path
 % add AirQuant library to path
 AirQuantDir = AirQuantAddPath();
+dataset = 'example';
 casename = 'github_demo';
-results_dir = fullfile(AirQuantDir,'results', casename);
+results_dir = fullfile(AirQuantDir,'results', dataset, casename);
 
 %% Get filenames
 CT_name = [casename, '_raw.nii.gz'];
