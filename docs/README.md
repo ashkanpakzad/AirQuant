@@ -15,7 +15,7 @@ Example use can also be found in [scripts/](../scripts/) and example data is in 
 
 
 # Contents:
- * [Data and Initialisation](/docs/basic.md) - prepping data and initialisation an AirQuant object.
+ * [Data, Initialisation & Batching](/docs/basic.md) - prepping data and initialisation an AirQuant object.
  * [PTKskel: Skeletonisation](/docs/skel.md) - Skeletonisation and the packaged algorithm.
  * [CT Airway Interpolation](/docs/interp.md) - Interpolation of the CT along the airway principal axis.
  * [FWHMesl method](/docs/fwhm.md) - Measuring the airway.

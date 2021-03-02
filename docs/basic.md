@@ -38,7 +38,8 @@ For more information see [library/AirQuant.m](library/AirQuant.m) > methods > %%
 % add AirQuant library to path
 AirQuantDir = AirQuantAddPath();
 casename = 'github_demo';
-results_dir = fullfile(AirQuantDir,'results', casename);
+dataset = 'example'
+results_dir = fullfile(AirQuantDir,'results',dataset, casename);
 
 % Get filenames
 CT_name = [casename, '_raw.nii.gz'];
@@ -66,10 +67,45 @@ Previously saved AirQuant objects can be reloaded by calling the AirQuant class 
 ```
 % add AirQuant library to path
 AirQuantDir = AirQuantAddPath();
+dataset = 'example'
 casename = 'github_demo';
-results_dir = fullfile(AirQuantDir,'results', casename);
+results_dir = fullfile(AirQuantDir,'results', dataset, casename);
 
 % Load AirQuant object
 savename = fullfile(results_dir, [char(casename, '_AQ.mat']);
 AQ = AirQuant(savename);
+```
+
+## Batch Processing
+AirQuant comes packed with an extended batch function/script under [library/runAQ.m](library/runAQ.m).
+This function is designed to run AirQuant on several cases by providing a configuration structure.
+It will also run certain visualisation methods and save them to .fig and .png formats.
+For alternative batch scripting, it is recommended that you use this function as a template.
+An example configuration script can be found under [scripts/example_config.m](scripts/example_config.m).
+
+*Notes*
+
+* This requires all data to be stored exactly within `AirQuant/data/datasetname`.
+* The command line output of each case is saved in its own log file under  `AirQuant/data/datasetname/casename/casename_log.txt`.
+* If any of the CT, segmentation or skeletonisation datafiles do not exist, it will inform and skip but not throw an error. This is to prevent time wasted in extended jobs.
+* If the AQ object already exists in results, it will not skip but instead reload and process it. The AQ traversing method regularly saves the AQ object. If the job is interrupted it just picks up from where it left off.
+
+*Example*
+```
+AirQuantDir = AirQuantAddPath();
+
+%%% set up the config structure
+config = [];
+% must be string array, using double dash quotes.
+config.casenames = ["github_demo"]; % required
+config.dataset = 'example';
+
+% suffix of each file (these are defaults if not provided)
+config.CTsuf = '_raw.nii.gz';
+config.segsuf= '_seg.nii.gz';
+config.skelsuf = '_seg_PTKskel.nii.gz';
+
+%%% pass to AirQuant runner
+runAQ(config);
+
 ```
