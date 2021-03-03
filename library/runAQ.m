@@ -123,9 +123,14 @@ for ii = 1:length(casenames)
         saveas(GPD, fullfile(results_dir, [casename, '_AvgInnerDiameterGraph.png']));
         
         LAP = figure;
-        LobeAvgPlot(obj, 'avg')
+        LobeAvgPlot(AQ, 'avg')
         GraphPlotDiameter(AQ);
         saveas(LAP, fullfile(results_dir, [casename, '_AvgInnerDiameterBar.png']));
+        
+        % save taper analysis to csv
+        % save segment taper analysis to csv
+        SegmentTaperResults = SegmentTaperAll(AQ, [0 0]);
+        writetable(SegmentTaperResults, fullfile(results_dir, [casename, '_SegmentTaper.csv']));
         
         % reset
         disp(['Case: ', casename, ' complete.'])
