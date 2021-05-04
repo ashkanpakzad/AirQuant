@@ -290,7 +290,7 @@ classdef AirQuant < handle % handle class
             classedgelobes(LUL_L, 'LU')
 
             % assign branch from left lobe divider to upper itk node
-            classedgenonlobes(leftN, LUL_L, 'LU')
+            classedgenonlobes(leftN, LUL_L, 'B')
             
             % identify upper lobe and lingular
             LUL_LN = successors(G, LUL_L);
@@ -744,6 +744,7 @@ classdef AirQuant < handle % handle class
             % reclass given edges
             newlabels = repmat({lobelabel},1,length(GE));
             [obj.Glink(GE).lobe] = newlabels{:};
+            ReclassLobeGen(obj);
             end
         end
         
@@ -861,7 +862,7 @@ classdef AirQuant < handle % handle class
                     spline_t_points(i));
                 % get approx airway size from distance map
                 approx_diameter = ComputeDmapD(obj, CT_point);
-                % compute intepolated slice size
+                % compute interpolated slice size
                 plane_sz = ceil(approx_diameter*obj.plane_scaling_sz);
                 % use max plane size if current plane size exceeds it
                 if plane_sz > obj.max_plane_sz
@@ -1331,7 +1332,6 @@ classdef AirQuant < handle % handle class
             % prune ends
             prune = (al >= prunelength(1) & al <= al(end) - prunelength(2));
             al = al(prune);
-%             areas = areas(repmat(prune',1,3));
             coeff = NaN(2,3);
             % convert area to diameters
             diameters = sqrt(areas/pi)*2;
@@ -1661,7 +1661,7 @@ classdef AirQuant < handle % handle class
             [Y, X, Z] = ind2sub(size(obj.skel),ind);
             nums_link = string(vis_Glink_ind);
             %plot3(X,Y,Z, 'b.', 'MarkerFaceColor', 'none');
-            text(X+1,Y+1,Z+1, nums_link, 'Color', [0, 0.3, 0])
+%             text(X+1,Y+1,Z+1, nums_link, 'Color', [0, 0.3, 0])
             
             % nodes
             X_node = [vis_Gnode.comy];
@@ -1669,7 +1669,7 @@ classdef AirQuant < handle % handle class
             Z_node = [vis_Gnode.comz];
             nums_node = string(vis_Gnode_ind);
             plot3(X_node,Y_node,Z_node, 'r.', 'MarkerSize', 18, 'Color', 'r');
-            text(X_node+1,Y_node+1,Z_node+1, nums_node, 'Color', [0.8, 0, 0])
+             text(X_node+1,Y_node+1,Z_node+1, nums_node, 'Color', [0.8, 0, 0])
             
             %axis([0 size(obj.CT, 1) 0 size(obj.CT, 2) 0 size(obj.CT, 3)])
             view(80,0)
@@ -1880,9 +1880,9 @@ classdef AirQuant < handle % handle class
         
         function PlotSegSkel(obj)
         % plot segmentation and skeleton within each other.
-        patch(isosurface(obj.seg),'EdgeColor', 'none','FaceAlpha',0.3);
+        patch(isosurface(obj.seg),'EdgeColor', 'none','FaceAlpha',0.1);
         hold on
-        isosurface(obj.skel)
+        isosurface(obj.skel,'color','c')
         vol3daxes(obj)
         
         end
@@ -1940,13 +1940,15 @@ classdef AirQuant < handle % handle class
             canvas(min_centre+1:max_centre, min_centre+1:max_centre) = image;
             imagesc(canvas)
             colormap gray
+            axis square
+
             
             try % try block incase FWHMesl has not been executed.
                 % plot ray cast results
-                
-%                 plot(obj.FWHMesl{link_index, 1}{slide, 1}.x_points, obj.FWHMesl{link_index, 1}{slide, 1}.y_points,'r.')
+                hold on
+                plot(obj.FWHMesl{link_index, 1}{slide, 1}.x_points + min_centre, obj.FWHMesl{link_index, 1}{slide, 1}.y_points + min_centre,'r.')
 %                 plot(obj.FWHMesl{link_index, 2}{slide, 1}.x_points, obj.FWHMesl{link_index, 2}{slide, 1}.y_points,'c.')
-%                 plot(obj.FWHMesl{link_index, 3}{slide, 1}.x_points, obj.FWHMesl{link_index, 3}{slide, 1}.y_points,'y.')
+                plot(obj.FWHMesl{link_index, 3}{slide, 1}.x_points + min_centre, obj.FWHMesl{link_index, 3}{slide, 1}.y_points + min_centre,'y.')
                 
                 % plot ellipse fitting
                 ellipse(obj.FWHMesl{link_index, 1}{slide, 1}.elliptical_info(3),obj.FWHMesl{link_index, 1}{slide, 1}.elliptical_info(4),...
@@ -2024,7 +2026,7 @@ classdef AirQuant < handle % handle class
             end
             
             % generate corresponding edgelabels
-            edgelabels = G.Edges.Label;
+            edgelabels = [obj.Glink(G.Edges.Label).generation];
             edgevar = real(tapertable.inner_avg(G.Edges.Label));
             
             title('Average Inner lumen Diameter')
