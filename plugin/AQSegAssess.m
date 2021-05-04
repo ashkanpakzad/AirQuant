@@ -2,7 +2,7 @@
 % Parent function to set up and run AQ on several cases based on given
 % config file
 
-function runAQ(config)
+function AQSegAssess(config)
 
 % set config defaults if they dont exist
 checkfield('dataset', 'noset');
@@ -72,6 +72,8 @@ for ii = 1:length(casenames)
         
         AQ = AirQuant(CT, meta, S, skel, savename);
         
+        disp('SEGMENTATION ASSESSOR ONLY');
+        
         % Generate initial analysis figures and save
         skelf = figure;
         PlotSegSkel(AQ);
@@ -98,40 +100,12 @@ for ii = 1:length(casenames)
         saveas(ACf, fullfile(results_dir, [casename, '_AwyCount.png']))
         
         AClf = figure;
-        AirwayCounts(AQ, 'lobe', 1)
+        seg_lobegen = AirwayCounts(AQ, 'lobe', 1);
         saveas(AClf, fullfile(results_dir, [casename, '_AwyCountlobe.png']))
+        writetable(seg_lobegen, fullfile(results_dir, [casename, '_seg_lobegen.csv']))
         
-        % traverse all airways
-        % this could take a number of hours, results will be saved along the way so
-        % can be interrupted and rerun at a later time.
-        tic;
-        AirwayImageAll(AQ);
-        % show how long it took
-        disp(['Traversing total time: ', num2str(toc/60), ' mins']);
-        
-        % compute area of all airways
-        % This should only take a few minutes and automatically saves once all
-        % measurements are complete.
-        FindFWHMall(AQ);
-        save(AQ)
-        
-        SuccessReport(AQ);
-        
-        % generate post analysis figures
-        GPD = figure;
-        GraphPlotDiameter(AQ);
-        saveas(GPD, fullfile(results_dir, [casename, '_AvgInnerDiameterGraph.png']));
-        
-        LAP = figure;
-        LobeAvgPlot(AQ, 'avg')
-        GraphPlotDiameter(AQ);
-        saveas(LAP, fullfile(results_dir, [casename, '_AvgInnerDiameterBar.png']));
-        
-        % save taper analysis to csv
-        % save segment taper analysis to csv
-        SegmentTaperResults = SegmentTaperAll(AQ, [0 0]);
-        writetable(SegmentTaperResults, fullfile(results_dir, [casename, '_SegmentTaper.csv']));
-        
+        disp('SEGMENTATION ASSESSOR ONLY');
+      
         % reset
         disp(['Case: ', casename, ' complete.'])
         disp(datetime)
