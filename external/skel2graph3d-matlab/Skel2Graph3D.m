@@ -11,7 +11,12 @@ function [A,node,link] = Skel2Graph3D(skel,THR)
 %
 % For more information, see <a
 % href="matlab:web('http://uk.mathworks.com/matlabcentral/fileexchange/43527-skel2graph-3d')">Skel2Graph3D</a> at the MATLAB File Exchange.
-
+%
+%
+% Adapted by Ashkan Pakzad (ashkanpakzad.github.io) 2021 so that 
+% intermediate branches < THR are absorbed into nodes and all branches are 
+% properly > THR.
+%
 % pad volume with zeros
 skel=padarray(skel,[1 1 1]);
 
@@ -64,6 +69,16 @@ can_nb(:,1:end-2) = [];
 
 % add neighbours to canalicular voxel list (this might include nodes)
 cans = [cans can_nb];
+
+% identify if any branches < threshold, assign to node if so.
+tmp=false(w,l,h);
+tmp(cans)=1;
+tmp(nodes)=0;
+cctmp=bwconncomp(tmp); % number of unique nodes
+short_idx = find(cellfun(@length, cctmp.PixelIdxList) < THR);
+for ii = short_idx
+    nodes = [nodes; cctmp.PixelIdxList{1,ii}];
+end
 
 % group clusters of node voxels to nodes
 node=[];
@@ -119,6 +134,8 @@ c2n(cans(:,1))=1:size(cans,1);
 s2n=zeros(w*l*h,1);
 s2n(nhi(:,14))=1:size(nhi,1);
 
+% too_short = [];
+
 % visit all nodes
 for i=1:length(node)
 
@@ -141,15 +158,15 @@ for i=1:length(node)
             [vox,n_idx,ept] = pk_follow_link(skel2,node,i,j,link_cands(k),cans,c2n);
             skel2(vox(2:end-1))=0;
             if((ept && length(vox)>THR) || (~ept && i~=n_idx))
-                link(l_idx).n1 = i;
-                link(l_idx).n2 = n_idx; % node number
-                link(l_idx).point = vox;
-                link(l_idx).label = lm(vox(1));
-		node(i).links = [node(i).links, l_idx];
-                node(i).conn = [int16(node(i).conn), int16(n_idx)];
-                node(n_idx).links = [node(n_idx).links, l_idx];
-                node(n_idx).conn = [int16(node(n_idx).conn), int16(i)];
-                l_idx = l_idx + 1;
+                    link(l_idx).n1 = i;
+                    link(l_idx).n2 = n_idx; % node number
+                    link(l_idx).point = vox;
+                    link(l_idx).label = lm(vox(1));
+            node(i).links = [node(i).links, l_idx];
+                    node(i).conn = [int16(node(i).conn), int16(n_idx)];
+                    node(n_idx).links = [node(n_idx).links, l_idx];
+                    node(n_idx).conn = [int16(node(n_idx).conn), int16(i)];
+                    l_idx = l_idx + 1;
             end;
         end;
 
@@ -174,6 +191,7 @@ for i=1:length(node)
     end;
         
 end;
+
 
 % mark all 1-nodes as end points
 ep_idx = find(cellfun('length',{node.links})==1);
