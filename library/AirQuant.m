@@ -1173,8 +1173,7 @@ classdef AirQuant < handle % handle class
             highlight(h,'Edges',overextentedge, 'LineStyle', ':', 'LineWidth',1)
         end
      
-        %% TAPERING ANALYSIS METHODS (includeing volume)
-        % Analysis: Airway tapering metrics.
+        %% LEGACY: LONG AIRWAY TAPERING METRICS.
         
         % long tapering
         function [logtapergrad, cum_arclength, cum_area, edgepath] = ConstructTaperPath(obj, terminal_node_idx, type)
@@ -1286,7 +1285,8 @@ classdef AirQuant < handle % handle class
 %             end
         end
         
-        % segmental tapering
+        %% SEGMENTAL ANALYSIS METHODS
+        % segmental diameter tapering
         function [intrataper, averagediameter] = ComputeIntraTaperAll(obj, prunelength)
             if nargin < 2
                 prunelength = [0 0];
@@ -1472,6 +1472,31 @@ classdef AirQuant < handle % handle class
             end
         end
                 
+        % tortuosity Methods
+        function tortuosity = ComputeTortuosity(obj)
+            La = nan(size(obj.arclength));
+            Le = nan(size(La));
+            % get difference in euclidean coordinates for each branch.
+            for ii = 1:length(La)
+                if ii == obj.trachea_path
+                    continue
+                end
+                % get total arc-length
+                La(ii) = TotalSplineLength(obj.Splines{ii,1});
+                % get euclidean distance
+                [~, CT_point_1] = AirQuant.ComputeNormal(obj.Splines{ii,1}, ...
+                    obj.Splines{ii,2}(1));
+                [~, CT_point_end] = AirQuant.ComputeNormal(obj.Splines{ii,1}, ...
+                    obj.Splines{ii,2}(end));
+                Le(ii) = norm(CT_point_end - CT_point_1);
+
+            end
+            
+            % arclength / euclidean length
+            tortuosity = La./Le;
+        end
+        
+        % generate output
         function SegmentTaperResults = SegmentTaperAll(obj, prunelength)
             % high level function to compute the segmental tapering
             % measurement of all airways.
@@ -1480,6 +1505,7 @@ classdef AirQuant < handle % handle class
             [intrataper, avg] = ComputeIntraTaperAll(obj, prunelength);
             intertaper = ComputeInterTaper(obj, prunelength);
             vol_intertaper = ComputeInterIntegratedVol(obj, prunelength);
+            tortuosity = ComputeTortuosity(obj)
             
             % organise into column headings
             branch = [1:length(obj.Glink)]';
@@ -1499,13 +1525,13 @@ classdef AirQuant < handle % handle class
             inner_volinter = vol_intertaper(:, 1);
             peak_volinter = vol_intertaper(:, 2);
             outer_volinter = vol_intertaper(:, 3);
-
             
             % convert to table
             SegmentTaperResults = table(branch, inner_intra, peak_intra, ...
                 outer_intra, inner_avg, peak_avg, outer_avg, ...
                 inner_inter, peak_inter, outer_inter,...
-                inner_volinter, peak_volinter, outer_volinter);
+                inner_volinter, peak_volinter, outer_volinter, ...
+                tortuosity);
             
             % add gen info
             SegmentTaperResults.generation = [obj.Glink.generation]';
@@ -1519,7 +1545,9 @@ classdef AirQuant < handle % handle class
             % Save to AQ object
             obj.Specs.SegmentTaperResults = SegmentTaperResults;
         end
-
+        
+        
+        
         %% TAPERING VISUALISATION METHODS
         % Visualisation: viewing results of taper metrics.
         function PlotTaperResults(obj, terminal_node_idx, type)
@@ -1548,6 +1576,7 @@ classdef AirQuant < handle % handle class
             ylabel('Area (mm^2)')
             txt = sprintf('%s log taper graph; Terminal-node: %d; LogTaperGrad: %0.3g',typetxt, terminal_node_idx,logtapergrad);
             title(txt)
+        end
             
             function logtapergrad = plottaperunderfunc(obj, terminal_node_idx, type)
             [logtapergrad, cum_arclength, cum_area, ~] = ConstructTaperPath(obj, terminal_node_idx, type);
@@ -1559,7 +1588,7 @@ classdef AirQuant < handle % handle class
             xlabel('Arc-length (mm)')
             legend('Measured', 'Log curve fit')
         end
-        end
+        
         
         function TaperBoxPlot(obj, type)
             % requires lobe classification
@@ -2291,7 +2320,7 @@ classdef AirQuant < handle % handle class
             writematrix(innerdiameters, ['InnerDiameters_',savename, '.csv']);
 
         end
-    end
+end
     %% STATIC METHODS
     methods (Static)
         function [normal, CT_point] = ComputeNormal(spline, point)
