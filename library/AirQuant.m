@@ -119,7 +119,8 @@ classdef AirQuant < handle % handle class
                 obj.skel = reorientvolume(skel, obj.CTinfo);
             end
             % create graph from skeleton.
-            [obj.Gadj,obj.Gnode,obj.Glink] = Skel2Graph3D(obj.skel,0);
+            [obj.Gadj,obj.Gnode,obj.Glink] = Skel2Graph3D(obj.skel,4);
+            % airways <=3 voxels are not considered
             
         end
        
@@ -230,7 +231,8 @@ classdef AirQuant < handle % handle class
             obj.trachea_path=table2array(SG.Edges(:, {'Label'}));
         end
         
-        function obj = ComputeAirwayGen(obj)
+        function obj = ComputeAirwayGen(obj)            
+            
             % loop through graph nodes
             G = obj.Gdigraph;
             gens = zeros(length(obj.Glink),1);
@@ -274,7 +276,7 @@ classdef AirQuant < handle % handle class
             classedgenonlobes(obj.carina_node, leftN, 'B')
             classedgenonlobes(obj.carina_node, rightN, 'B')
                         
-            % % Identify node of upper-lingular and lower left lobe 'LL'
+            % % Identify node of upper-lingular and lower left lobe 'LLL'
             LlungN = successors(G, leftN);
             
             if obj.Gnode(LlungN(1)).comz > obj.Gnode(LlungN(2)).comz
@@ -286,8 +288,8 @@ classdef AirQuant < handle % handle class
             end
             
             % Assign branches of the lower left lobe
-            classedgelobes(LLLN, 'LL')
-            classedgelobes(LUL_L, 'LU')
+            classedgelobes(LLLN, 'LLL')
+            classedgelobes(LUL_L, 'LUL')
 
             % assign branch from left lobe divider to upper itk node
             classedgenonlobes(leftN, LUL_L, 'B')
@@ -304,8 +306,8 @@ classdef AirQuant < handle % handle class
             end
             
             % assign branches of the upper left lobe.
-            classedgelobes(LULN, 'LU')
-            classedgelobes(LN, 'LUlin')
+            classedgelobes(LULN, 'LUL')
+            classedgelobes(LN, 'LML')
                         
             % % Identify right upper lobe
             RlungN = successors(G, rightN);
@@ -313,7 +315,7 @@ classdef AirQuant < handle % handle class
             RULN = RlungN(I);
             
             % class branches of right upper lobe
-            classedgelobes(RULN, 'RU')
+            classedgelobes(RULN, 'RUL')
             
             % % Identify mid and lower lobes in right lung
             switch length(RlungN) 
@@ -330,7 +332,7 @@ classdef AirQuant < handle % handle class
                         RlungN2 = successors(G, RlungN(RlungN ~= RULN));
                         [~, I] = max([obj.Gnode(RlungN2).comz]);
                         RULN2 = RlungN2(I);
-                        classedgelobes(RULN2, 'RU')
+                        classedgelobes(RULN2, 'RUL')
                         Gsub = subgraph(G,bfsearch(G,RlungN2(RlungN2~=RULN2)));
                     else
                         % create subgraph of following nodes
@@ -360,11 +362,11 @@ classdef AirQuant < handle % handle class
             classedgenonlobes(rightN, RML_RLLN, 'B')
             % identify RML node
             RMLN = RML_endpath(min(I)-1);
-            % assign labels to RM edges, not RL
-            classedgelobes(RMLN, 'RM') 
+            % assign labels to RML edges, not RLL
+            classedgelobes(RMLN, 'RML') 
             
             % assign remaining labels to RLL
-            lobes(cellfun(@isempty,lobes)) = {'RL'};
+            lobes(cellfun(@isempty,lobes)) = {'RLL'};
             
             % add lobe field to glink
             lobe = num2cell(lobes);
@@ -1171,7 +1173,7 @@ classdef AirQuant < handle % handle class
             highlight(h,'Edges',overextentedge, 'LineStyle', ':', 'LineWidth',1)
         end
      
-        %% TAPERING ANALYSIS METHODS
+        %% TAPERING ANALYSIS METHODS (includeing volume)
         % Analysis: Airway tapering metrics.
         
         % long tapering
@@ -1390,13 +1392,94 @@ classdef AirQuant < handle % handle class
 
         end
         
+        % segmental volume tapering
+        function vol = ComputeIntegratedVol(obj, prunelength, idx)
+            % Compute the intertapering value for all airways based on
+            % integrated volume along airway. 
+            
+            if nargin < 2
+                prunelength = [0 0];
+            end
+
+            % loop through each segment
+            vol = NaN(1, 3);
+            
+            % get arclength
+            arcL = obj.arclength{idx, 1};
+            
+            % get branch radii
+            areas = zeros(length(obj.FWHMesl{idx,1}), 3);
+            for jj = 1:length(areas)
+                try % incase area is NaN
+                    areas(jj,1) = obj.FWHMesl{idx, 1}{jj, 1}.area;
+                    areas(jj,2) = obj.FWHMesl{idx, 2}{jj, 1}.area;
+                    areas(jj,3) = obj.FWHMesl{idx, 3}{jj, 1}.area;
+                catch
+                    areas(jj,1) = NaN;
+                    areas(jj,2) = NaN;
+                    areas(jj,3) = NaN;
+                end
+            end
+            
+            % prune ends
+            prune = (arcL >= prunelength(1) & arcL <= arcL(end) - prunelength(2));
+            arcL = arcL(prune);
+            % convert area to diameters
+            for jj = 1:3
+                try % incase no branch left after pruning/too few points
+                    % vector of areas
+                    Avec = areas(prune,jj);
+                    al = arcL;
+                    % remove any nan measurements and let integration
+                    % 'fill' it in.
+                    al(isnan(Avec)) = [];
+                    Avec(isnan(Avec)) = [];
+                    % integrate arclength against diameter to get volume
+                    vol(jj) = trapz(al, Avec);
+                catch
+                    % leave as NaN
+                end
+            end
+        end
+                
+        function vol_intertaper = ComputeInterIntegratedVol(obj, prunelength)
+            % Compute the intertapering value for all airways based on
+            % integrated volume along airway.
+            
+            if nargin < 2
+                prunelength = [0 0];
+            end
+
+            % loop through branches
+            allvol = NaN(length(obj.arclength), 3);
+            vol_intertaper = NaN(length(obj.arclength), 3);
+
+            for ii = 1:length(obj.arclength)
+                if ii == obj.trachea_path
+                    continue
+                end
+                [allvol(ii,:)] = ComputeIntegratedVol(obj, prunelength, ii);
+            end
+            
+            for ii = 1:length(obj.arclength)
+                if ii == obj.trachea_path
+                    continue
+                end
+                % identify parent by predecessor node
+                parent = find([obj.Glink.n2] == obj.Glink(ii).n1);
+                vol_intertaper(ii,:) = (allvol(parent, :) - allvol(ii,:))...
+                    ./(allvol(parent, :)) * 100;
+            end
+        end
+                
         function SegmentTaperResults = SegmentTaperAll(obj, prunelength)
             % high level function to compute the segmental tapering
             % measurement of all airways.
             
             % compute taper results by segment
             [intrataper, avg] = ComputeIntraTaperAll(obj, prunelength);
-            intertaper = ComputeInterTaper(obj, avg);
+            intertaper = ComputeInterTaper(obj, prunelength);
+            vol_intertaper = ComputeInterIntegratedVol(obj, prunelength);
             
             % organise into column headings
             branch = [1:length(obj.Glink)]';
@@ -1413,10 +1496,16 @@ classdef AirQuant < handle % handle class
             peak_inter = intertaper(:, 2);
             outer_inter = intertaper(:, 3);
             
+            inner_volinter = vol_intertaper(:, 1);
+            peak_volinter = vol_intertaper(:, 2);
+            outer_volinter = vol_intertaper(:, 3);
+
+            
             % convert to table
             SegmentTaperResults = table(branch, inner_intra, peak_intra, ...
                 outer_intra, inner_avg, peak_avg, outer_avg, ...
-                inner_inter, peak_inter, outer_inter);
+                inner_inter, peak_inter, outer_inter,...
+                inner_volinter, peak_volinter, outer_volinter);
             
             % add gen info
             SegmentTaperResults.generation = [obj.Glink.generation]';
@@ -1430,7 +1519,7 @@ classdef AirQuant < handle % handle class
             % Save to AQ object
             obj.Specs.SegmentTaperResults = SegmentTaperResults;
         end
-        
+
         %% TAPERING VISUALISATION METHODS
         % Visualisation: viewing results of taper metrics.
         function PlotTaperResults(obj, terminal_node_idx, type)
@@ -1596,7 +1685,7 @@ classdef AirQuant < handle % handle class
             % convert to graph indices
             edgelobe = lobes(G.Edges.Label);
             % convert labels into numbers
-            lobeid = {'B','RU','RM','RL','LU','LUlin','LL'};
+            lobeid = {'B','RUL','RML','RLL','LUL','LML','LLL'};
             cdata = zeros(size(edgelobe));
             for ii = 1:length(cdata)
                 [~, ~, cdata(ii)] = intersect(edgelobe(ii),lobeid);
@@ -1660,8 +1749,8 @@ classdef AirQuant < handle % handle class
             end
             [Y, X, Z] = ind2sub(size(obj.skel),ind);
             nums_link = string(vis_Glink_ind);
-            %plot3(X,Y,Z, 'b.', 'MarkerFaceColor', 'none');
-%             text(X+1,Y+1,Z+1, nums_link, 'Color', [0, 0.3, 0])
+            plot3(X,Y,Z, 'b.', 'MarkerFaceColor', 'none');
+            text(X+1,Y+1,Z+1, nums_link, 'Color', [0, 0.3, 0])
             
             % nodes
             X_node = [vis_Gnode.comy];
@@ -1802,7 +1891,7 @@ classdef AirQuant < handle % handle class
 
                 case 'lobe'
                     % convert lobe id to number
-                    lobeid = {'B','RU','RM','RL','LU','LUlin','LL'};
+                    lobeid = {'B','RUL','RML','RLL','LUL','LML','LLL'};
                     for i = 1:length(obj.Glink)
                         cdata(branch_seg == i) = find(strcmp(lobeid, obj.Glink(i).lobe));
                     end
@@ -1854,7 +1943,7 @@ classdef AirQuant < handle % handle class
                     end
                 case 'lobe'
                     % convert lobe id to number
-                    lobeid = {'B','RU','RM','RL','LU','LUlin','LL'};
+                    lobeid = {'B','RUL','RML','RLL','LUL','LML','LLL'};
                     for i = 1:length(obj.Glink)
                         labelvol(branch_seg == i) = find(strcmp(lobeid, obj.Glink(i).lobe))-1;
                     end
@@ -2078,8 +2167,8 @@ classdef AirQuant < handle % handle class
             llobegenavg = nan(maxgen,1);
 
             % loop through table and average per gen per upper/lower region
-            uLobelabels = {'RU', 'LU'};
-            lLobelabels = {'RL', 'LL'};
+            uLobelabels = {'RUL', 'LUL'};
+            lLobelabels = {'RLL', 'LLL'};
             
             for ii = 2:maxgen
                 currentgen = tapertable(tapertable.generation == ii,:);
@@ -2122,7 +2211,7 @@ classdef AirQuant < handle % handle class
             
             % classify by branch first
             branch_seg = ClassifySegmentation(obj);
-            lobeid = {'B','RU','RM','RL','LU','LUlin','LL'};
+            lobeid = {'B','RUL','RML','RLL','LUL','LML','LLL'};
             lobe_airway_seg = zeros(size(obj.seg));
             
             % convert branch classification to lobe classification
@@ -2139,7 +2228,7 @@ classdef AirQuant < handle % handle class
             header = obj.CTinfo;
             header.Datatype = 'uint8';
             header.BitsPerPixel = '8';
-            header.Description = 'Airway Lobe Segmentation using AirQuant, layers: B,RU,RM,RL,LU,LUlin,LL';
+            header.Description = 'Airway Lobe Segmentation using AirQuant, layers: B,RUL,RML,RLL,LUL,LML,LLL';
             
             niftiwrite(lobe_airway_seg, savename, header, 'Compressed', true);
         end
@@ -2326,7 +2415,7 @@ classdef AirQuant < handle % handle class
         
         function labels = LobeLabels()
             % returns cell of lobe lables used in AirQuant
-            labels = {'RU','RM','RL','LU','LUlin','LL'};
+            labels = {'RUL','RML','RLL','LUL','LML','LLL'};
         end
     end
 end
