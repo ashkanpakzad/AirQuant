@@ -119,7 +119,7 @@ classdef AirQuant < handle % handle class
                 obj.skel = reorientvolume(skel, obj.CTinfo);
             end
             % create graph from skeleton.
-            [obj.Gadj,obj.Gnode,obj.Glink] = Skel2Graph3D(obj.skel,4);
+            [obj.Gadj,obj.Gnode,obj.Glink] = Skel2Graph3D(obj.skel,0);
             % airways <=3 voxels are not considered
             
         end
@@ -1392,6 +1392,49 @@ classdef AirQuant < handle % handle class
 
         end
         
+        function lobar_intertaper = ComputeLobarInterTaper(obj, prunelength)
+            % TODO: great potential for improving efficiency.
+            % Compare every lobar airway with the diameter of the first
+            % airway of that lobe.
+
+            if nargin < 2
+                prunelength = [0 0];
+            end
+            
+            % Check if lobe algorithm was successful, fail if not.
+            if ~isfield(obj.Glink, 'lobe')
+                warning('ComputeLobarInterTaper failed, run lobe classification successfully first.')
+            end
+            
+            % use output from intrataperall
+            [~, averagediameter] = ComputeIntraTaperAll(obj, prunelength);
+            indexed_lobes = convertCharsToStrings([obj.Glink.lobe]);
+            % loop through branches
+            labels = AirQuant.LobeLabels();
+            lobar_intertaper = NaN(length(obj.arclength), 3);
+            for iii = 1:length(labels)
+                current_lobe = labels(iii);
+                lobe_idx = find(indexed_lobes == current_lobe);
+                
+                for ii = lobe_idx
+                    if obj.Glink(ii).generation < 3
+                        continue
+                    end
+                    
+                    % identify avg vol of 2nd lobe gen
+                    s2nd_branch = find([obj.Glink.generation] == 2 & indexed_lobes == current_lobe);
+                    for jj = 1:3
+                        s2nd_vol = mean(averagediameter(s2nd_branch, jj),'omitnan');
+                        % identify parent by predecessor node
+                        lobar_intertaper(ii,jj) = ((s2nd_vol - averagediameter(ii,jj))...
+                            /(s2nd_vol)) * 100;
+                    end
+                end
+                
+            end
+            
+        end
+        
         % segmental volume tapering
         function vol = ComputeIntegratedVol(obj, prunelength, idx)
             % Compute the intertapering value for all airways based on
@@ -1505,7 +1548,9 @@ classdef AirQuant < handle % handle class
             [intrataper, avg] = ComputeIntraTaperAll(obj, prunelength);
             intertaper = ComputeInterTaper(obj, prunelength);
             vol_intertaper = ComputeInterIntegratedVol(obj, prunelength);
-            tortuosity = ComputeTortuosity(obj)
+            tortuosity = ComputeTortuosity(obj);
+            lobar_intertaper = ComputeLobarInterTaper(obj, prunelength);
+            
             
             % organise into column headings
             branch = [1:length(obj.Glink)]';
@@ -1522,6 +1567,10 @@ classdef AirQuant < handle % handle class
             peak_inter = intertaper(:, 2);
             outer_inter = intertaper(:, 3);
             
+            inner_lobeinter = lobar_intertaper(:, 1);
+            peak_lobeinter = lobar_intertaper(:, 2);
+            outer_lobeinter = lobar_intertaper(:, 3);
+
             inner_volinter = vol_intertaper(:, 1);
             peak_volinter = vol_intertaper(:, 2);
             outer_volinter = vol_intertaper(:, 3);
@@ -1531,6 +1580,7 @@ classdef AirQuant < handle % handle class
                 outer_intra, inner_avg, peak_avg, outer_avg, ...
                 inner_inter, peak_inter, outer_inter,...
                 inner_volinter, peak_volinter, outer_volinter, ...
+                inner_lobeinter, peak_lobeinter, outer_lobeinter, ...                
                 tortuosity);
             
             % add gen info
@@ -2146,6 +2196,35 @@ classdef AirQuant < handle % handle class
             % generate corresponding edgelabels
             edgelabels = [obj.Glink(G.Edges.Label).generation];
             edgevar = real(tapertable.inner_avg(G.Edges.Label));
+            
+            title('Average Inner lumen Diameter')
+            h = plot(G,'EdgeLabel',edgelabels, 'Layout', 'layered');
+            h.NodeColor = 'r';
+            h.EdgeColor = 'k';
+            
+            % set linewidth
+            edgevar(isnan(edgevar)) = 0.001;
+            h.LineWidth = edgevar;
+            
+            % highlight by lobe colour if available
+            if isfield(obj.Glink, 'lobe')
+                [h, G] = SetGraphLobeColourmap(obj, h, G);
+            end
+        end
+        
+        function h = GraphPlot(obj, thickness_var, label_var)
+            if nargin < 3
+                label_var = 1:length(obj.Glink);
+            end
+            % graph plot any variable for each airway as desired. i.e.
+            % provide var which is a vector the same length as the number
+            % of airways.
+            
+            G = obj.Gdigraph;
+            
+            % generate corresponding edgelabels
+            edgelabels = label_var(G.Edges.Label);
+            edgevar = thickness_var(G.Edges.Label);
             
             title('Average Inner lumen Diameter')
             h = plot(G,'EdgeLabel',edgelabels, 'Layout', 'layered');
