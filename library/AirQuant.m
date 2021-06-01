@@ -958,19 +958,9 @@ classdef AirQuant < handle % handle class
             for k = 1:slices_sz
                 try
                     % * Compute airway centre
-                    % Check that airway centre is slice centre
-                    center = ...
-                        Return_centre_pt_image(...
-                        obj.TraversedSeg{link_index, 1}{k,1});
-                    
-                    % Recompute new centre if necessary
-                    [centre_ind , new_centre] =  ...
-                        Check_centre_with_segmentation(...
+                    center =  AirwayCenter(...
                         obj.TraversedImage{link_index, 1}{k,1}, ...
                         obj.TraversedSeg{link_index, 1}{k,1});
-                    if ~centre_ind
-                        center = fliplr(new_centre);
-                    end
                     
                     % * Raycast
                     [CT_rays, seg_rays, coords]= Raycast(obj, ...
@@ -2436,12 +2426,10 @@ end
             
             %Need to find the length of the ray - this need a loop
             number_of_rays = size(CT_rays,2);
-            FWHMl_x = [];
-            FWHMl_y = [];
-            FWHMp_x = [];
-            FWHMp_y = [];
-            FWHMr_x = [];
-            FWHMr_y = [];
+            
+            FWHMl_r = nan(number_of_rays, 1);
+            FWHMp_r = nan(number_of_rays, 1);
+            FWHMr_r = nan(number_of_rays, 1);
             
             %performing a loop
             for ray = 1:number_of_rays
@@ -2452,13 +2440,14 @@ end
                 % * Find the edge of the interpolated segmentation.
                 if seg_profile(1) < 0.5
                     continue % skip if seg edge does not exist
-%                 elseif seg_profile(length(seg_profile)) > 0.5
-%                     % set to slice edge if segmentation exceeds slice
-%                     seg_half = length(ind_ray);
-                else
-                    % Identify the last vaule that is above the 0.5
-                    ind_ray = (seg_profile < 0.5);
-                    seg_half = find(ind_ray,1);
+                end
+
+                % Identify the last vaule that is above the 0.5
+                ind_ray = (seg_profile < 0.5);
+                seg_half = find(ind_ray,1);
+                
+                if all(ind_ray ~= 1)
+                    continue % skip if fail to find point <0.5
                 end
                 
                 % * Find FWHM peak
@@ -2504,18 +2493,34 @@ end
                 threshold_int_right = ...
                     (CT_profile(FWHMp) + CT_profile(FWHMo))/2;
                 FWHMr = Finding_midpoint_stop_right(CT_profile,threshold_int_right,FWHMo,FWHMp);
-                
-                % TODO: add same anomaly detection as before.
-                
+                                
                 % concat points together
-                FWHMl_x = cat(1,FWHMl_x,coords(FWHMl, ray, 1));
-                FWHMl_y = cat(1,FWHMl_y,coords(FWHMl, ray, 2));
-                FWHMp_x = cat(1,FWHMp_x,coords(FWHMp, ray, 1));
-                FWHMp_y = cat(1,FWHMp_y,coords(FWHMp, ray, 2));
-                FWHMr_x = cat(1,FWHMr_x,coords(FWHMr, ray, 1));
-                FWHMr_y = cat(1,FWHMr_y,coords(FWHMr, ray, 2));
+                FWHMl_r(ray) = FWHMl;
+                FWHMp_r(ray) = FWHMp;
+                if isempty(FWHMr) % in case right peak not within profile
+                    FWHMr = NaN;
+                end
+                FWHMr_r(ray) = FWHMr;
+
             end
             
+            % anomaly correction on inner ONLY
+            [~,anomalies] = rmoutliers(FWHMl_r, 'median');
+            valid_rays = 1:number_of_rays;
+            valid_rays = valid_rays(~anomalies)';
+            FWHMl_r = FWHMl_r(~anomalies);
+            FWHMp_r = FWHMp_r(~anomalies);
+            FWHMr_r = FWHMr_r(~anomalies);
+
+            % convert radial index into plane coordinates
+            FWHMl_x = DualIndex(coords(:,:,1), FWHMl_r, valid_rays);
+            FWHMl_y = DualIndex(coords(:,:,2), FWHMl_r, valid_rays);
+            FWHMp_x = DualIndex(coords(:,:,1), FWHMp_r, valid_rays);
+            FWHMp_y = DualIndex(coords(:,:,2), FWHMp_r, valid_rays);
+            FWHMr_x = DualIndex(coords(:,:,1), FWHMr_r, valid_rays);
+            FWHMr_y = DualIndex(coords(:,:,2), FWHMr_r, valid_rays);
+            
+            % output
             FWHMl = cat(2, FWHMl_x, FWHMl_y);
             FWHMp = cat(2, FWHMp_x, FWHMp_y);
             FWHMr = cat(2, FWHMr_x, FWHMr_y);
