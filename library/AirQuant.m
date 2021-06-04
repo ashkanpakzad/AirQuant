@@ -953,6 +953,8 @@ classdef AirQuant < handle % handle class
             raycast_FWHMl = cell(slices_sz, 1);
             raycast_FWHMp = cell(slices_sz, 1);
             raycast_FWHMr = cell(slices_sz, 1);
+            raycast_center = cell(slices_sz, 1);
+
             
             % For every traversed slice
             for k = 1:slices_sz
@@ -980,17 +982,21 @@ classdef AirQuant < handle % handle class
                     raycast_FWHMl{k,1} = FWHMl_ellipse;
                     raycast_FWHMp{k,1} = FWHMp_ellipse;
                     raycast_FWHMr{k,1} = FWHMr_ellipse;
+                    raycast_center{k,1} = center;
                 catch
                     % segmentation exceeds interpolated slice therefore no
                     % measurement recorded.
                     raycast_FWHMl{k,1} = NaN;
                     raycast_FWHMp{k,1} = NaN;
                     raycast_FWHMr{k,1} = NaN;
+                    raycast_center{k,1} = NaN;
                 end
             end
             obj.FWHMesl{link_index, 1} = raycast_FWHMl;
             obj.FWHMesl{link_index, 2} = raycast_FWHMp;
             obj.FWHMesl{link_index, 3} = raycast_FWHMr;
+            obj.FWHMesl{link_index, 4} = raycast_center;
+            
         end
         
         function [CT_rays, seg_rays, coords] = Raycast(obj, interpslice, interpseg, center)
@@ -1326,7 +1332,7 @@ classdef AirQuant < handle % handle class
             al = al(prune);
             coeff = NaN(2,3);
             % convert area to diameters
-            diameters = sqrt(areas/pi)*2;
+            diameters = real(sqrt(areas/pi)*2);
             for jj = 1:3
                 try % incase no branch left after pruning/too few points
                     Dvec = diameters(prune,jj);
@@ -1335,7 +1341,7 @@ classdef AirQuant < handle % handle class
                     % compute intra-branch tapering as percentage
                     intrataper(jj) = -coeff(2,jj)/coeff(1,jj) * 100;
                     % compute average area
-                    averagediameter(jj) = mean(Dvec, 'omitnan');
+                    averagediameter(jj) = trimmean(Dvec, 10);
                 catch
                     % leave as NaN
                 end
@@ -2122,6 +2128,9 @@ classdef AirQuant < handle % handle class
                     obj.FWHMesl{link_index, 3}{slide, 1}.elliptical_info(2)+min_centre,'y');
                 %TODO: set third colour more appropiately
                 
+                plot(obj.FWHMesl{link_index, 4}{slide, 1}(1)+min_centre,...
+                    obj.FWHMesl{link_index, 4}{slide, 1}(2)+min_centre, ...
+                    '.g', 'MarkerSize',20)
             catch
                 % warning('No FWHMesl data, showing slices without elliptical information.')
             end
