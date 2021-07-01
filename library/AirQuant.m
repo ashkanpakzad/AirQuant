@@ -16,7 +16,7 @@ classdef AirQuant < handle % handle class
         plane_scaling_sz = 5; % scale airway diameter approx measurement.
         min_tube_sz % smallest measurable lumen Diameter.
         %%% Ray params
-        num_rays = 50; % check methods
+        num_rays = 180; % check methods
         ray_interval = 0.2; % check methods
 
     end
