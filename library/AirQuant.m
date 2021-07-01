@@ -103,6 +103,9 @@ classdef AirQuant < handle % handle class
                 catch
                     warning('Airway classification by Lobe unsuccessful. Lobe dependent functions will not work.')
                 end
+                % calculate branch characteristics. (lengths and
+                % parent/child).
+                ComputeBranchCharacteristics(obj)
                 % save class
                 obj.savename = savename;
                 save(obj)
@@ -201,6 +204,31 @@ classdef AirQuant < handle % handle class
             obj.Gdigraph.Nodes.comz(:) = [obj.Gnode(:).comz];
             obj.Gdigraph.Nodes.ep(:) = [obj.Gnode(:).ep];
             obj.Gdigraph.Nodes.label(:) = [1:length(obj.Gnode)]';
+        end
+        
+        function obj = ComputeBranchCharacteristics(obj)
+            % Add parent and child links, and calculate length of airways.
+            % Add these to Glink to keep track of airway characteristics.
+            for link_index = 1:length(obj.Glink)
+                % add parent idx column for each branch
+                obj.Glink(link_index).parent_idx = find([obj.Glink(:).n2] == obj.Glink(link_index).n1);
+                obj.Glink(link_index).child_idx = find(obj.Glink(link_index).n2 == [obj.Glink(:).n1]);
+                % compute splines
+                if link_index == obj.trachea_path
+                    continue
+                end
+                ComputeSpline(obj, link_index);
+                ComputeSplinePoints(obj, link_index);
+            end
+            
+            % add arc and euc lengths to GLink
+            [tortuosity, La, Le] = ComputeTortuosity(obj);
+            La = num2cell(La);
+            [obj.Glink(:).tot_arclength] = La{:};
+            Le = num2cell(Le);
+            [obj.Glink(:).tot_euclength] = Le{:};
+            tortuosity = num2cell(tortuosity);
+            [obj.Glink(:).tortuosity] = tortuosity{:};
             
         end
         
@@ -1591,8 +1619,6 @@ classdef AirQuant < handle % handle class
             % Save to AQ object
             obj.Specs.SegmentTaperResults = SegmentTaperResults;
         end
-        
-        
         
         %% TAPERING VISUALISATION METHODS
         % Visualisation: viewing results of taper metrics.
