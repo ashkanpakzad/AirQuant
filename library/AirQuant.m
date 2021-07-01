@@ -1512,7 +1512,8 @@ classdef AirQuant < handle % handle class
         end
                 
         % tortuosity Methods
-        function tortuosity = ComputeTortuosity(obj)
+        function [tortuosity, La, Le] = ComputeTortuosity(obj)
+            % La = Arclengths; Le = Euclidean lengths
             La = nan(size(obj.arclength));
             Le = nan(size(La));
             % get difference in euclidean coordinates for each branch.
@@ -1528,7 +1529,6 @@ classdef AirQuant < handle % handle class
                 [~, CT_point_end] = AirQuant.ComputeNormal(obj.Splines{ii,1}, ...
                     obj.Splines{ii,2}(end));
                 Le(ii) = norm(CT_point_end - CT_point_1);
-
             end
             
             % arclength / euclidean length
@@ -1544,7 +1544,7 @@ classdef AirQuant < handle % handle class
             [intrataper, avg] = ComputeIntraTaperAll(obj, prunelength);
             intertaper = ComputeInterTaper(obj, prunelength);
             vol_intertaper = ComputeInterIntegratedVol(obj, prunelength);
-            tortuosity = ComputeTortuosity(obj);
+            [tortuosity, arc_length, euc_length] = ComputeTortuosity(obj);
             lobar_intertaper = ComputeLobarInterTaper(obj, prunelength);
             
             
@@ -1577,7 +1577,7 @@ classdef AirQuant < handle % handle class
                 inner_inter, peak_inter, outer_inter,...
                 inner_volinter, peak_volinter, outer_volinter, ...
                 inner_lobeinter, peak_lobeinter, outer_lobeinter, ...                
-                tortuosity);
+                tortuosity, arc_length, euc_length);
             
             % add gen info
             SegmentTaperResults.generation = [obj.Glink.generation]';
@@ -1825,7 +1825,7 @@ classdef AirQuant < handle % handle class
             [Y, X, Z] = ind2sub(size(obj.skel),ind);
             nums_link = string(vis_Glink_ind);
             plot3(X,Y,Z, 'b.', 'MarkerFaceColor', 'none');
-            text(X+1,Y+1,Z+1, nums_link, 'Color', [0, 0.3, 0])
+            text(X+1,Y+1,Z+1, nums_link, 'Color', [0, 0, 0.8])
             
             % nodes
             X_node = [vis_Gnode.comy];
