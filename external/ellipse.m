@@ -26,7 +26,7 @@
 % POSSIBILITY OF SUCH DAMAGE.
 
 
-function h=ellipse(ra,rb,ang,x0,y0,C,Nb)
+function h=ellipse(ra,rb,ang,x0,y0,C,Nb,ax)
 % Ellipse adds ellipses to the current plot
 %
 % ELLIPSE(ra,rb,ang,x0,y0) adds an ellipse with semimajor axis of ra,
@@ -88,6 +88,10 @@ end
 
 if nargin<7,
   Nb=[];
+end
+
+if nargin<7,
+  ax=[];
 end
 
 % set up the default values

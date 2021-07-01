@@ -86,7 +86,7 @@ for ii = 1:length(casenames)
         genf = figure;
         PlotMap3D(AQ, 'generation');
         saveas(genf, fullfile(results_dir, [casename, '_gen3d.png']))
-        saveas(lobef, fullfile(results_dir, [casename, '_lobe3d.fig']))
+        saveas(genf, fullfile(results_dir, [casename, '_gen3d.fig']))
         
         gf = figure;
         plot(AQ);
