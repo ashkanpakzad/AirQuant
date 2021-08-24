@@ -8,6 +8,7 @@ classdef AirQuant < handle % handle class
         CTinfo % CT metadata
         seg % binary airway segmentation
         skel % skeleton based on segementation
+        lims % reduced vol indices
         savename % filename to load/save
         %%% CT resampling params
         max_plane_sz = 40;% max interpolated slice size
@@ -37,6 +38,7 @@ classdef AirQuant < handle % handle class
         arclength % corresponding arclength measurement traversed slices
         FWHMesl % FWHMesl algorithm results for every airway {inner, peak, outer}
         Specs % Store of end metrics
+        OriginalGraphMap % Store original properties of graph if manipulated
     end
     
     methods
@@ -61,9 +63,10 @@ classdef AirQuant < handle % handle class
             else 
                 disp(['New case to be saved at ', char(savename), ' saving...'])
                 obj.CTinfo = CTinfo;
-                obj.CT = reorientvolume(CTimage, obj.CTinfo);                
+                obj.CT = reorientvolume(CTimage, obj.CTinfo);              
                 % ensure no holes in segmentation
                 segfilled = reorientvolume(imfill(segimage,'holes'), obj.CTinfo);
+
                 % preprocess segmentation to keep largest
                 % connected component.
                 CC = bwconncomp(segfilled);
@@ -71,14 +74,25 @@ classdef AirQuant < handle % handle class
                 [~,indexOfMax] = max(numOfPixels);
                 seg = zeros(size(segfilled));
                 seg(CC.PixelIdxList{indexOfMax}) = 1;
-                obj.seg = seg;
+
+                % identify reduced seg size
+                obj.lims = ReduceVol(segfilled);
+              
+                % reduce CT & seg
+                obj.seg = logical(ReduceVol(seg, obj.lims));
+                obj.CT = ReduceVol(obj.CT, obj.lims);
+                if ~isempty(skel)
+                    obj.skel = reorientvolume(skel, obj.CTinfo);
+                    obj.skel = ReduceVol(obj.skel, obj.lims);
+                end
+                
                 % Set Resampling parameters and limits
                 measure_limit = floor((min(obj.CTinfo.PixelDimensions)/2)*10)/10;
                 obj.plane_sample_sz = measure_limit;
                 obj.spline_sample_sz = measure_limit;
                 obj.min_tube_sz = 3*max(obj.CTinfo.PixelDimensions);
                 % graph airway skeleton
-                obj = GenerateSkel(obj,skel);
+                obj = GenerateSkel(obj);
                 % Convert into digraph
                 obj = AirwayDigraph(obj);
                 % Identify Carina
@@ -113,13 +127,11 @@ classdef AirQuant < handle % handle class
             end
         end
         
-        function obj = GenerateSkel(obj, skel)
+        function obj = GenerateSkel(obj)
             % Generate the airway skeleton
             % if skeleton not provided, generate one.
-            if isempty(skel)
+            if isempty(obj.skel)
                 obj.skel = Skeleton3D(obj.seg);
-            else
-                obj.skel = reorientvolume(skel, obj.CTinfo);
             end
             % create graph from skeleton.
             [obj.Gadj,obj.Gnode,obj.Glink] = Skel2Graph3D(obj.skel,0);
@@ -464,6 +476,14 @@ classdef AirQuant < handle % handle class
             [obj.Glink(:).generation] = gens{:};
         end
         
+        function obj = StoreOriginalGraphMap(obj)
+            % Stores the graph properties incase they are manipulated
+            % later. This is a mechanism so that they can be easily restored.
+            obj.OriginalGraphMap.Gadj = obj.Gadj; 
+            obj.OriginalGraphMap.Gnode = obj.Gnode;
+            obj.OriginalGraphMap.Glink = obj.Glink;
+            obj.OriginalGraphMap.Gdigraph = obj.Gdigraph; 
+        end
         %% GRAPH NETWORK ANOMOLY ANALYSIS
         % Methods that analyse the airway structural graph checking for
         % anomalies such as loops and reporting them.
@@ -778,6 +798,138 @@ classdef AirQuant < handle % handle class
             end
         end
         
+        function obj = FilterBranches(obj, percent)
+            % Exclude airway branches that are too short/long based on
+            % extreme percentage specified. It considers based on their arclengths.
+            % This method overwrites property Gdigraph and rewrites Glink and Gnode.
+            % Reorganising how airways are connected to eachother.
+            
+            % First save/restore Gnode/Glink/Gadj/Gdigraph
+            % Ensures that every original airway is considered.
+            if isempty(obj.OriginalGraphMap)
+                SaveOriginalGraphMap(obj);
+            else
+                RestoreOriginalGraphMap(obj);
+            end
+            
+            % Identify airways to exclude
+            all_lengths = [obj.Glink.tot_arclength];
+            link_exclude_bool = isoutlier(all_lengths, ...
+                'percentiles',[percent, 100]);
+            
+            % stop crucial airways from conversion
+            % e.g. branch airways
+            
+            % get list of filtered out airways
+            idx_list = 1:length(obj.Glink);
+            link_exclude = idx_list(link_exclude_bool);
+            
+            RemoveLink(obj, link_exclude)
+            
+            % re-run generation classification with new tree
+            ReclassLobeGen(obj)
+        end
+
+        function RemoveLink(obj, link_exclude)
+            % removes branches in link_exclude from AirQuant
+            if ~isfield(obj.Glink, 'exclude')
+                % add exclusion field to Gnode and Glink
+                fielddummy = num2cell(zeros(length(obj.Glink),1));
+                [obj.Glink(:).exclude] = fielddummy{:};
+                fielddummy = num2cell(zeros(length(obj.Gnode),1));
+                [obj.Gnode(:).exclude] = fielddummy{:};
+            end
+            
+            % Ensure that links are processed from top to bottom.
+            [~,E] = bfsearch(obj.Gdigraph,1,'edgetonew');
+            % convert from G indices to AQ
+            AQ_BFS_E = obj.Gdigraph.Edges.Label(E);
+            link_exclude_BFS = intersect(AQ_BFS_E,link_exclude,'stable');
+            
+            
+            for ii = link_exclude_BFS'
+                % register link to exclude
+                obj.Glink(ii).exclude = 1;
+                % identify n1 and children
+                n1_ii = obj.Glink(ii).n1;
+                n2_ii = obj.Glink(ii).n2;
+                % register node to exclude
+                obj.Gnode(n2_ii).exclude = 1;
+
+                parent = obj.Glink(ii).parent_idx;
+                children = obj.Glink(ii).child_idx;
+                
+                % remove n2 node from n1 conn
+                obj.Gnode(n1_ii).conn(...
+                    find(obj.Gnode(n1_ii).conn == n2_ii)) = [];
+                
+                % remove child idx from parent of current
+                obj.Glink(parent).child_idx(...
+                    find(obj.Glink(parent).child_idx == ii)) = [];
+                
+                % DIGRAPH - identify edge and n2 graph index
+                % remove ii and node 2
+                ii_edge = find(obj.Gdigraph.Edges.Label == ii);
+                ii_node2 = find(obj.Gdigraph.Nodes.label == n2_ii);
+                ii_node1 = find(obj.Gdigraph.Nodes.label == n1_ii);
+
+                
+                for child = children
+                    % LINKS
+                    % link child branches to n1
+                    obj.Glink(child).n1 = n1_ii;
+                    n2 = obj.Glink(child).n2;
+                    
+                    % new parent is parent of current branch
+                    obj.Glink(child).parent_idx = parent;
+                    
+                    % write child idx of new parent
+                    obj.Glink(parent).child_idx;
+                    
+                    % NODES
+                    % write new node links
+                    obj.Gnode(n1_ii).links(end+1) = child;
+                    
+                    % connect child's n2 to new n1
+                    if all(obj.Gnode(n2).conn ~= n1_ii)
+                    	obj.Gnode(n2).conn(end+1) = n1_ii;
+                    end
+                    
+                    %%% DIGRAPH edges
+                    % identify child G idx, child_node_n2
+                    child_edge = find(obj.Gdigraph.Edges.Label == child);
+                    child_edge_weight = obj.Gdigraph.Edges.Weight(child_edge);
+                    child_node_n2 = find(obj.Gdigraph.Nodes.label == n2);
+                    % modify endnodes
+                    NewEdgeTable = table([ii_node1, child_node_n2],[child_edge_weight],[child],...
+                        'VariableNames',{'EndNodes','Weight','Label'});
+                    obj.Gdigraph = rmedge(obj.Gdigraph,child_edge);
+                    obj.Gdigraph = addedge(obj.Gdigraph,NewEdgeTable);
+                    
+                end
+                % DIGRAPH - remove after children have been modified
+                % remove ii and node 2
+                obj.Gdigraph = rmedge(obj.Gdigraph,ii_edge);
+                obj.Gdigraph = rmnode(obj.Gdigraph,ii_node2);
+                
+            end
+        end
+        
+        function obj = SaveOriginalGraphMap(obj)
+            % restore graph properties to their original state
+            obj.OriginalGraphMap.Gadj = obj.Gadj;
+            obj.OriginalGraphMap.Gnode = obj.Gnode;
+            obj.OriginalGraphMap.Glink = obj.Glink;
+            obj.OriginalGraphMap.Gdigraph = obj.Gdigraph;
+        end
+        
+        function obj = RestoreOriginalGraphMap(obj)
+            % restore graph properties to their original state
+            obj.Gadj = obj.OriginalGraphMap.Gadj;
+            obj.Gnode = obj.OriginalGraphMap.Gnode;
+            obj.Glink = obj.OriginalGraphMap.Glink;
+            obj.Gdigraph = obj.OriginalGraphMap.Gdigraph;   
+        end
         %% HIGH LEVEL METHODS
         % methods that package lower level methods, often to apply analysis
         % to all airways rather than just individual airways.
@@ -1319,6 +1471,7 @@ classdef AirQuant < handle % handle class
             intrataper = NaN(length(obj.arclength), 3);
             averagediameter = NaN(length(obj.arclength), 3);
             for ii = 1:length(obj.arclength)
+                disp(ii)
                 if ii == obj.trachea_path
                     continue
                 end
@@ -1362,17 +1515,17 @@ classdef AirQuant < handle % handle class
             % convert area to diameters
             diameters = real(sqrt(areas/pi)*2);
             for jj = 1:3
+                Dvec = diameters(prune,jj);
                 try % incase no branch left after pruning/too few points
-                    Dvec = diameters(prune,jj);
                     % fit bisquare method
                     coeff(:,jj) = robustfit(al, Dvec,'bisquare');
                     % compute intra-branch tapering as percentage
                     intrataper(jj) = -coeff(2,jj)/coeff(1,jj) * 100;
-                    % compute average area
-                    averagediameter(jj) = trimmean(Dvec, 10);
                 catch
                     % leave as NaN
                 end
+                % compute average area
+                averagediameter(jj) = trimmean(Dvec, 10);
             end
             
             if plotflag == 1 && ~any(isnan(intrataper))
@@ -1408,7 +1561,7 @@ classdef AirQuant < handle % handle class
                 end
                 for jj = 1:3
                     % identify parent by predecessor node
-                    parent = find([obj.Glink.n2] == obj.Glink(ii).n1);
+                    parent = obj.Glink(ii).parent_idx;
                     intertaper(ii,jj) = (averagediameter(parent, jj) - averagediameter(ii,jj))...
                         /(averagediameter(parent, jj)) * 100;
                 end
@@ -1574,7 +1727,7 @@ classdef AirQuant < handle % handle class
             vol_intertaper = ComputeInterIntegratedVol(obj, prunelength);
             [tortuosity, arc_length, euc_length] = ComputeTortuosity(obj);
             lobar_intertaper = ComputeLobarInterTaper(obj, prunelength);
-            
+%             parent = [obj.Glink.parent_idx]';
             
             % organise into column headings
             branch = [1:length(obj.Glink)]';
@@ -1614,6 +1767,11 @@ classdef AirQuant < handle % handle class
             try % only add lobe information if it exists
                 SegmentTaperResults.lobe = [obj.Glink.lobe]';
             catch
+            end
+            
+            % delete excluded branches
+            if isfield(obj.Glink,'exclude')
+                SegmentTaperResults(logical([obj.Glink.exclude]),:) = [];
             end
             
             % Save to AQ object
@@ -1966,7 +2124,7 @@ classdef AirQuant < handle % handle class
             % Recommend to use View3D if colour labels appear buggy.
             
             % mode = 'TaperGradient', 'generation', 'lobes'
-            axis([0 size(obj.CT, 1) 0 size(obj.CT, 2) 0 size(obj.CT, 3)])
+%             axis([0 size(obj.CT, 1) 0 size(obj.CT, 2) 0 size(obj.CT, 3)])
             
             % generating the color data
             cdata = zeros(size(obj.seg));
@@ -2337,6 +2495,33 @@ classdef AirQuant < handle % handle class
             
         end
        
+        function h = GraphPlotIT(obj)
+
+            % graph plot for plotting intertapering relative to
+            % edgethicknes.
+            
+            G = obj.Gdigraph;
+            % get inner intertaper, set edgelabels and thickness
+            intertaper = ComputeInterTaper(obj, [0 0]);
+            intertaper = intertaper(G.Edges.Label,1);
+            edgevar = abs(intertaper)/5;
+            edgelabels = round(intertaper);
+                        
+            title('Intertaper value')
+            h = plot(G,'EdgeLabel',edgelabels, 'Layout', 'layered');
+            h.NodeColor = 'r';
+            h.EdgeColor = 'k';
+            
+            % set linewidth
+            edgevar(isnan(edgevar)) = 0.001;
+            h.LineWidth = edgevar;
+            
+            % highlight negative IT vals
+            neg_IT = (intertaper < 0);
+            T = G.Edges.EndNodes(neg_IT,:);
+            highlight(h,T(:,1),T(:,2),'EdgeColor','r');
+
+        end
         %% EXPORT METHODS
         % methods for exporting processed data.
         function exportlobes(obj, savename)
