@@ -11,8 +11,8 @@ AirQuant is a software tool based in MATLAB primarily for extracting airway meas
 ```
 $ git clone https://github.com/ashkanpakzad/AirQuant.git
 ```
-* To use recommended skeletonisation/centreline algorithm, please install Pulmonary Toolkit, by Tom Doel. https://github.com/tomdoel/pulmonarytoolkits.
-* Example use: see [scripts/example.m](scripts/example.m)
+* To use recommended skeletonisation/centreline algorithm, please install Pulmonary Toolkit, by Tom Doel. https://github.com/tomdoel/pulmonarytoolkit.
+* Example use: see [scripts/example_AQ.m](scripts/example.m)
 
 ## Development
 See [docs/](docs/).
