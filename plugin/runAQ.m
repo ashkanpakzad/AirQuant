@@ -59,6 +59,8 @@ for ii = 1:length(casenames)
     
     if skip == 0
         
+        tic; % start timer
+        
         % Load CT data as double
         meta = niftiinfo(CT_name);
         CT = double(niftiread(meta));
@@ -134,6 +136,7 @@ for ii = 1:length(casenames)
         
         % reset
         disp(['Case: ', casename, ' complete.'])
+        disp(['Total time: ', num2str(toc/60/60), ' hours.'])
         disp(datetime)
     end
     close all;
