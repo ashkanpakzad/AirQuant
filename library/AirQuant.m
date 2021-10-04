@@ -944,12 +944,19 @@ classdef AirQuant < handle % handle class
                 % skip the trachea or already processed branches
                 if i == obj.trachea_path || incomplete(i) == 0
                     disp(['Traversing: ', num2str(i), ' trachea skipped or already complete'])
+                    % incase trachea is last branch
                     continue
                 end
                 obj = CreateAirwayImage(obj, i);
                 disp(['Traversing: Completed ', num2str(i), ' of ', num2str(total_branches)])
+                % save obj to disk after every 50 branches
+                if rem(i,50) == 0 
+                    save(obj)
+                    disp(['SAVE CHECKPOINT at ', num2str(i), ' of ', num2str(total_branches)])
+                end
             end
-            disp('Traversing: Done')
+            save(obj)
+            disp('Traversing: SAVE CHECKPOINT and Done')
         end
         
         function obj = FindFWHMall(obj)
@@ -1063,8 +1070,6 @@ classdef AirQuant < handle % handle class
             % * Save traversed image and arclength for each image
             obj.TraversedImage{link_index, 1} = TransAirwayImage;
             obj.TraversedSeg{link_index, 1} = TransSegImage;
-            % save obj to disk after every branch
-            save(obj)
         end
         
         
@@ -1874,7 +1879,7 @@ classdef AirQuant < handle % handle class
             G = digraph([obj.Glink(:).n1],[obj.Glink(:).n2], weights);
         end
         
-        %% VISUALISATION
+         %% VISUALISATION
         %%% Airway Strucutral Tree
         function h = plot(obj, type)
             % Default plot is a graph network representation. Optional input is to
