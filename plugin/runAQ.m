@@ -2,7 +2,12 @@
 % Parent function to set up and run AQ on several cases based on given
 % config file
 
-function runAQ(config)
+function runAQ(config, skipexist)
+% skipexist = exist if already 
+
+if nargin < 2
+    skipexist = 0;
+end
 
 % set config defaults if they dont exist
 checkfield('dataset', 'noset');
@@ -44,6 +49,9 @@ for ii = 1:length(casenames)
     % check if results already exists
     if exist(savename, 'file')
         warning('AQ object already exists.')
+        if skipexist == 1 % skip if skipexist flag provided
+            fskip;
+        end
     end
     
     % Get filenames
@@ -58,7 +66,7 @@ for ii = 1:length(casenames)
     checkfile(skel_name, 'Skel')
     
     if skip == 0
-        
+        try
         tic; % start timer
         
         % Load CT data as double
@@ -138,6 +146,11 @@ for ii = 1:length(casenames)
         disp(['Case: ', casename, ' complete.'])
         disp(['Total time: ', num2str(toc/60/60), ' hours.'])
         disp(datetime)
+        catch
+            warning(['ERROR ENCOUNTERED FOR CASE:', casename])
+            disp(datetime)
+            fskip
+        end
     end
     close all;
     diary off;
@@ -146,6 +159,7 @@ end
 disp('The following cases were skipped:')
 disp(skippedcases)
 
+%% functions
     function checkfield(field, default)
         % checks if the field for the config struct exists and if not,
         % then sets to the default value provided.

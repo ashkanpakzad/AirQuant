@@ -5,7 +5,8 @@ function config = RunWholeDataset(config)
 % based on the source CT images available.
 
 % get list of file names in dataset folder
-alldir = dir(config.dataset);
+AirQuantDir = AirQuantAddPath(); 
+alldir = dir(fullfile(AirQuantDir,'data',config.dataset));
 alldir = alldir(~[alldir.isdir]);
 
 % identify CTs in dataset
