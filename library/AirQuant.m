@@ -226,7 +226,7 @@ classdef AirQuant < handle % handle class
                 obj.Glink(link_index).parent_idx = find([obj.Glink(:).n2] == obj.Glink(link_index).n1);
                 obj.Glink(link_index).child_idx = find(obj.Glink(link_index).n2 == [obj.Glink(:).n1]);
                 % compute splines
-                if link_index == obj.trachea_path
+                if any(link_index == obj.trachea_path)
                     continue
                 end
                 ComputeSpline(obj, link_index);
@@ -251,7 +251,7 @@ classdef AirQuant < handle % handle class
         end
         
         function obj = FindTracheaPaths(obj)
-            % Check if there are any edges between carina and trachea
+            % Check if there are any edges between carina and top of trachea
             % due to skeletonisation error (trachea is prone to
             % skeletonisation errors)
             
@@ -839,7 +839,7 @@ classdef AirQuant < handle % handle class
                 notanyall = @(x) ~any(x,'all');
                 % check for each airway arclength and FWHM failures
                 for i = 1:length(obj.Glink)
-                    if i == obj.trachea_path
+                    if any(i == obj.trachea_path)
                         continue
                     end
                     % no nan or empty entries arclength
@@ -967,7 +967,7 @@ classdef AirQuant < handle % handle class
                 
                 for i = 1:length(obj.Glink)
                     % skip the trachea or already processed branches
-                    if i == obj.trachea_path || incomplete(i) == 0
+                    if any(i == obj.trachea_path) || incomplete(i) == 0
                         disp(['Traversing: ', num2str(i), ' trachea skipped or already complete'])
                         % incase trachea is last branch
                         continue
@@ -996,7 +996,7 @@ classdef AirQuant < handle % handle class
                 
                 for i = 1:length(obj.Glink)
                     % skip the trachea
-                    if i == obj.trachea_path || incomplete(i) == 0
+                    if any(i == obj.trachea_path) || incomplete(i) == 0
                         continue
                     end
                     obj = FindAirwayBoundariesFWHM(obj, i);
@@ -1502,7 +1502,7 @@ classdef AirQuant < handle % handle class
                 averagediameter = NaN(length(obj.arclength), 3);
                 for ii = 1:length(obj.arclength)
                     disp(ii)
-                    if ii == obj.trachea_path
+                    if any(ii == obj.trachea_path)
                         continue
                     end
                     
@@ -1586,7 +1586,7 @@ classdef AirQuant < handle % handle class
                 % loop through branches
                 intertaper = NaN(length(obj.arclength), 3);
                 for ii = 1:length(averagediameter)
-                    if ii == obj.trachea_path
+                    if any(ii == obj.trachea_path)
                         continue
                     end
                     for jj = 1:3
@@ -1705,14 +1705,14 @@ classdef AirQuant < handle % handle class
                 vol_intertaper = NaN(length(obj.arclength), 3);
                 
                 for ii = 1:length(obj.arclength)
-                    if ii == obj.trachea_path
+                    if any(ii == obj.trachea_path)
                         continue
                     end
                     [allvol(ii,:)] = ComputeIntegratedVol(obj, prunelength, ii);
                 end
                 
                 for ii = 1:length(obj.arclength)
-                    if ii == obj.trachea_path
+                    if any(ii == obj.trachea_path)
                         continue
                     end
                     % identify parent by predecessor node
@@ -1729,7 +1729,7 @@ classdef AirQuant < handle % handle class
                 Le = nan(size(La));
                 % get difference in euclidean coordinates for each branch.
                 for ii = 1:length(La)
-                    if ii == obj.trachea_path
+                    if any(ii == obj.trachea_path)
                         continue
                     end
                     % get total arc-length
@@ -2781,4 +2781,4 @@ classdef AirQuant < handle % handle class
                 labels = {'RUL','RML','RLL','LUL','LML','LLL'};
             end
         end
-    end
+end
