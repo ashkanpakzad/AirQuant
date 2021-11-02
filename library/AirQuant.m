@@ -4,7 +4,7 @@
 classdef AirQuant < handle % handle class
     properties
         %%% Volumes and Metadata
-        CT % CT image
+        CT % CT ima7ge
         CTinfo % CT metadata
         seg % binary airway segmentation
         skel % skeleton based on segementation
@@ -1154,7 +1154,10 @@ classdef AirQuant < handle % handle class
             
             %% MEASUREMENT METHODS
             % Methods that measure the airway size on interpolated CT images.
-            function obj = FindAirwayBoundariesFWHM(obj, link_index)
+            function obj = FindAirwayBoundariesFWHM(obj, link_index, outlier_removal)
+                if nargin < 3
+                    outlier_removal = true;
+                end
                 %Based on function by Kin Quan 2018 that is based on Kiraly06
                 
                 slices_sz = size(obj.TraversedImage{link_index, 1}, 1);
@@ -1181,7 +1184,7 @@ classdef AirQuant < handle % handle class
                         
                         % * Compute FWHM
                         [FWHMl, FWHMp, FWHMr] = AirQuant.computeFWHM(CT_rays,...
-                            seg_rays, coords);
+                            seg_rays, coords, outlier_removal);
                         
                         % * Compute Ellipses
                         FWHMl_ellipse = ComputeEllipses(obj, FWHMl);
@@ -1562,12 +1565,12 @@ classdef AirQuant < handle % handle class
                     titlevec = ["inner"; "peak"; "outer"];
                     for jj = 1:3
                         subplot(3,1,jj)
-                        plot(al, areas(prune,jj), 'k.')
+                        plot(al, diameters(prune,jj), 'k.')
                         hold on
                         plot(al, coeff(2,jj)*al + coeff(1,jj),'r')
                         legend('data', 'bisquare fit', 'Location', 'best')
                         xlabel('arclength (mm)')
-                        ylabel('area mm^2')
+                        ylabel('Diameter (mm)')
                         title(sprintf('Branch idx: %i %s intrataper value: %.2f%% average: %.2f mm.',...
                             idx, titlevec(jj), intrataper(jj), averagediameter(jj)))
                         hold off
@@ -2326,7 +2329,7 @@ classdef AirQuant < handle % handle class
                     hold on
                     plot(obj.FWHMesl{link_index, 1}{slide, 1}.x_points + min_centre, obj.FWHMesl{link_index, 1}{slide, 1}.y_points + min_centre,'r.')
                     %                 plot(obj.FWHMesl{link_index, 2}{slide, 1}.x_points, obj.FWHMesl{link_index, 2}{slide, 1}.y_points,'c.')
-                    plot(obj.FWHMesl{link_index, 3}{slide, 1}.x_points + min_centre, obj.FWHMesl{link_index, 3}{slide, 1}.y_points + min_centre,'y.')
+%                     plot(obj.FWHMesl{link_index, 3}{slide, 1}.x_points + min_centre, obj.FWHMesl{link_index, 3}{slide, 1}.y_points + min_centre,'y.')
                     
                     % plot ellipse fitting
                     ellipse(obj.FWHMesl{link_index, 1}{slide, 1}.elliptical_info(3),obj.FWHMesl{link_index, 1}{slide, 1}.elliptical_info(4),...
@@ -2337,14 +2340,14 @@ classdef AirQuant < handle % handle class
                     %                     obj.FWHMesl{link_index, 2}{slide, 1}.elliptical_info(5),obj.FWHMesl{link_index, 2}{slide, 1}.elliptical_info(1),...
                     %                     obj.FWHMesl{link_index, 2}{slide, 1}.elliptical_info(2),'b');
                     
-                    ellipse(obj.FWHMesl{link_index, 3}{slide, 1}.elliptical_info(3),obj.FWHMesl{link_index, 3}{slide, 1}.elliptical_info(4),...
-                        obj.FWHMesl{link_index, 3}{slide, 1}.elliptical_info(5),obj.FWHMesl{link_index, 3}{slide, 1}.elliptical_info(1)+min_centre,...
-                        obj.FWHMesl{link_index, 3}{slide, 1}.elliptical_info(2)+min_centre,'y');
+%                     ellipse(obj.FWHMesl{link_index, 3}{slide, 1}.elliptical_info(3),obj.FWHMesl{link_index, 3}{slide, 1}.elliptical_info(4),...
+%                         obj.FWHMesl{link_index, 3}{slide, 1}.elliptical_info(5),obj.FWHMesl{link_index, 3}{slide, 1}.elliptical_info(1)+min_centre,...
+%                         obj.FWHMesl{link_index, 3}{slide, 1}.elliptical_info(2)+min_centre,'y');
                     %TODO: set third colour more appropiately
                     
-                    plot(obj.FWHMesl{link_index, 4}{slide, 1}(1)+min_centre,...
-                        obj.FWHMesl{link_index, 4}{slide, 1}(2)+min_centre, ...
-                        '.g', 'MarkerSize',20)
+%                     plot(obj.FWHMesl{link_index, 4}{slide, 1}(1)+min_centre,...
+%                         obj.FWHMesl{link_index, 4}{slide, 1}(2)+min_centre, ...
+%                         '.g', 'MarkerSize',20)
                 catch
                     % warning('No FWHMesl data, showing slices without elliptical information.')
                 end
@@ -2667,7 +2670,10 @@ classdef AirQuant < handle % handle class
             end
             
             
-            function [FWHMl, FWHMp, FWHMr] = computeFWHM(CT_rays, seg_rays, coords)
+            function [FWHMl, FWHMp, FWHMr] = computeFWHM(CT_rays, seg_rays, coords, outlier_removal)
+                if nargin < 4
+                    outlier_removal = true;
+                end
                 %This is to perfrom the ray casting measurents - the input is in a sturct
                 % as
                 
@@ -2755,12 +2761,14 @@ classdef AirQuant < handle % handle class
                 end
                 
                 % anomaly correction on inner ONLY
-                [~,anomalies] = rmoutliers(FWHMl_r, 'median');
-                valid_rays = 1:number_of_rays;
-                valid_rays = valid_rays(~anomalies)';
-                FWHMl_r = FWHMl_r(~anomalies);
-                FWHMp_r = FWHMp_r(~anomalies);
-                FWHMr_r = FWHMr_r(~anomalies);
+                valid_rays = [1:number_of_rays]';
+                if outlier_removal == true
+                    [~,anomalies] = rmoutliers(FWHMl_r, 'median');
+                    valid_rays = valid_rays(~anomalies);
+                    FWHMl_r = FWHMl_r(~anomalies);
+                    FWHMp_r = FWHMp_r(~anomalies);
+                    FWHMr_r = FWHMr_r(~anomalies);
+                end
                 
                 % convert radial index into plane coordinates
                 FWHMl_x = DualIndex(coords(:,:,1), FWHMl_r, valid_rays);
