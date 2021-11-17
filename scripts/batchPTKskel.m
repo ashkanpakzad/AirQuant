@@ -18,8 +18,8 @@ AirQuantAddPath(); % Ensure all AirQuant files are in matlab path
 %% Set up
 tic
 % path to data folder
-parentdatapath = 'C:\data'; 
-data_folder = 'postprocessed'; % folder within casename folder that contains the segmentation
+parentdatapath = 'data'; 
+data_folder = 'postprocessed_v_0_1_1'; % folder within casename folder that contains the segmentation
 seg_suffix = '_seg.nii.gz';
 skel_suffix = '_PTKskel.nii.gz';
 

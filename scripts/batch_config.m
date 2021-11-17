@@ -8,17 +8,14 @@ AirQuantDir = AirQuantAddPath();
 % get casenames from config folder
 config = [];
 % must be string array, using double dash quotes.
-config.casenames = []; 
-config.dataset = 'test';
+config.casenames = ["example"];
+config.dataset = 'example';
 
 % suffix for accompanying images
 config.CTsuf = '_raw.nii.gz';
 config.segsuf= '_seg.nii.gz';
 config.skelsuf = '_seg_PTKskel.nii.gz';
 
-% get config file with all casenames in config
-config = RunWholeDataset(config);
-
 %%% pass to AirQuant runner
-AQSegAssess(config);
+runAQ(config);
 
