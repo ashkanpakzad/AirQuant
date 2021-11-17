@@ -3,3 +3,4 @@
 *.asv
 scripts/run*
 *.csv
+scripts/quickAQ.m
