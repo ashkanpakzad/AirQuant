@@ -1557,7 +1557,7 @@ classdef AirQuant < handle % handle class
                     catch
                         % leave as NaN
                     end
-                    % compute average area
+                    % compute average
                     averagediameter(jj) = trimmean(Dvec, 10);
                 end
                 
@@ -2061,7 +2061,6 @@ classdef AirQuant < handle % handle class
                 
             end
             
-            
             %%% Splines
             function PlotSplineTree(obj)
                 % loop through every branch, check spline has already been
@@ -2374,6 +2373,36 @@ classdef AirQuant < handle % handle class
                 % stack using MATLAB's inbuilt othogonal 3d viewer.
                 
                 % convert from cell stack to 3D array.
+                awyarray = airwaystack(obj,link_index);
+                % display with orthoview
+                fig = figure;
+                s = orthosliceViewer(awyarray, 'DisplayRangeInteraction','off', ...
+                    'ScaleFactors',[obj.plane_sample_sz, obj.plane_sample_sz, obj.spline_sample_sz],...
+                    'CrosshairLineWidth', 0.3);
+                % Can only alter size of figure window after orthosliceviewer.
+                fig.Name = ['AirQuant: Airway Ortho View. Idx ', mat2str(link_index), '.'];
+                fig.Units = 'normalized';
+                fig.Position = [0.1,0.01,0.6,0.9];
+            end
+            
+            function h = ReformatAirway(obj,link_index,slice_idx)
+                % get reformatted airway stack
+                awyarray = airwaystack(obj,link_index);
+                if nargin < 3
+                    % set default to middle
+                    slice_idx = round(size(awyarray,1)/2);
+                end
+                % generate image
+                img = squeeze(awyarray(slice_idx,:,:));
+                x = [0 obj.arclength{link_index,1}(end)];
+                y = [0 obj.max_plane_sz];
+                h = imagesc(x, y, img);
+                colormap('gray')
+            end
+            
+            function awyarray = airwaystack(obj,link_index)
+                % generate an airway's interpolated slices into an array
+                % stack.
                 awycell =  obj.TraversedImage{link_index,1};
                 canvas_sz = floor(obj.max_plane_sz/obj.plane_sample_sz);
                 awyarray = zeros([canvas_sz, canvas_sz, length(awycell)]);
@@ -2384,15 +2413,6 @@ classdef AirQuant < handle % handle class
                     max_centre = canvas_sz/2 + image_sz/2;
                     awyarray(min_centre+1:max_centre, min_centre+1:max_centre, slice) = image;
                 end
-                % display with orthoview
-                fig = figure;
-                s = orthosliceViewer(awyarray, 'DisplayRangeInteraction','off', ...
-                    'ScaleFactors',[obj.plane_sample_sz, obj.plane_sample_sz, obj.spline_sample_sz],...
-                    'CrosshairLineWidth', 0.3);
-                % Can only alter size of figure window after orthosliceviewer.
-                fig.Name = ['AirQuant: Airway Ortho View. Idx ', mat2str(link_index), '.'];
-                fig.Units = 'normalized';
-                fig.Position = [0.1,0.01,0.6,0.9];
             end
             
             %%% Novel/tapering visualisation
