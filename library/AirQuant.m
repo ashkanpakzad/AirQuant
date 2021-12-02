@@ -4,12 +4,20 @@
 classdef AirQuant < handle % handle class
     properties
         %%% Volumes and Metadata
-        CT % CT ima7ge
-        CTinfo % CT metadata
-        seg % binary airway segmentation
-        skel % skeleton based on segementation
-        lims % reduced vol indices
-        savename % filename to load/save
+        CT 
+        % CT image input as 3D array, typically from niftiread.
+        CTinfo 
+        % CT metadata from niftiinfo
+        seg 
+        % binary airway segmentation in the same grid space as CT. 
+        % dimensions must match with CT.
+        skel 
+        % skeleton based on segementation with no internal loops.
+        % in the same grid space as CT. Dimensions must match with CT.
+        lims 
+        % reduced volume indices
+        savename 
+        % filename to load/save the AirQuant object.
         %%% CT resampling params
         max_plane_sz = 40;% max interpolated slice size
         plane_sample_sz % interpolated slice pixel size
@@ -17,15 +25,18 @@ classdef AirQuant < handle % handle class
         plane_scaling_sz = 5; % scale airway diameter approx measurement.
         min_tube_sz % smallest measurable lumen Diameter.
         %%% Ray params
-        num_rays = 180; % check methods
-        ray_interval = 0.2; % check methods
+        num_rays = 180; 
+        % Number of rays to use about the airway centre in identifying the
+        % boundary of the airway edge.
+        ray_interval = 0.2; 
+        % Interval to resample the raycast profiles.
         
     end
     properties (SetAccess = private)
         %%% Graph Properties
         Gadj % undirected Graph Adjacency matrix
-        Gnode % Graph node info
-        Glink % Graph edge info
+        Gnode % Airway graph node info, struct
+        Glink % Airway graph edge info, struct
         Gdigraph % digraph object
         trachea_path % edges that form a connect subgraph above the carina
         carina_node % node that corresponds to the carina
@@ -43,11 +54,26 @@ classdef AirQuant < handle % handle class
     
     methods
         %% INITIALISATION
-        % Methods used to call and make AQ object before any further
-        % processing takes place.
+        % Methods used to call and make AQ object.
         function obj = AirQuant(CTimage, CTinfo, segimage, skel, savename)
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             % Initialise the AirQuant class object.
-            % if using default settings, do not provide params argument.
+            %
+            % Initialising AQ object: (5 Required Params)
+            %   CTimage - (3D array) CT loaded from nifti using niftiread.
+            %   CTinfo - (struct) CT metadata loaded from nifti using
+            %       niftiinfo.
+            %   segimage - (3D array) Binary airway segmentation in the 
+            %       same grid space as CT. Dimensions must match with CT.
+            %   skel - (3D array) Binary airway centreline in the 
+            %       same grid space as CT. Dimensions must match with CT.
+            %   savename - filepath to save AirQuant object under.
+            %       Recommended to use /results/datasetname directory.
+            %
+            % Loading AQ object: (1 Required Params)
+            %   savename - filepath to previously saved AirQuant object.
+            %
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             
             % Can provide just file name, if analyses previously complete.
             if nargin == 1
@@ -128,8 +154,15 @@ classdef AirQuant < handle % handle class
         end
         
         function obj = GenerateSkel(obj)
-            % Generate the airway skeleton
-            % if skeleton not provided, generate one.
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            % Generate the airway skeleton if skeleton not provided, 
+            % generate one. NB: it is recommended to use the PTK
+            % generated skeleton. This will use skeleton3D:
+            % https://github.com/phi-max/skeleton3d-matlab
+            %
+            %
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
             if isempty(obj.skel)
                 obj.skel = Skeleton3D(obj.seg);
             end
@@ -140,6 +173,11 @@ classdef AirQuant < handle % handle class
         end
         
         function obj = AirwayDigraph(obj)
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            % Generate the Airway Digraph, arrows point from central
+            % towards distal.
+            %
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             % Converts the output from skel2graph into a digraph tree
             % network, such that there are no loops and edges point from
             % the trachea distally outwards.
@@ -219,8 +257,12 @@ classdef AirQuant < handle % handle class
         end
         
         function obj = ComputeBranchCharacteristics(obj)
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             % Add parent and child links, and calculate length of airways.
-            % Add these to Glink to keep track of airway characteristics.
+            % Save these to class to keep track of airway characteristics. 
+            %
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
             for link_index = 1:length(obj.Glink)
                 % add parent idx column for each branch
                 obj.Glink(link_index).parent_idx = find([obj.Glink(:).n2] == obj.Glink(link_index).n1);
@@ -245,16 +287,21 @@ classdef AirQuant < handle % handle class
         end
         
         function obj = FindCarina(obj)
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             % Finds the carina node by analysis of the directed graph
             % produced by a breadth first search from the trachea node.
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
             [~, obj.carina_node] = max(centrality(obj.digraph,'outcloseness'));
         end
         
         function obj = FindTracheaPaths(obj)
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             % Check if there are any edges between carina and top of trachea
             % due to skeletonisation error (trachea is prone to
-            % skeletonisation errors)
-            
+            % skeletonisation errors)            
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
             % identify outgoing nodes from carina
             [eid, nid] = outedges(obj.Gdigraph,obj.carina_node);
             % identify their importance and sort in that order
@@ -272,7 +319,10 @@ classdef AirQuant < handle % handle class
         end
         
         function obj = ComputeAirwayGen(obj)
-            
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            % Indexes each airway generation by shortest path from carina
+            %
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             % loop through graph nodes
             G = obj.Gdigraph;
             gens = zeros(length(obj.Glink),1);
@@ -293,6 +343,11 @@ classdef AirQuant < handle % handle class
         end
         
         function obj = ComputeAirwayLobes(obj)
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            % Indexes each airway's lobe by implementing adapted algorithm,
+            % originally by Gu et al. 2012.
+            %
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             % Get airway graph
             G = obj.Gdigraph;
             % Set up lobe store vector
@@ -430,9 +485,13 @@ classdef AirQuant < handle % handle class
         end
         
         function ReclassLobeGen(obj)
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             % Reclassifies airway generations by their lobe rather than
             % global branch distance from carina. Called automatically once
             % lobes have been classified.
+            %
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
             
             % loop through graph nodes
             G = obj.Gdigraph;
@@ -477,8 +536,12 @@ classdef AirQuant < handle % handle class
         end
         
         function obj = StoreOriginalGraphMap(obj)
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             % Stores the graph properties incase they are manipulated
             % later. This is a mechanism so that they can be easily restored.
+            %
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
             obj.OriginalGraphMap.Gadj = obj.Gadj;
             obj.OriginalGraphMap.Gnode = obj.Gnode;
             obj.OriginalGraphMap.Glink = obj.Glink;
