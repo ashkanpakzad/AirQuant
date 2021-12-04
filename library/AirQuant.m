@@ -2640,7 +2640,23 @@ classdef AirQuant < handle % handle class
             end
             %% EXPORT METHODS
             % methods for exporting processed data.
+            function exportCT(obj, savename)
+                if nargin == 1
+                    savename = 'AQCT_export';
+                end
+
+                % reduce datatype and change header info
+                AQ_CT = int16(obj.CT);
+                header = obj.CTinfo;
+                header.Description = 'CT exported from AirQuant';
+                
+                niftiwrite(AQ_CT, savename, header, 'Compressed', true);
+            end
+            
             function exportlobes(obj, savename)
+                if nargin == 1
+                    savename = 'AQlobes_export';
+                end
                 % export airway segmentation labelled by lobes to nii.gz
                 
                 % classify by branch first
