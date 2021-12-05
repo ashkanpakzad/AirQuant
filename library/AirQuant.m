@@ -2649,7 +2649,7 @@ classdef AirQuant < handle % handle class
                 AQ_CT = int16(obj.CT);
                 header = obj.CTinfo;
                 header.Description = 'CT exported from AirQuant';
-                
+                header.ImageSize = size(AQ_CT);
                 niftiwrite(AQ_CT, savename, header, 'Compressed', true);
             end
             
@@ -2679,7 +2679,8 @@ classdef AirQuant < handle % handle class
                 header.Datatype = 'uint8';
                 header.BitsPerPixel = '8';
                 header.Description = 'Airway Lobe Segmentation using AirQuant, layers: B,RUL,RML,RLL,LUL,LML,LLL';
-                
+                header.ImageSize = size(lobe_airway_seg);
+
                 niftiwrite(lobe_airway_seg, savename, header, 'Compressed', true);
             end
             
