@@ -2124,6 +2124,73 @@ classdef AirQuant < handle % handle class
                 
             end
             
+            function plot3(obj, gen)
+                % Plot the airway tree in graph form, in 3D. nodes are in
+                % in image space. Set gen to the maximum number of 
+                % generations to show.
+                % Original Function by Ashkan Pakzad on 27th July 2019.
+                
+                if nargin == 1
+                    gen = max([obj.Glink(:).generation]);
+                end
+                
+                % set up reduced link graph and skel
+                vis_Glink_logical = [obj.Glink(:).generation] <= gen;
+                vis_Glink_ind = find(vis_Glink_logical == 1);
+                vis_Glink = obj.Glink(vis_Glink_logical);
+                % set up reduced node graph
+                vis_Gnode_logical = false(length(obj.Gnode),1);
+                for i = 1:length(obj.Gnode)
+                    if ~isempty(intersect(obj.Gnode(i).links, vis_Glink_ind))
+                        vis_Gnode_logical(i) = 1;
+                    end
+                end
+                vis_Gnode_ind = find(vis_Gnode_logical == 1);
+                vis_Gnode = obj.Gnode(vis_Gnode_logical);                
+                
+                %%% e3 edges
+                % Set-up lobe colours
+                lobeid = {'B','RUL','RML','RLL','LUL','LML','LLL'};
+                colours = linspecer(length(lobeid), 'qualitative');
+                colormap(colours)
+                for i = 1:length(vis_Glink)
+                    % get lobe colour index
+                    cidx = strcmp(lobeid, obj.Glink(i).lobe);
+                    % identify origin and sink for each link by node
+                    n1 = vis_Glink(i).n1;
+                    n2 = vis_Glink(i).n2;
+                    % plot line for each link
+                    X = [vis_Gnode(n1).comy, vis_Gnode(n2).comy];
+                    Y = [vis_Gnode(n1).comx, vis_Gnode(n2).comx];
+                    Z = [vis_Gnode(n1).comz, vis_Gnode(n2).comz];
+                    plot3(X,Y,Z,'LineWidth',2,'Color', colours(cidx,:))
+                    hold on
+                end
+                % colorbar
+                clims = [1 length(lobeid)];
+                c = colorbar('Ticks', clims(1):clims(2), 'TickLabels', lobeid);
+                c.Label.String = 'Lobe';
+                caxis(clims)
+
+                
+                %%% nodes
+                X_node = [vis_Gnode.comy];
+                Y_node = [vis_Gnode.comx];
+                Z_node = [vis_Gnode.comz];
+                nums_node = string(vis_Gnode_ind);
+                plot3(X_node,Y_node,Z_node, 'r.', 'MarkerSize', 18, 'Color', 'r');
+                text(X_node+1,Y_node+1,Z_node+1, nums_node, 'Color', [0.8, 0, 0])
+                
+                %axis([0 size(obj.CT, 1) 0 size(obj.CT, 2) 0 size(obj.CT, 3)])
+                view(80,0)
+                axis vis3d
+                % undo matlab display flip
+                ax = gca;
+                ax.XDir = 'reverse';
+                
+            end
+
+            
             %%% Splines
             function PlotSplineTree(obj)
                 % loop through every branch, check spline has already been
