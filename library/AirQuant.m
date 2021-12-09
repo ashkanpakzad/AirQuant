@@ -2148,21 +2148,40 @@ classdef AirQuant < handle % handle class
                 caxis(clims)
             end
             
-            function PlotTree(obj, gen)
+            function PlotTree(obj, gen, show_seg_txt, show_node_txt)
                 % Plot the airway tree with nodes and links in image space. Set
                 % gen to the maximum number of generations to show.
                 % Original Function by Ashkan Pakzad on 27th July 2019.
                 
-                if nargin == 1
+                % for max generations set gen to 0
+                % hide segment and node labels using show_seg_txt and 
+                % show_node_txt respectively.
+                
+                % does not show excluded airways
+                
+                % set defaults
+                if nargin < 2
+                    gen = 0;
+                end
+                
+                if nargin < 3
+                    show_seg_txt = 1;
+                end
+                
+                if nargin < 4
+                    show_node_txt = 1;
+                end
+                
+                % if gen is 0, update to max gen
+                if gen == 0
                     gen = max([obj.Glink(:).generation]);
                 end
                 
-                %             isosurface(obj.skel);
-                %             alpha(0.7)
                 % set up reduced link graph and skel
                 vis_Glink_logical = [obj.Glink(:).generation] <= gen;
-                vis_Glink_ind = find(vis_Glink_logical == 1);
-                vis_Glink = obj.Glink(vis_Glink_logical);
+                vis_Glink_exclude = [obj.Glink(:).exclude] ;
+                vis_Glink_ind = find(vis_Glink_logical == 1 & vis_Glink_exclude == 0);
+                vis_Glink = obj.Glink(vis_Glink_ind);
                 % set up reduced node graph
                 vis_Gnode_logical = false(length(obj.Gnode),1);
                 for i = 1:length(obj.Gnode)
@@ -2175,7 +2194,6 @@ classdef AirQuant < handle % handle class
                 % set up reduced skel
                 vis_skel = zeros(size(obj.skel));
                 vis_skel([vis_Glink.point]) = 1;
-                %vis_skel([vis_Gnode.idx]) = 1;
                 
                 isosurface(vis_skel)
                 alpha(0.7)
@@ -2183,24 +2201,28 @@ classdef AirQuant < handle % handle class
                 hold on
                 
                 % edges
-                ind = zeros(length(vis_Glink), 1);
-                for i = 1:length(vis_Glink)
-                    ind(i) = vis_Glink(i).point(ceil(end/2));
+                if show_seg_txt ~= 0
+                    ind = zeros(length(vis_Glink), 1);
+                    for i = 1:length(vis_Glink)
+                        ind(i) = vis_Glink(i).point(ceil(end/2));
+                    end
+                    [Y, X, Z] = ind2sub(size(obj.skel),ind);
+                    nums_link = string(vis_Glink_ind);
+                    plot3(X,Y,Z, 'b.', 'MarkerFaceColor', 'none');
+                    
+                    text(X+1,Y+1,Z+1, nums_link, 'Color', [0, 0, 0.8])
                 end
-                [Y, X, Z] = ind2sub(size(obj.skel),ind);
-                nums_link = string(vis_Glink_ind);
-                plot3(X,Y,Z, 'b.', 'MarkerFaceColor', 'none');
-                text(X+1,Y+1,Z+1, nums_link, 'Color', [0, 0, 0.8])
                 
                 % nodes
-                X_node = [vis_Gnode.comy];
-                Y_node = [vis_Gnode.comx];
-                Z_node = [vis_Gnode.comz];
-                nums_node = string(vis_Gnode_ind);
-                plot3(X_node,Y_node,Z_node, 'r.', 'MarkerSize', 18, 'Color', 'r');
-                text(X_node+1,Y_node+1,Z_node+1, nums_node, 'Color', [0.8, 0, 0])
+                if show_node_txt ~= 0
+                    X_node = [vis_Gnode.comy];
+                    Y_node = [vis_Gnode.comx];
+                    Z_node = [vis_Gnode.comz];
+                    nums_node = string(vis_Gnode_ind);
+                    plot3(X_node,Y_node,Z_node, 'r.', 'MarkerSize', 18, 'Color', 'r');
+                    text(X_node+1,Y_node+1,Z_node+1, nums_node, 'Color', [0.8, 0, 0])
+                end
                 
-                %axis([0 size(obj.CT, 1) 0 size(obj.CT, 2) 0 size(obj.CT, 3)])
                 view(80,0)
                 axis vis3d
                 % undo matlab display flip
@@ -2376,6 +2398,13 @@ classdef AirQuant < handle % handle class
             end
             
             %%% Volumetric
+            function PlotSeg(obj)
+                % plot segmentation
+                patch(isosurface(obj.seg),'EdgeColor', 'none','FaceAlpha',0.1, 'LineStyle', 'none');
+                vol3daxes(obj)
+            end
+
+            
             function PlotMap3D(obj, mode)
                 % Recommend to use View3D if colour labels appear buggy.
                 
