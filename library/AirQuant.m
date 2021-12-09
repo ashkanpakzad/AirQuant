@@ -661,6 +661,91 @@ classdef AirQuant < handle % handle class
             
         end
         
+        function SkelAngle(obj)
+            % make vector for all airways
+            allX = zeros(length(obj.Glink),2);
+            allY = zeros(length(obj.Glink),2);
+            allZ = zeros(length(obj.Glink),2);
+            segvec = zeros(length(obj.Glink),3);
+            for ii = 1:length(obj.Glink)
+                % identify origin and sink for each link by node
+                n1 = obj.Glink(ii).n1;
+                n2 = obj.Glink(ii).n2;
+                allX(ii,:) = [obj.Gnode(n1).comy, obj.Gnode(n2).comy];
+                allY(ii,:) = [obj.Gnode(n1).comx, obj.Gnode(n2).comx];
+                allZ(ii,:) = [obj.Gnode(n1).comz, obj.Gnode(n2).comz];
+                % convert to vector and store
+                segvec(ii,:) = [obj.Gnode(n2).comy - obj.Gnode(n1).comy,...
+                    obj.Gnode(n2).comx - obj.Gnode(n1).comx, ...
+                    obj.Gnode(n2).comz - obj.Gnode(n1).comz];
+            end
+            anoms = zeros(length(obj.Glink),1);
+            theta = zeros(length(obj.Glink),1);
+            for ii = 1:length(obj.Glink)
+                if any(ii == obj.trachea_path)
+                    continue
+                end
+                % get angle between airway and (opposite) parent
+                p = -segvec(obj.Glink(ii).parent_idx,:);
+                c = segvec(ii,:);
+                
+                % theta = acos((dot(p,c))/(norm(p)*norm(c)));
+                theta(ii) = atan2(norm(cross(p,c)),dot(p,c));
+                % identify if anomalous angle (e.g. acute)
+                anoms(ii) = (theta(ii) < pi/2);
+              
+                if anoms(ii) == 1
+                    Color = [1 0 0]; % R
+                else
+                    Color = [0 1 0]; % G
+                end
+                
+                plot3(allX(ii,:), allY(ii,:), allZ(ii,:), ...
+                    'LineWidth' ,2, 'Color',Color);
+
+                hold on
+                
+                % arrow
+                q = quiver3(allX(ii,1), allY(ii,1), allZ(ii,1), ...
+                    segvec(ii,1), segvec(ii,2), segvec(ii,3));
+                q.Color = Color;
+                q.AutoScaleFactor = 0.5;
+                q.MaxHeadSize = 1.5;
+            end
+            
+            % convert theta to string array
+            theta_str = string(rad2deg(theta));
+            for ii = 1:length(theta_str)
+                theta_str(ii) = sprintf('%0.0f',theta_str(ii));
+                theta_str(ii) = string([char(theta_str(ii)), char(176)]);
+            end
+            
+            % plot text
+            text(allX(:,1)+segvec(:,1)/2+1, ...
+                allY(:,1)+segvec(:,2)/2+1, ...
+                allZ(:,1)+segvec(:,3)/2+1, ...
+                theta_str, 'Color', [0, 0, 0.8])
+            
+            %%% nodes
+            X_node = [obj.Gnode.comy];
+            Y_node = [obj.Gnode.comx];
+            Z_node = [obj.Gnode.comz];
+            nums_node = string(1:length(obj.Gnode));
+            plot3(X_node,Y_node,Z_node, 'k.', 'MarkerSize', 18, 'Color', 'k');
+            text(X_node+1,Y_node+1,Z_node+1, nums_node, 'Color', [0.8, 0, 0])
+            
+            %axis([0 size(obj.CT, 1) 0 size(obj.CT, 2) 0 size(obj.CT, 3)])
+            view(80,0)
+            axis vis3d
+            % undo matlab display flip
+            ax = gca;
+            ax.XDir = 'reverse';
+            % Return anomalous branches
+            disp(find(anoms == 1))
+            
+            
+        end
+        
         %% GRAPH MANIPULATION
         
         % airway culling
@@ -2165,6 +2250,15 @@ classdef AirQuant < handle % handle class
                     Z = [vis_Gnode(n1).comz, vis_Gnode(n2).comz];
                     plot3(X,Y,Z,'LineWidth',2,'Color', colours(cidx,:))
                     hold on
+                    % get arrow
+                    U = vis_Gnode(n2).comy - vis_Gnode(n1).comy;
+                    V = vis_Gnode(n2).comx - vis_Gnode(n1).comx;
+                    W = vis_Gnode(n2).comz - vis_Gnode(n1).comz;
+                    q = quiver3(X(1),Y(1),Z(1),U,V,W);
+                    q.Color = colours(cidx,:);
+                    q.AutoScaleFactor = 0.5;
+                    q.MaxHeadSize = 1.5;
+
                 end
                 % colorbar
                 clims = [1 length(lobeid)];
