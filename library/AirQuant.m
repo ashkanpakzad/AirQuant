@@ -50,6 +50,7 @@ classdef AirQuant < handle % handle class
         FWHMesl % FWHMesl algorithm results for every airway {inner, peak, outer}
         Specs % Store of end metrics
         OriginalGraphMap % Store original properties of graph if manipulated
+        LobeClass % stores lobe and major branch node origins
     end
     
     methods
@@ -546,6 +547,60 @@ classdef AirQuant < handle % handle class
             obj.OriginalGraphMap.Gnode = obj.Gnode;
             obj.OriginalGraphMap.Glink = obj.Glink;
             obj.OriginalGraphMap.Gdigraph = obj.Gdigraph;
+        end
+        
+        function obj = StoreLobeClass(obj)
+            % initialise object
+            obj.LobeClass = struct();
+            obj.LobeClass.LN = []; % Left major lung node
+            obj.LobeClass.RN = []; % Right major lung node
+            obj.LobeClass.LIN = []; % Left Intermediate lung node
+            obj.LobeClass.RIN = []; % Right major lung node
+            obj.LobeClass.LULN = []; % LUL origin node
+            obj.LobeClass.LMLN = []; % LML origin node
+            obj.LobeClass.LLLN = []; % LLL origin node
+            obj.LobeClass.RULN = []; % RUL origin node
+            obj.LobeClass.RMLN = []; % RML origin node
+            obj.LobeClass.RLLN = []; % RLL origin node
+            
+            
+            % find left and right branch nodes
+            G = obj.Gdigraph;
+            lungN = successors(G, obj.carina_node);
+            if obj.Gnode(lungN(1)).comx > obj.Gnode(lungN(2)).comx
+                leftN = lungN(1);
+                rightN = lungN(2);
+            else
+                leftN = lungN(2);
+                rightN = lungN(1);
+            end
+            obj.LobeClass.LN = leftN; % Left major lung node
+            obj.LobeClass.RN = rightN;
+            
+            % find major branch end nodes
+            B_awy = find(strcmp([obj.Glink(:).lobe] ,'B'));
+            B_awy_n2 = [obj.Glink(B_awy).n2];
+            
+            lungLNcs = successors(G, leftN);
+            obj.LobeClass.LIN = intersect(B_awy_n2, lungLNcs);
+            
+            lungRNcs = successors(G, rightN);
+            obj.LobeClass.RIN = intersect(B_awy_n2, lungRNcs);
+            
+            
+            % 2nd gen airways - maybe 2 for RUL?
+            lobelabels = AirQuant.LobeLabels();
+            
+            lobe_awy_og = find([obj.Glink(:).generation] == 2);
+            
+            obj.LobeClass.RULN = obj.Glink(lobe_awy_og(strcmp([obj.Glink(lobe_awy_og).lobe],lobelabels{1}))).n2; % RUL origin node
+            obj.LobeClass.RMLN = obj.Glink(lobe_awy_og(strcmp([obj.Glink(lobe_awy_og).lobe],lobelabels{2}))).n2; % RML origin node
+            obj.LobeClass.RLLN = obj.Glink(lobe_awy_og(strcmp([obj.Glink(lobe_awy_og).lobe],lobelabels{3}))).n2; % RLL origin node
+            obj.LobeClass.LULN = obj.Glink(lobe_awy_og(strcmp([obj.Glink(lobe_awy_og).lobe],lobelabels{4}))).n2; % LUL origin node
+            obj.LobeClass.LMLN = obj.Glink(lobe_awy_og(strcmp([obj.Glink(lobe_awy_og).lobe],lobelabels{5}))).n2; % LML origin node
+            obj.LobeClass.LLLN = obj.Glink(lobe_awy_og(strcmp([obj.Glink(lobe_awy_og).lobe],lobelabels{6}))).n2; % LLL origin node
+
+            
         end
         %% GRAPH NETWORK ANOMOLY ANALYSIS
         % Methods that analyse the airway structural graph checking for
@@ -2306,7 +2361,6 @@ classdef AirQuant < handle % handle class
                 
             end
 
-            
             %%% Splines
             function PlotSplineTree(obj)
                 % loop through every branch, check spline has already been
@@ -2404,7 +2458,6 @@ classdef AirQuant < handle % handle class
                 vol3daxes(obj)
             end
 
-            
             function PlotMap3D(obj, mode)
                 % Recommend to use View3D if colour labels appear buggy.
                 
