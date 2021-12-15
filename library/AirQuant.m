@@ -2234,7 +2234,11 @@ classdef AirQuant < handle % handle class
                 
                 % set up reduced link graph and skel
                 vis_Glink_logical = [obj.Glink(:).generation] <= gen;
-                vis_Glink_exclude = [obj.Glink(:).exclude] ;
+                if isfield(obj.Glink,'exclude')
+                    vis_Glink_exclude = [obj.Glink(:).exclude] ;
+                else
+                    vis_Glink_exclude = zeros(size(vis_Glink_logical));
+                end
                 vis_Glink_ind = find(vis_Glink_logical == 1 & vis_Glink_exclude == 0);
                 vis_Glink = obj.Glink(vis_Glink_ind);
                 % set up reduced node graph
