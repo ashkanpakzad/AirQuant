@@ -2273,12 +2273,13 @@ classdef AirQuant < handle % handle class
                 end
                 
                 % nodes
+                
+                X_node = [vis_Gnode.comy];
+                Y_node = [vis_Gnode.comx];
+                Z_node = [vis_Gnode.comz];
+                nums_node = string(vis_Gnode_ind);
+                plot3(X_node,Y_node,Z_node, 'r.', 'MarkerSize', 18, 'Color', 'r');
                 if show_node_txt ~= 0
-                    X_node = [vis_Gnode.comy];
-                    Y_node = [vis_Gnode.comx];
-                    Z_node = [vis_Gnode.comz];
-                    nums_node = string(vis_Gnode_ind);
-                    plot3(X_node,Y_node,Z_node, 'r.', 'MarkerSize', 18, 'Color', 'r');
                     text(X_node+1,Y_node+1,Z_node+1, nums_node, 'Color', [0.8, 0, 0])
                 end
                 
@@ -2290,13 +2291,22 @@ classdef AirQuant < handle % handle class
                 
             end
             
-            function plot3(obj, gen)
+            function plot3(obj, gen, show_node_txt)
                 % Plot the airway tree in graph form, in 3D. nodes are in
                 % in image space. Set gen to the maximum number of 
                 % generations to show.
                 % Original Function by Ashkan Pakzad on 27th July 2019.
                 
-                if nargin == 1
+                
+                if nargin < 2
+                    gen = 0;
+                end
+                
+                if nargin < 3
+                    show_node_txt = 1;
+                end
+                
+                if gen == 0
                     gen = max([obj.Glink(:).generation]);
                 end
                 
@@ -2354,8 +2364,9 @@ classdef AirQuant < handle % handle class
                 Z_node = [vis_Gnode.comz];
                 nums_node = string(vis_Gnode_ind);
                 plot3(X_node,Y_node,Z_node, 'r.', 'MarkerSize', 18, 'Color', 'r');
-                text(X_node+1,Y_node+1,Z_node+1, nums_node, 'Color', [0.8, 0, 0])
-                
+                if show_node_txt == 1
+                    text(X_node+1,Y_node+1,Z_node+1, nums_node, 'Color', [0.8, 0, 0])
+                end
                 %axis([0 size(obj.CT, 1) 0 size(obj.CT, 2) 0 size(obj.CT, 3)])
                 view(80,0)
                 axis vis3d
@@ -2381,6 +2392,12 @@ classdef AirQuant < handle % handle class
                     fnplt(obj.Splines{i, 1})
                     hold on
                 end
+                view(80,0)
+                axis vis3d
+                % undo matlab display flip
+                ax = gca;
+                ax.XDir = 'reverse';
+                
             end
             
             function h = PlotSplineVecs(obj, subsamp, link_index)
@@ -2726,7 +2743,14 @@ classdef AirQuant < handle % handle class
             end
             
             %%% Novel/tapering visualisation
-            function h = GraphPlotDiameter(obj)
+            function [h, G] = GraphPlotDiameter(obj, showlabels, XData, YData)
+                if nargin < 2 
+                    showlabels = 1;
+                end
+                if nargin < 4
+                    XData = [];
+                    YData = [];
+                end
                 % graph plot any variable for each airway as desired. i.e.
                 % provide var which is a vector the same length as the number
                 % of airways.
@@ -2740,11 +2764,19 @@ classdef AirQuant < handle % handle class
                 end
                 
                 % generate corresponding edgelabels
-                edgelabels = [obj.Glink(G.Edges.Label).generation];
+                if showlabels == 1
+                    edgelabels = [obj.Glink(G.Edges.Label).generation];
+                else
+                    edgelabels = [];
+                end
                 edgevar = real(tapertable.inner_avg(G.Edges.Label));
                 
                 title('Average Inner lumen Diameter')
+                if ~isempty(XData) && ~isempty(XData)
+                    h = plot(G,'EdgeLabel',edgelabels,'XData',XData,'YData',YData);
+                else
                 h = plot(G,'EdgeLabel',edgelabels, 'Layout', 'layered');
+                end
                 h.NodeColor = 'r';
                 h.EdgeColor = 'k';
                 
