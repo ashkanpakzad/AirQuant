@@ -17,21 +17,18 @@ ptk_main = PTKMain();
 
 % load in segmentation and execute
 
-% load in using niftiread and convert to PTK image
-if strcmp(SegImage(end-2:end), '.gz') == 1
-    compressed = 1;
-    gunzip(SegImage);
-    SegImage = SegImage(1:end-3);
-else
-    compressed = 0;
-end
-
 seg_data = ptk_main.Load(SegImage);
 
 skel = seg_data.GetResult('PTKCustomAirwayCentreline');
 
 % save result if requested and segmentation loaded originally.
+
+
 [filepath,name,ext] = fileparts(SegImage);
+
+if endsWith(name, '.nii')
+    name = name(1:end-4);
+end
 
 if saveflag == 1
     savename = [name, '_PTKskel.nii'];
@@ -43,10 +40,6 @@ if saveflag == 1
     
     % delete decompression of seg image
     
-end
-
-if compressed == 1
-    delete(fullfile(filepath,[name,ext]))
 end
 
 if nargout > 0

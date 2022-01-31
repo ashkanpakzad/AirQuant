@@ -49,7 +49,6 @@ fseek(fid,352,'bof');
 V=fread(fid,prod(img_dims),datatype_string);
 fclose(fid);
 % Reshape the image so it has the correct dimensions
-% V=reshape(V,img_dims');
 
 
 %% check orientation method
@@ -68,16 +67,6 @@ elseif sformcode > 0
     offsetx = sx(4);
     offsety = sy(4);
     offsetz = sz(4);
-%     s3daff = [sx(1:3)';sy(1:3)';sz(1:3)'];
-%     
-%     s3daff_norm = s3daff./s3daff;
-%     s3daff_norm(isnan(s3daff_norm)) = 0;
-% 
-%     axes = [1,2,3]; % default
-%     for i = 1:3
-%         vec = s3daff_norm(:,i);
-%         axes(i) = find(vec);
-%     end
 else 
     error('cannot edit orientation on this file')
     % uses old analyze, code not yet written for this file type.
@@ -85,18 +74,6 @@ end
 
 
 %% write given affine into file
-% if strcmp(orientationmethod,'qform')
-%     % convert affine matrix into R
-%     
-%     % convert R into quaternion
-%     a = 0.5 * sqrt(1+aff(1,1)+aff(2,2)+aff(3,3));
-%     b = 0.25 * (aff(3,2)-aff(2,3)) / a;
-%     c = 0.25 * (aff(1,3)-aff(3,1)) / a;
-%     d = 0.25 * (aff(2,1)-aff(1,2)) / a;
-%     
-%     fieldwrite(b, 256, 'float')
-%     fieldwrite(c, 260, 'float')
-%     fieldwrite(d, 264, 'float')
 
 % only use sform, set qform to 0 and sform to 1
 fieldwrite(0, 252, 'short'); % q

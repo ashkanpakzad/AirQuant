@@ -5,6 +5,7 @@ AirQuant is a software tool based in MATLAB primarily for extracting airway meas
 * MATLAB Signal Processing Toolbox (>8.3)
 * MATLAB Image Processing Toolbox (>11.0)
 * MATLAB Curve Fitting Toolbox (>3.5.10)
+* Statistics and Machine Learning Toolbox (>12.0)
 
 ## Install
 * In Terminal:

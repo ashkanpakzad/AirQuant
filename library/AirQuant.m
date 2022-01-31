@@ -4,12 +4,22 @@
 classdef AirQuant < handle % handle class
     properties
         %%% Volumes and Metadata
-        CT % CT image
-        CTinfo % CT metadata
-        seg % binary airway segmentation
-        skel % skeleton based on segementation
-        lims % reduced vol indices
-        savename % filename to load/save
+        CT 
+        % CT image input as 3D array, typically from niftiread.
+        CTinfo 
+        % CT metadata from niftiinfo
+        VoxDim
+        % voxel dimensions in mm usually       
+        seg 
+        % binary airway segmentation in the same grid space as CT. 
+        % dimensions must match with CT.
+        skel 
+        % skeleton based on segementation with no internal loops.
+        % in the same grid space as CT. Dimensions must match with CT.
+        lims 
+        % reduced volume indices
+        savename 
+        % filename to load/save the AirQuant object.
         %%% CT resampling params
         max_plane_sz = 40;% max interpolated slice size
         plane_sample_sz % interpolated slice pixel size
@@ -17,15 +27,18 @@ classdef AirQuant < handle % handle class
         plane_scaling_sz = 5; % scale airway diameter approx measurement.
         min_tube_sz % smallest measurable lumen Diameter.
         %%% Ray params
-        num_rays = 180; % check methods
-        ray_interval = 0.2; % check methods
+        num_rays = 180; 
+        % Number of rays to use about the airway centre in identifying the
+        % boundary of the airway edge.
+        ray_interval = 0.2; 
+        % Interval to resample the raycast profiles.
         
     end
     properties (SetAccess = private)
         %%% Graph Properties
         Gadj % undirected Graph Adjacency matrix
-        Gnode % Graph node info
-        Glink % Graph edge info
+        Gnode % Airway graph node info, struct
+        Glink % Airway graph edge info, struct
         Gdigraph % digraph object
         trachea_path % edges that form a connect subgraph above the carina
         carina_node % node that corresponds to the carina
@@ -39,15 +52,32 @@ classdef AirQuant < handle % handle class
         FWHMesl % FWHMesl algorithm results for every airway {inner, peak, outer}
         Specs % Store of end metrics
         OriginalGraphMap % Store original properties of graph if manipulated
+        LobeClass % stores lobe and major branch node origins
+        lungvol % lung volume (mm^3) calculated from given lungmask
     end
     
     methods
         %% INITIALISATION
-        % Methods used to call and make AQ object before any further
-        % processing takes place.
+        % Methods used to call and make AQ object.
         function obj = AirQuant(CTimage, CTinfo, segimage, skel, savename)
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             % Initialise the AirQuant class object.
-            % if using default settings, do not provide params argument.
+            %
+            % Initialising AQ object: (5 Required Params)
+            %   CTimage - (3D array) CT loaded from nifti using niftiread.
+            %   CTinfo - (struct) CT metadata loaded from nifti using
+            %       niftiinfo.
+            %   segimage - (3D array) Binary airway segmentation in the 
+            %       same grid space as CT. Dimensions must match with CT.
+            %   skel - (3D array) Binary airway centreline in the 
+            %       same grid space as CT. Dimensions must match with CT.
+            %   savename - filepath to save AirQuant object under.
+            %       Recommended to use /results/datasetname directory.
+            %
+            % Loading AQ object: (1 Required Params)
+            %   savename - filepath to previously saved AirQuant object.
+            %
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             
             % Can provide just file name, if analyses previously complete.
             if nargin == 1
@@ -60,9 +90,14 @@ classdef AirQuant < handle % handle class
                 load(savename)
                 % rewrite stored path to given path
                 obj.savename = savename;
+                % for backwards compatibility
+                if isempty(obj.VoxDim)
+                    obj.VoxDim = obj.CTinfo.PixelDimensions;
+                end
             else
                 disp(['New case to be saved at ', char(savename), ' saving...'])
                 obj.CTinfo = CTinfo;
+                obj.VoxDim = obj.CTinfo.PixelDimensions;
                 obj.CT = reorientvolume(CTimage, obj.CTinfo);
                 % ensure no holes in segmentation
                 segfilled = reorientvolume(imfill(segimage,'holes'), obj.CTinfo);
@@ -128,8 +163,15 @@ classdef AirQuant < handle % handle class
         end
         
         function obj = GenerateSkel(obj)
-            % Generate the airway skeleton
-            % if skeleton not provided, generate one.
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            % Generate the airway skeleton if skeleton not provided, 
+            % generate one. NB: it is recommended to use the PTK
+            % generated skeleton. This will use skeleton3D:
+            % https://github.com/phi-max/skeleton3d-matlab
+            %
+            %
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
             if isempty(obj.skel)
                 obj.skel = Skeleton3D(obj.seg);
             end
@@ -140,6 +182,11 @@ classdef AirQuant < handle % handle class
         end
         
         function obj = AirwayDigraph(obj)
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            % Generate the Airway Digraph, arrows point from central
+            % towards distal.
+            %
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             % Converts the output from skel2graph into a digraph tree
             % network, such that there are no loops and edges point from
             % the trachea distally outwards.
@@ -219,8 +266,12 @@ classdef AirQuant < handle % handle class
         end
         
         function obj = ComputeBranchCharacteristics(obj)
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             % Add parent and child links, and calculate length of airways.
-            % Add these to Glink to keep track of airway characteristics.
+            % Save these to class to keep track of airway characteristics. 
+            %
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
             for link_index = 1:length(obj.Glink)
                 % add parent idx column for each branch
                 obj.Glink(link_index).parent_idx = find([obj.Glink(:).n2] == obj.Glink(link_index).n1);
@@ -245,16 +296,21 @@ classdef AirQuant < handle % handle class
         end
         
         function obj = FindCarina(obj)
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             % Finds the carina node by analysis of the directed graph
             % produced by a breadth first search from the trachea node.
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
             [~, obj.carina_node] = max(centrality(obj.digraph,'outcloseness'));
         end
         
         function obj = FindTracheaPaths(obj)
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             % Check if there are any edges between carina and top of trachea
             % due to skeletonisation error (trachea is prone to
-            % skeletonisation errors)
-            
+            % skeletonisation errors)            
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
             % identify outgoing nodes from carina
             [eid, nid] = outedges(obj.Gdigraph,obj.carina_node);
             % identify their importance and sort in that order
@@ -272,7 +328,10 @@ classdef AirQuant < handle % handle class
         end
         
         function obj = ComputeAirwayGen(obj)
-            
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            % Indexes each airway generation by shortest path from carina
+            %
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             % loop through graph nodes
             G = obj.Gdigraph;
             gens = zeros(length(obj.Glink),1);
@@ -293,6 +352,11 @@ classdef AirQuant < handle % handle class
         end
         
         function obj = ComputeAirwayLobes(obj)
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            % Indexes each airway's lobe by implementing adapted algorithm,
+            % originally by Gu et al. 2012.
+            %
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             % Get airway graph
             G = obj.Gdigraph;
             % Set up lobe store vector
@@ -430,9 +494,13 @@ classdef AirQuant < handle % handle class
         end
         
         function ReclassLobeGen(obj)
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             % Reclassifies airway generations by their lobe rather than
             % global branch distance from carina. Called automatically once
             % lobes have been classified.
+            %
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
             
             % loop through graph nodes
             G = obj.Gdigraph;
@@ -477,13 +545,72 @@ classdef AirQuant < handle % handle class
         end
         
         function obj = StoreOriginalGraphMap(obj)
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             % Stores the graph properties incase they are manipulated
             % later. This is a mechanism so that they can be easily restored.
+            %
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
             obj.OriginalGraphMap.Gadj = obj.Gadj;
             obj.OriginalGraphMap.Gnode = obj.Gnode;
             obj.OriginalGraphMap.Glink = obj.Glink;
             obj.OriginalGraphMap.Gdigraph = obj.Gdigraph;
         end
+        
+        function obj = StoreLobeClass(obj)
+            % initialise object
+            obj.LobeClass = struct();
+            obj.LobeClass.LN = []; % Left major lung node
+            obj.LobeClass.RN = []; % Right major lung node
+            obj.LobeClass.LIN = []; % Left Intermediate lung node
+            obj.LobeClass.RIN = []; % Right major lung node
+            obj.LobeClass.LULN = []; % LUL origin node
+            obj.LobeClass.LMLN = []; % LML origin node
+            obj.LobeClass.LLLN = []; % LLL origin node
+            obj.LobeClass.RULN = []; % RUL origin node
+            obj.LobeClass.RMLN = []; % RML origin node
+            obj.LobeClass.RLLN = []; % RLL origin node
+            
+            
+            % find left and right branch nodes
+            G = obj.Gdigraph;
+            lungN = successors(G, obj.carina_node);
+            if obj.Gnode(lungN(1)).comx > obj.Gnode(lungN(2)).comx
+                leftN = lungN(1);
+                rightN = lungN(2);
+            else
+                leftN = lungN(2);
+                rightN = lungN(1);
+            end
+            obj.LobeClass.LN = leftN; % Left major lung node
+            obj.LobeClass.RN = rightN;
+            
+            % find major branch end nodes
+            B_awy = find(strcmp([obj.Glink(:).lobe] ,'B'));
+            B_awy_n2 = [obj.Glink(B_awy).n2];
+            
+            lungLNcs = successors(G, leftN);
+            obj.LobeClass.LIN = intersect(B_awy_n2, lungLNcs);
+            
+            lungRNcs = successors(G, rightN);
+            obj.LobeClass.RIN = intersect(B_awy_n2, lungRNcs);
+            
+            
+            % 2nd gen airways - maybe 2 for RUL?
+            lobelabels = AirQuant.LobeLabels();
+            
+            lobe_awy_og = find([obj.Glink(:).generation] == 2);
+            
+            obj.LobeClass.RULN = obj.Glink(lobe_awy_og(strcmp([obj.Glink(lobe_awy_og).lobe],lobelabels{1}))).n2; % RUL origin node
+            obj.LobeClass.RMLN = obj.Glink(lobe_awy_og(strcmp([obj.Glink(lobe_awy_og).lobe],lobelabels{2}))).n2; % RML origin node
+            obj.LobeClass.RLLN = obj.Glink(lobe_awy_og(strcmp([obj.Glink(lobe_awy_og).lobe],lobelabels{3}))).n2; % RLL origin node
+            obj.LobeClass.LULN = obj.Glink(lobe_awy_og(strcmp([obj.Glink(lobe_awy_og).lobe],lobelabels{4}))).n2; % LUL origin node
+            obj.LobeClass.LMLN = obj.Glink(lobe_awy_og(strcmp([obj.Glink(lobe_awy_og).lobe],lobelabels{5}))).n2; % LML origin node
+            obj.LobeClass.LLLN = obj.Glink(lobe_awy_og(strcmp([obj.Glink(lobe_awy_og).lobe],lobelabels{6}))).n2; % LLL origin node
+
+            
+        end
+        
         %% GRAPH NETWORK ANOMOLY ANALYSIS
         % Methods that analyse the airway structural graph checking for
         % anomalies such as loops and reporting them.
@@ -595,6 +722,91 @@ classdef AirQuant < handle % handle class
             % overwrite skeleton
             
             % recompute Tree digraph
+            
+        end
+        
+        function SkelAngle(obj)
+            % make vector for all airways
+            allX = zeros(length(obj.Glink),2);
+            allY = zeros(length(obj.Glink),2);
+            allZ = zeros(length(obj.Glink),2);
+            segvec = zeros(length(obj.Glink),3);
+            for ii = 1:length(obj.Glink)
+                % identify origin and sink for each link by node
+                n1 = obj.Glink(ii).n1;
+                n2 = obj.Glink(ii).n2;
+                allX(ii,:) = [obj.Gnode(n1).comy, obj.Gnode(n2).comy];
+                allY(ii,:) = [obj.Gnode(n1).comx, obj.Gnode(n2).comx];
+                allZ(ii,:) = [obj.Gnode(n1).comz, obj.Gnode(n2).comz];
+                % convert to vector and store
+                segvec(ii,:) = [obj.Gnode(n2).comy - obj.Gnode(n1).comy,...
+                    obj.Gnode(n2).comx - obj.Gnode(n1).comx, ...
+                    obj.Gnode(n2).comz - obj.Gnode(n1).comz];
+            end
+            anoms = zeros(length(obj.Glink),1);
+            theta = zeros(length(obj.Glink),1);
+            for ii = 1:length(obj.Glink)
+                if any(ii == obj.trachea_path)
+                    continue
+                end
+                % get angle between airway and (opposite) parent
+                p = -segvec(obj.Glink(ii).parent_idx,:);
+                c = segvec(ii,:);
+                
+                % theta = acos((dot(p,c))/(norm(p)*norm(c)));
+                theta(ii) = atan2(norm(cross(p,c)),dot(p,c));
+                % identify if anomalous angle (e.g. acute)
+                anoms(ii) = (theta(ii) < pi/2);
+              
+                if anoms(ii) == 1
+                    Color = [1 0 0]; % R
+                else
+                    Color = [0 1 0]; % G
+                end
+                
+                plot3(allX(ii,:), allY(ii,:), allZ(ii,:), ...
+                    'LineWidth' ,2, 'Color',Color);
+
+                hold on
+                
+                % arrow
+                q = quiver3(allX(ii,1), allY(ii,1), allZ(ii,1), ...
+                    segvec(ii,1), segvec(ii,2), segvec(ii,3));
+                q.Color = Color;
+                q.AutoScaleFactor = 0.5;
+                q.MaxHeadSize = 1.5;
+            end
+            
+            % convert theta to string array
+            theta_str = string(rad2deg(theta));
+            for ii = 1:length(theta_str)
+                theta_str(ii) = sprintf('%0.0f',theta_str(ii));
+                theta_str(ii) = string([char(theta_str(ii)), char(176)]);
+            end
+            
+            % plot text
+            text(allX(:,1)+segvec(:,1)/2+1, ...
+                allY(:,1)+segvec(:,2)/2+1, ...
+                allZ(:,1)+segvec(:,3)/2+1, ...
+                theta_str, 'Color', [0, 0, 0.8])
+            
+            %%% nodes
+            X_node = [obj.Gnode.comy];
+            Y_node = [obj.Gnode.comx];
+            Z_node = [obj.Gnode.comz];
+            nums_node = string(1:length(obj.Gnode));
+            plot3(X_node,Y_node,Z_node, 'k.', 'MarkerSize', 18, 'Color', 'k');
+            text(X_node+1,Y_node+1,Z_node+1, nums_node, 'Color', [0.8, 0, 0])
+            
+            %axis([0 size(obj.CT, 1) 0 size(obj.CT, 2) 0 size(obj.CT, 3)])
+            view(80,0)
+            axis vis3d
+            % undo matlab display flip
+            ax = gca;
+            ax.XDir = 'reverse';
+            % Return anomalous branches
+            disp(find(anoms == 1))
+            
             
         end
         
@@ -954,7 +1166,46 @@ classdef AirQuant < handle % handle class
                 end
             end
             
+            function obj = AddLungVol(obj, lungmask)
+                % get lung volume from optional lung mask for analysis 
+                % that computes airway relative to the lung.
+                % the lung mask is not saved to reduce unnessary memory
+                % loads
+                obj.lungvol = numel(lungmask)*prod(obj.VoxDim);                
+                save(obj)
+            end
             
+            function obj = SaveAllAwy(obj)
+                % make directory
+                [fPath, ~, ~] = fileparts(obj.savename);
+                dirname = fullfile(fPath,'airway_patches');
+                if ~exist(dirname, 'dir')
+                    mkdir(dirname)
+                end
+                
+                % loop through each airway seg
+                for ii = 1:size(obj.TraversedImage,1)
+                    
+                % loop through slices
+                    for k = 1:length(obj.TraversedImage{ii, 1})
+                        img = single(obj.TraversedImage{ii,1}{k,1});
+
+                    % save as png
+                        imgsavename = fullfile(dirname, [ ...          
+                        'seg_',num2str(ii), ...
+                        '_lobe_', char(obj.Glink(ii).lobe), ...
+                        '_gen_', num2str(obj.Glink(ii).generation), ...
+                        '_slice_',num2str(k), ...
+                        '.png']);
+
+                        imwrite(img, imgsavename)
+                        if k == 1
+                            disp(imgsavename)
+                        end
+                    end
+                end
+            end
+                
             %% HIGH LEVEL METHODS
             % methods that package lower level methods, often to apply analysis
             % to all airways rather than just individual airways.
@@ -1077,7 +1328,11 @@ classdef AirQuant < handle % handle class
                     % get approx airway size from distance map
                     approx_diameter = ComputeDmapD(obj, CT_point);
                     % compute interpolated slice size
-                    plane_sz = ceil(approx_diameter*obj.plane_scaling_sz);
+                    if obj.plane_scaling_sz ~= 0
+                        plane_sz = ceil(approx_diameter*obj.plane_scaling_sz);
+                    else
+                        plane_sz = obj.max_plane_sz;
+                    end
                     % use max plane size if current plane size exceeds it
                     if plane_sz > obj.max_plane_sz
                         plane_sz = obj.max_plane_sz;
@@ -1154,7 +1409,10 @@ classdef AirQuant < handle % handle class
             
             %% MEASUREMENT METHODS
             % Methods that measure the airway size on interpolated CT images.
-            function obj = FindAirwayBoundariesFWHM(obj, link_index)
+            function obj = FindAirwayBoundariesFWHM(obj, link_index, outlier_removal)
+                if nargin < 3
+                    outlier_removal = true;
+                end
                 %Based on function by Kin Quan 2018 that is based on Kiraly06
                 
                 slices_sz = size(obj.TraversedImage{link_index, 1}, 1);
@@ -1181,7 +1439,7 @@ classdef AirQuant < handle % handle class
                         
                         % * Compute FWHM
                         [FWHMl, FWHMp, FWHMr] = AirQuant.computeFWHM(CT_rays,...
-                            seg_rays, coords);
+                            seg_rays, coords, outlier_removal);
                         
                         % * Compute Ellipses
                         FWHMl_ellipse = ComputeEllipses(obj, FWHMl);
@@ -1554,7 +1812,7 @@ classdef AirQuant < handle % handle class
                     catch
                         % leave as NaN
                     end
-                    % compute average area
+                    % compute average
                     averagediameter(jj) = trimmean(Dvec, 10);
                 end
                 
@@ -1562,12 +1820,12 @@ classdef AirQuant < handle % handle class
                     titlevec = ["inner"; "peak"; "outer"];
                     for jj = 1:3
                         subplot(3,1,jj)
-                        plot(al, areas(prune,jj), 'k.')
+                        plot(al, diameters(prune,jj), 'k.')
                         hold on
                         plot(al, coeff(2,jj)*al + coeff(1,jj),'r')
                         legend('data', 'bisquare fit', 'Location', 'best')
                         xlabel('arclength (mm)')
-                        ylabel('area mm^2')
+                        ylabel('Diameter (mm)')
                         title(sprintf('Branch idx: %i %s intrataper value: %.2f%% average: %.2f mm.',...
                             idx, titlevec(jj), intrataper(jj), averagediameter(jj)))
                         hold off
@@ -1692,6 +1950,25 @@ classdef AirQuant < handle % handle class
                 end
             end
             
+            function allvol = ComputeIntegratedVolAll(obj, prunelength)
+                % Compute the intertapering value for all airways based on
+                % integrated volume along airway.
+                
+                if nargin < 2
+                    prunelength = [0 0];
+                end
+                
+                % loop through branches
+                allvol = NaN(length(obj.arclength), 3);
+                
+                for ii = 1:length(obj.arclength)
+                    if any(ii == obj.trachea_path)
+                        continue
+                    end
+                    [allvol(ii,:)] = ComputeIntegratedVol(obj, prunelength, ii);
+                end
+            end
+            
             function vol_intertaper = ComputeInterIntegratedVol(obj, prunelength)
                 % Compute the intertapering value for all airways based on
                 % integrated volume along airway.
@@ -1757,6 +2034,7 @@ classdef AirQuant < handle % handle class
                 vol_intertaper = ComputeInterIntegratedVol(obj, prunelength);
                 [tortuosity, arc_length, euc_length] = ComputeTortuosity(obj);
                 lobar_intertaper = ComputeLobarInterTaper(obj, prunelength);
+                inner_vol = ComputeIntegratedVolAll(obj, prunelength);
                 %             parent = [obj.Glink.parent_idx]';
                 
                 % organise into column headings
@@ -1782,13 +2060,20 @@ classdef AirQuant < handle % handle class
                 peak_volinter = vol_intertaper(:, 2);
                 outer_volinter = vol_intertaper(:, 3);
                 
+                if ~empty(obj.lungvol)
+                    inner_vol_lung_ratio = inner_vol./obj.lungvol;
+                else
+                    inner_vol_lung_ratio = NaN(size(inner_vol));
+                end
+                
                 % convert to table
                 SegmentTaperResults = table(branch, inner_intra, peak_intra, ...
                     outer_intra, inner_avg, peak_avg, outer_avg, ...
                     inner_inter, peak_inter, outer_inter,...
                     inner_volinter, peak_volinter, outer_volinter, ...
                     inner_lobeinter, peak_lobeinter, outer_lobeinter, ...
-                    tortuosity, arc_length, euc_length);
+                    tortuosity, arc_length, euc_length, inner_vol, ...
+                    inner_vol_lung_ratio);
                 
                 % add gen info
                 SegmentTaperResults.generation = [obj.Glink.generation]';
@@ -1997,21 +2282,44 @@ classdef AirQuant < handle % handle class
                 caxis(clims)
             end
             
-            function PlotTree(obj, gen)
+            function PlotTree(obj, gen, show_seg_txt, show_node_txt)
                 % Plot the airway tree with nodes and links in image space. Set
                 % gen to the maximum number of generations to show.
                 % Original Function by Ashkan Pakzad on 27th July 2019.
                 
-                if nargin == 1
+                % for max generations set gen to 0
+                % hide segment and node labels using show_seg_txt and 
+                % show_node_txt respectively.
+                
+                % does not show excluded airways
+                
+                % set defaults
+                if nargin < 2
+                    gen = 0;
+                end
+                
+                if nargin < 3
+                    show_seg_txt = 1;
+                end
+                
+                if nargin < 4
+                    show_node_txt = 1;
+                end
+                
+                % if gen is 0, update to max gen
+                if gen == 0
                     gen = max([obj.Glink(:).generation]);
                 end
                 
-                %             isosurface(obj.skel);
-                %             alpha(0.7)
                 % set up reduced link graph and skel
                 vis_Glink_logical = [obj.Glink(:).generation] <= gen;
-                vis_Glink_ind = find(vis_Glink_logical == 1);
-                vis_Glink = obj.Glink(vis_Glink_logical);
+                if isfield(obj.Glink,'exclude')
+                    vis_Glink_exclude = [obj.Glink(:).exclude] ;
+                else
+                    vis_Glink_exclude = zeros(size(vis_Glink_logical));
+                end
+                vis_Glink_ind = find(vis_Glink_logical == 1 & vis_Glink_exclude == 0);
+                vis_Glink = obj.Glink(vis_Glink_ind);
                 % set up reduced node graph
                 vis_Gnode_logical = false(length(obj.Gnode),1);
                 for i = 1:length(obj.Gnode)
@@ -2024,7 +2332,6 @@ classdef AirQuant < handle % handle class
                 % set up reduced skel
                 vis_skel = zeros(size(obj.skel));
                 vis_skel([vis_Glink.point]) = 1;
-                %vis_skel([vis_Gnode.idx]) = 1;
                 
                 isosurface(vis_skel)
                 alpha(0.7)
@@ -2032,24 +2339,29 @@ classdef AirQuant < handle % handle class
                 hold on
                 
                 % edges
-                ind = zeros(length(vis_Glink), 1);
-                for i = 1:length(vis_Glink)
-                    ind(i) = vis_Glink(i).point(ceil(end/2));
+                if show_seg_txt ~= 0
+                    ind = zeros(length(vis_Glink), 1);
+                    for i = 1:length(vis_Glink)
+                        ind(i) = vis_Glink(i).point(ceil(end/2));
+                    end
+                    [Y, X, Z] = ind2sub(size(obj.skel),ind);
+                    nums_link = string(vis_Glink_ind);
+                    plot3(X,Y,Z, 'b.', 'MarkerFaceColor', 'none');
+                    
+                    text(X+1,Y+1,Z+1, nums_link, 'Color', [0, 0, 0.8])
                 end
-                [Y, X, Z] = ind2sub(size(obj.skel),ind);
-                nums_link = string(vis_Glink_ind);
-                plot3(X,Y,Z, 'b.', 'MarkerFaceColor', 'none');
-                text(X+1,Y+1,Z+1, nums_link, 'Color', [0, 0, 0.8])
                 
                 % nodes
+                
                 X_node = [vis_Gnode.comy];
                 Y_node = [vis_Gnode.comx];
                 Z_node = [vis_Gnode.comz];
                 nums_node = string(vis_Gnode_ind);
                 plot3(X_node,Y_node,Z_node, 'r.', 'MarkerSize', 18, 'Color', 'r');
-                text(X_node+1,Y_node+1,Z_node+1, nums_node, 'Color', [0.8, 0, 0])
+                if show_node_txt ~= 0
+                    text(X_node+1,Y_node+1,Z_node+1, nums_node, 'Color', [0.8, 0, 0])
+                end
                 
-                %axis([0 size(obj.CT, 1) 0 size(obj.CT, 2) 0 size(obj.CT, 3)])
                 view(80,0)
                 axis vis3d
                 % undo matlab display flip
@@ -2058,7 +2370,91 @@ classdef AirQuant < handle % handle class
                 
             end
             
-            
+            function plot3(obj, gen, show_node_txt)
+                % Plot the airway tree in graph form, in 3D. nodes are in
+                % in image space. Set gen to the maximum number of 
+                % generations to show.
+                % Original Function by Ashkan Pakzad on 27th July 2019.
+                
+                
+                if nargin < 2
+                    gen = 0;
+                end
+                
+                if nargin < 3
+                    show_node_txt = 1;
+                end
+                
+                if gen == 0
+                    gen = max([obj.Glink(:).generation]);
+                end
+                
+                % set up reduced link graph and skel
+                vis_Glink_logical = [obj.Glink(:).generation] <= gen;
+                vis_Glink_ind = find(vis_Glink_logical == 1);
+                vis_Glink = obj.Glink(vis_Glink_logical);
+                % set up reduced node graph
+                vis_Gnode_logical = false(length(obj.Gnode),1);
+                for i = 1:length(obj.Gnode)
+                    if ~isempty(intersect(obj.Gnode(i).links, vis_Glink_ind))
+                        vis_Gnode_logical(i) = 1;
+                    end
+                end
+                vis_Gnode_ind = find(vis_Gnode_logical == 1);
+                vis_Gnode = obj.Gnode(vis_Gnode_logical);                
+                
+                %%% e3 edges
+                % Set-up lobe colours
+                lobeid = {'B','RUL','RML','RLL','LUL','LML','LLL'};
+                colours = linspecer(length(lobeid), 'qualitative');
+                colormap(colours)
+                for i = 1:length(vis_Glink)
+                    % get lobe colour index
+                    cidx = strcmp(lobeid, obj.Glink(i).lobe);
+                    % identify origin and sink for each link by node
+                    n1 = vis_Glink(i).n1;
+                    n2 = vis_Glink(i).n2;
+                    % plot line for each link
+                    X = [vis_Gnode(n1).comy, vis_Gnode(n2).comy];
+                    Y = [vis_Gnode(n1).comx, vis_Gnode(n2).comx];
+                    Z = [vis_Gnode(n1).comz, vis_Gnode(n2).comz];
+                    plot3(X,Y,Z,'LineWidth',2,'Color', colours(cidx,:))
+                    hold on
+                    % get arrow
+                    U = vis_Gnode(n2).comy - vis_Gnode(n1).comy;
+                    V = vis_Gnode(n2).comx - vis_Gnode(n1).comx;
+                    W = vis_Gnode(n2).comz - vis_Gnode(n1).comz;
+                    q = quiver3(X(1),Y(1),Z(1),U,V,W);
+                    q.Color = colours(cidx,:);
+                    q.AutoScaleFactor = 0.5;
+                    q.MaxHeadSize = 1.5;
+
+                end
+                % colorbar
+                clims = [1 length(lobeid)];
+                c = colorbar('Ticks', clims(1):clims(2), 'TickLabels', lobeid);
+                c.Label.String = 'Lobe';
+                caxis(clims)
+
+                
+                %%% nodes
+                X_node = [vis_Gnode.comy];
+                Y_node = [vis_Gnode.comx];
+                Z_node = [vis_Gnode.comz];
+                nums_node = string(vis_Gnode_ind);
+                plot3(X_node,Y_node,Z_node, 'r.', 'MarkerSize', 18, 'Color', 'r');
+                if show_node_txt == 1
+                    text(X_node+1,Y_node+1,Z_node+1, nums_node, 'Color', [0.8, 0, 0])
+                end
+                %axis([0 size(obj.CT, 1) 0 size(obj.CT, 2) 0 size(obj.CT, 3)])
+                view(80,0)
+                axis vis3d
+                % undo matlab display flip
+                ax = gca;
+                ax.XDir = 'reverse';
+                
+            end
+
             %%% Splines
             function PlotSplineTree(obj)
                 % loop through every branch, check spline has already been
@@ -2075,6 +2471,12 @@ classdef AirQuant < handle % handle class
                     fnplt(obj.Splines{i, 1})
                     hold on
                 end
+                view(80,0)
+                axis vis3d
+                % undo matlab display flip
+                ax = gca;
+                ax.XDir = 'reverse';
+                
             end
             
             function h = PlotSplineVecs(obj, subsamp, link_index)
@@ -2150,6 +2552,12 @@ classdef AirQuant < handle % handle class
             end
             
             %%% Volumetric
+            function PlotSeg(obj)
+                % plot segmentation
+                patch(isosurface(obj.seg),'EdgeColor', 'none','FaceAlpha',0.1, 'LineStyle', 'none');
+                vol3daxes(obj)
+            end
+
             function PlotMap3D(obj, mode)
                 % Recommend to use View3D if colour labels appear buggy.
                 
@@ -2326,7 +2734,7 @@ classdef AirQuant < handle % handle class
                     hold on
                     plot(obj.FWHMesl{link_index, 1}{slide, 1}.x_points + min_centre, obj.FWHMesl{link_index, 1}{slide, 1}.y_points + min_centre,'r.')
                     %                 plot(obj.FWHMesl{link_index, 2}{slide, 1}.x_points, obj.FWHMesl{link_index, 2}{slide, 1}.y_points,'c.')
-                    plot(obj.FWHMesl{link_index, 3}{slide, 1}.x_points + min_centre, obj.FWHMesl{link_index, 3}{slide, 1}.y_points + min_centre,'y.')
+%                     plot(obj.FWHMesl{link_index, 3}{slide, 1}.x_points + min_centre, obj.FWHMesl{link_index, 3}{slide, 1}.y_points + min_centre,'y.')
                     
                     % plot ellipse fitting
                     ellipse(obj.FWHMesl{link_index, 1}{slide, 1}.elliptical_info(3),obj.FWHMesl{link_index, 1}{slide, 1}.elliptical_info(4),...
@@ -2337,14 +2745,14 @@ classdef AirQuant < handle % handle class
                     %                     obj.FWHMesl{link_index, 2}{slide, 1}.elliptical_info(5),obj.FWHMesl{link_index, 2}{slide, 1}.elliptical_info(1),...
                     %                     obj.FWHMesl{link_index, 2}{slide, 1}.elliptical_info(2),'b');
                     
-                    ellipse(obj.FWHMesl{link_index, 3}{slide, 1}.elliptical_info(3),obj.FWHMesl{link_index, 3}{slide, 1}.elliptical_info(4),...
-                        obj.FWHMesl{link_index, 3}{slide, 1}.elliptical_info(5),obj.FWHMesl{link_index, 3}{slide, 1}.elliptical_info(1)+min_centre,...
-                        obj.FWHMesl{link_index, 3}{slide, 1}.elliptical_info(2)+min_centre,'y');
+%                     ellipse(obj.FWHMesl{link_index, 3}{slide, 1}.elliptical_info(3),obj.FWHMesl{link_index, 3}{slide, 1}.elliptical_info(4),...
+%                         obj.FWHMesl{link_index, 3}{slide, 1}.elliptical_info(5),obj.FWHMesl{link_index, 3}{slide, 1}.elliptical_info(1)+min_centre,...
+%                         obj.FWHMesl{link_index, 3}{slide, 1}.elliptical_info(2)+min_centre,'y');
                     %TODO: set third colour more appropiately
                     
-                    plot(obj.FWHMesl{link_index, 4}{slide, 1}(1)+min_centre,...
-                        obj.FWHMesl{link_index, 4}{slide, 1}(2)+min_centre, ...
-                        '.g', 'MarkerSize',20)
+%                     plot(obj.FWHMesl{link_index, 4}{slide, 1}(1)+min_centre,...
+%                         obj.FWHMesl{link_index, 4}{slide, 1}(2)+min_centre, ...
+%                         '.g', 'MarkerSize',20)
                 catch
                     % warning('No FWHMesl data, showing slices without elliptical information.')
                 end
@@ -2371,16 +2779,7 @@ classdef AirQuant < handle % handle class
                 % stack using MATLAB's inbuilt othogonal 3d viewer.
                 
                 % convert from cell stack to 3D array.
-                awycell =  obj.TraversedImage{link_index,1};
-                canvas_sz = floor(obj.max_plane_sz/obj.plane_sample_sz);
-                awyarray = zeros([canvas_sz, canvas_sz, length(awycell)]);
-                for slice = 1:length(awycell)
-                    image = obj.TraversedImage{link_index, 1}{slice,1};
-                    image_sz = size(image,1);
-                    min_centre = canvas_sz/2 - image_sz/2;
-                    max_centre = canvas_sz/2 + image_sz/2;
-                    awyarray(min_centre+1:max_centre, min_centre+1:max_centre, slice) = image;
-                end
+                awyarray = airwaystack(obj,link_index);
                 % display with orthoview
                 fig = figure;
                 s = orthosliceViewer(awyarray, 'DisplayRangeInteraction','off', ...
@@ -2392,8 +2791,45 @@ classdef AirQuant < handle % handle class
                 fig.Position = [0.1,0.01,0.6,0.9];
             end
             
+            function h = ReformatAirway(obj,link_index,slice_idx)
+                % get reformatted airway stack
+                awyarray = airwaystack(obj,link_index);
+                if nargin < 3
+                    % set default to middle
+                    slice_idx = round(size(awyarray,1)/2);
+                end
+                % generate image
+                img = squeeze(awyarray(slice_idx,:,:));
+                x = [0 obj.arclength{link_index,1}(end)];
+                y = [0 obj.max_plane_sz];
+                h = imagesc(x, y, img);
+                colormap('gray')
+            end
+            
+            function awyarray = airwaystack(obj,link_index)
+                % generate an airway's interpolated slices into an array
+                % stack.
+                awycell =  obj.TraversedImage{link_index,1};
+                canvas_sz = floor(obj.max_plane_sz/obj.plane_sample_sz);
+                awyarray = zeros([canvas_sz, canvas_sz, length(awycell)]);
+                for slice = 1:length(awycell)
+                    image = obj.TraversedImage{link_index, 1}{slice,1};
+                    image_sz = size(image,1);
+                    min_centre = canvas_sz/2 - image_sz/2;
+                    max_centre = canvas_sz/2 + image_sz/2;
+                    awyarray(min_centre+1:max_centre, min_centre+1:max_centre, slice) = image;
+                end
+            end
+            
             %%% Novel/tapering visualisation
-            function h = GraphPlotDiameter(obj)
+            function [h, G] = GraphPlotDiameter(obj, showlabels, XData, YData)
+                if nargin < 2 
+                    showlabels = 1;
+                end
+                if nargin < 4
+                    XData = [];
+                    YData = [];
+                end
                 % graph plot any variable for each airway as desired. i.e.
                 % provide var which is a vector the same length as the number
                 % of airways.
@@ -2407,11 +2843,19 @@ classdef AirQuant < handle % handle class
                 end
                 
                 % generate corresponding edgelabels
-                edgelabels = [obj.Glink(G.Edges.Label).generation];
+                if showlabels == 1
+                    edgelabels = [obj.Glink(G.Edges.Label).generation];
+                else
+                    edgelabels = [];
+                end
                 edgevar = real(tapertable.inner_avg(G.Edges.Label));
                 
                 title('Average Inner lumen Diameter')
+                if ~isempty(XData) && ~isempty(XData)
+                    h = plot(G,'EdgeLabel',edgelabels,'XData',XData,'YData',YData);
+                else
                 h = plot(G,'EdgeLabel',edgelabels, 'Layout', 'layered');
+                end
                 h.NodeColor = 'r';
                 h.EdgeColor = 'k';
                 
@@ -2554,7 +2998,23 @@ classdef AirQuant < handle % handle class
             end
             %% EXPORT METHODS
             % methods for exporting processed data.
+            function exportCT(obj, savename)
+                if nargin == 1
+                    savename = 'AQCT_export';
+                end
+
+                % reduce datatype and change header info
+                AQ_CT = int16(obj.CT);
+                header = obj.CTinfo;
+                header.Description = 'CT exported from AirQuant';
+                header.ImageSize = size(AQ_CT);
+                niftiwrite(AQ_CT, savename, header, 'Compressed', true);
+            end
+            
             function exportlobes(obj, savename)
+                if nargin == 1
+                    savename = 'AQlobes_export';
+                end
                 % export airway segmentation labelled by lobes to nii.gz
                 
                 % classify by branch first
@@ -2577,7 +3037,8 @@ classdef AirQuant < handle % handle class
                 header.Datatype = 'uint8';
                 header.BitsPerPixel = '8';
                 header.Description = 'Airway Lobe Segmentation using AirQuant, layers: B,RUL,RML,RLL,LUL,LML,LLL';
-                
+                header.ImageSize = size(lobe_airway_seg);
+
                 niftiwrite(lobe_airway_seg, savename, header, 'Compressed', true);
             end
             
@@ -2667,7 +3128,10 @@ classdef AirQuant < handle % handle class
             end
             
             
-            function [FWHMl, FWHMp, FWHMr] = computeFWHM(CT_rays, seg_rays, coords)
+            function [FWHMl, FWHMp, FWHMr] = computeFWHM(CT_rays, seg_rays, coords, outlier_removal)
+                if nargin < 4
+                    outlier_removal = true;
+                end
                 %This is to perfrom the ray casting measurents - the input is in a sturct
                 % as
                 
@@ -2755,12 +3219,14 @@ classdef AirQuant < handle % handle class
                 end
                 
                 % anomaly correction on inner ONLY
-                [~,anomalies] = rmoutliers(FWHMl_r, 'median');
-                valid_rays = 1:number_of_rays;
-                valid_rays = valid_rays(~anomalies)';
-                FWHMl_r = FWHMl_r(~anomalies);
-                FWHMp_r = FWHMp_r(~anomalies);
-                FWHMr_r = FWHMr_r(~anomalies);
+                valid_rays = [1:number_of_rays]';
+                if outlier_removal == true
+                    [~,anomalies] = rmoutliers(FWHMl_r, 'median');
+                    valid_rays = valid_rays(~anomalies);
+                    FWHMl_r = FWHMl_r(~anomalies);
+                    FWHMp_r = FWHMp_r(~anomalies);
+                    FWHMr_r = FWHMr_r(~anomalies);
+                end
                 
                 % convert radial index into plane coordinates
                 FWHMl_x = DualIndex(coords(:,:,1), FWHMl_r, valid_rays);
