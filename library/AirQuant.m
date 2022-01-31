@@ -8,6 +8,8 @@ classdef AirQuant < handle % handle class
         % CT image input as 3D array, typically from niftiread.
         CTinfo 
         % CT metadata from niftiinfo
+        VoxDim
+        % voxel dimensions in mm usually       
         seg 
         % binary airway segmentation in the same grid space as CT. 
         % dimensions must match with CT.
@@ -51,6 +53,7 @@ classdef AirQuant < handle % handle class
         Specs % Store of end metrics
         OriginalGraphMap % Store original properties of graph if manipulated
         LobeClass % stores lobe and major branch node origins
+        lungvol % lung volume (mm^3) calculated from given lungmask
     end
     
     methods
@@ -87,9 +90,14 @@ classdef AirQuant < handle % handle class
                 load(savename)
                 % rewrite stored path to given path
                 obj.savename = savename;
+                % for backwards compatibility
+                if isempty(obj.VoxDim)
+                    obj.VoxDim = obj.CTinfo.PixelDimensions;
+                end
             else
                 disp(['New case to be saved at ', char(savename), ' saving...'])
                 obj.CTinfo = CTinfo;
+                obj.VoxDim = obj.CTinfo.PixelDimensions;
                 obj.CT = reorientvolume(CTimage, obj.CTinfo);
                 % ensure no holes in segmentation
                 segfilled = reorientvolume(imfill(segimage,'holes'), obj.CTinfo);
@@ -602,6 +610,7 @@ classdef AirQuant < handle % handle class
 
             
         end
+        
         %% GRAPH NETWORK ANOMOLY ANALYSIS
         % Methods that analyse the airway structural graph checking for
         % anomalies such as loops and reporting them.
@@ -1157,7 +1166,46 @@ classdef AirQuant < handle % handle class
                 end
             end
             
+            function obj = AddLungVol(obj, lungmask)
+                % get lung volume from optional lung mask for analysis 
+                % that computes airway relative to the lung.
+                % the lung mask is not saved to reduce unnessary memory
+                % loads
+                obj.lungvol = numel(lungmask)*prod(obj.VoxDim);                
+                save(obj)
+            end
             
+            function obj = SaveAllAwy(obj)
+                % make directory
+                [fPath, ~, ~] = fileparts(obj.savename);
+                dirname = fullfile(fPath,'airway_patches');
+                if ~exist(dirname, 'dir')
+                    mkdir(dirname)
+                end
+                
+                % loop through each airway seg
+                for ii = 1:size(obj.TraversedImage,1)
+                    
+                % loop through slices
+                    for k = 1:length(obj.TraversedImage{ii, 1})
+                        img = single(obj.TraversedImage{ii,1}{k,1});
+
+                    % save as png
+                        imgsavename = fullfile(dirname, [ ...          
+                        'seg_',num2str(ii), ...
+                        '_lobe_', char(obj.Glink(ii).lobe), ...
+                        '_gen_', num2str(obj.Glink(ii).generation), ...
+                        '_slice_',num2str(k), ...
+                        '.png']);
+
+                        imwrite(img, imgsavename)
+                        if k == 1
+                            disp(imgsavename)
+                        end
+                    end
+                end
+            end
+                
             %% HIGH LEVEL METHODS
             % methods that package lower level methods, often to apply analysis
             % to all airways rather than just individual airways.
@@ -1280,7 +1328,11 @@ classdef AirQuant < handle % handle class
                     % get approx airway size from distance map
                     approx_diameter = ComputeDmapD(obj, CT_point);
                     % compute interpolated slice size
-                    plane_sz = ceil(approx_diameter*obj.plane_scaling_sz);
+                    if obj.plane_scaling_sz ~= 0
+                        plane_sz = ceil(approx_diameter*obj.plane_scaling_sz);
+                    else
+                        plane_sz = obj.max_plane_sz;
+                    end
                     % use max plane size if current plane size exceeds it
                     if plane_sz > obj.max_plane_sz
                         plane_sz = obj.max_plane_sz;
@@ -1898,6 +1950,25 @@ classdef AirQuant < handle % handle class
                 end
             end
             
+            function allvol = ComputeIntegratedVolAll(obj, prunelength)
+                % Compute the intertapering value for all airways based on
+                % integrated volume along airway.
+                
+                if nargin < 2
+                    prunelength = [0 0];
+                end
+                
+                % loop through branches
+                allvol = NaN(length(obj.arclength), 3);
+                
+                for ii = 1:length(obj.arclength)
+                    if any(ii == obj.trachea_path)
+                        continue
+                    end
+                    [allvol(ii,:)] = ComputeIntegratedVol(obj, prunelength, ii);
+                end
+            end
+            
             function vol_intertaper = ComputeInterIntegratedVol(obj, prunelength)
                 % Compute the intertapering value for all airways based on
                 % integrated volume along airway.
@@ -1963,6 +2034,7 @@ classdef AirQuant < handle % handle class
                 vol_intertaper = ComputeInterIntegratedVol(obj, prunelength);
                 [tortuosity, arc_length, euc_length] = ComputeTortuosity(obj);
                 lobar_intertaper = ComputeLobarInterTaper(obj, prunelength);
+                inner_vol = ComputeIntegratedVolAll(obj, prunelength);
                 %             parent = [obj.Glink.parent_idx]';
                 
                 % organise into column headings
@@ -1988,13 +2060,20 @@ classdef AirQuant < handle % handle class
                 peak_volinter = vol_intertaper(:, 2);
                 outer_volinter = vol_intertaper(:, 3);
                 
+                if ~empty(obj.lungvol)
+                    inner_vol_lung_ratio = inner_vol./obj.lungvol;
+                else
+                    inner_vol_lung_ratio = NaN(size(inner_vol));
+                end
+                
                 % convert to table
                 SegmentTaperResults = table(branch, inner_intra, peak_intra, ...
                     outer_intra, inner_avg, peak_avg, outer_avg, ...
                     inner_inter, peak_inter, outer_inter,...
                     inner_volinter, peak_volinter, outer_volinter, ...
                     inner_lobeinter, peak_lobeinter, outer_lobeinter, ...
-                    tortuosity, arc_length, euc_length);
+                    tortuosity, arc_length, euc_length, inner_vol, ...
+                    inner_vol_lung_ratio);
                 
                 % add gen info
                 SegmentTaperResults.generation = [obj.Glink.generation]';
