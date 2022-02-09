@@ -1175,13 +1175,17 @@ classdef AirQuant < handle % handle class
                 save(obj)
             end
             
-            function obj = SaveAllAwy(obj, mingen, maxgen)
+            function obj = SaveAllAwy(obj, mingen, maxgen, prunelength)
                 if nargin < 2
                     mingen = 0;
                 end
                
-                if nargin < 2
+                if nargin < 3 || isnan(maxgen)
                     maxgen = max([obj.Glink(:).generation]);
+                end
+                
+                if nargin < 4
+                    prunelength = [0 0];
                 end
                 % make directory
                 [fPath, saveid, ~] = fileparts(obj.savename);
@@ -1197,8 +1201,13 @@ classdef AirQuant < handle % handle class
                         continue
                     end
                     
+                    % choose which slices to save
+                    al = obj.arclength{ii, 1};
+                    prune = (al >= prunelength(1) & al <= al(end) - prunelength(2));
+                    allslices = 1:length(obj.TraversedImage{ii, 1});
+                    chosenslices = allslices(prune);
                 % loop through slices
-                    for k = 1:length(obj.TraversedImage{ii, 1})
+                    for k = chosenslices
                         img = int16(obj.TraversedImage{ii,1}{k,1});
 
                     % save as int16 TIF
