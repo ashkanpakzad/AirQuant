@@ -1,9 +1,8 @@
-AirQuant is a software tool based in MATLAB primarily for extracting airway measurements from fully segmented airways of a chest CT.
+AirQuant is a software tool based in MATLAB primarily for extracting airway measurements from fully segmented airways of a chest CT. If you use this work, please cite our preprint:
 
-## Cite
-If you use this work, please cite our preprint:
-Pakzad, A., Cheung, W. K., Quan, K., Mogulkoc, N., Van Moorsel, C. H. M., Bartholmai, B. J., … Jacob, J. (2021). Evaluation of automated airway morphological quantification for assessing fibrosing lung disease. arXiv [physics.med-ph]. Opgehaal van http://arxiv.org/abs/2111.10443
+*Pakzad, A., Cheung, W. K., Quan, K., Mogulkoc, N., Van Moorsel, C. H. M., Bartholmai, B. J., … Jacob, J. (2021). Evaluation of automated airway morphological quantification for assessing fibrosing lung disease. arXiv [physics.med-ph]. Opgehaal van http://arxiv.org/abs/2111.10443*
 
+```
 @misc{pakzad2021evaluation,
       title={Evaluation of automated airway morphological quantification for assessing fibrosing lung disease}, 
       author={Ashkan Pakzad and Wing Keung Cheung and Kin Quan and Nesrin Mogulkoc and Coline H. M. Van Moorsel and Brian J. Bartholmai and Hendrik W. Van Es and Alper Ezircan and Frouke Van Beek and Marcel Veltkamp and Ronald Karwoski and Tobias Peikert and Ryan D. Clay and Finbar Foley and Cassandra Braun and Recep Savas and Carole Sudre and Tom Doel and Daniel C. Alexander and Peter Wijeratne and David Hawkes and Yipeng Hu and John R Hurst and Joseph Jacob},
@@ -12,7 +11,7 @@ Pakzad, A., Cheung, W. K., Quan, K., Mogulkoc, N., Van Moorsel, C. H. M., Bartho
       archivePrefix={arXiv},
       primaryClass={physics.med-ph}
 }
-
+````
 
 ## Dependencies
 * MATLAB 2020b (>9.9)
