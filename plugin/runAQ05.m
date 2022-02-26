@@ -156,8 +156,10 @@ for ii = 1:length(casenames)
         disp(['Case: ', casename, ' complete.'])
         disp(['Total time: ', num2str(toc/60/60), ' hours.'])
         disp(datetime)
-        catch
+        catch e
             warning(['ERROR ENCOUNTERED FOR CASE:', casename])
+            fprintf(1,'The identifier was:\n%s',e.identifier);
+            fprintf(1,'There was an error! The message was:\n%s',e.message);
             disp(datetime)
             fskip
         end
