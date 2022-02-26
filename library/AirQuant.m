@@ -1234,7 +1234,6 @@ classdef AirQuant < handle % handle class
                         setTag(t,tagstruct)
                         write(t,imgdata)
                         close(t);
-%                         imwrite(imgdata, imgsavename, 'tif')
                         if k == 1
                             disp(imgsavename)
                         end

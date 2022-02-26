@@ -86,6 +86,7 @@ for ii = 1:length(casenames)
         AQ.plane_sample_sz = 0.5;
         AQ.spline_sample_sz = 0.5;
         AQ.plane_scaling_sz = 0;
+        AQ.max_plane_sz = 20;
         
         % Generate initial analysis figures and save
         skelf = figure;
@@ -149,7 +150,7 @@ for ii = 1:length(casenames)
         
         % save airways from generation 5 onwards, prune airways at 2.5mm
         % either end.
-        SaveAllAwy(AQ, 5, NaN, [2.5 2.5])
+        SaveAllAwy(AQ, 2, NaN, [2.5 2.5])
         
         % reset
         disp(['Case: ', casename, ' complete.'])
