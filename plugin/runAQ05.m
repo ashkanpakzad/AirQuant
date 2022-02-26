@@ -93,16 +93,16 @@ for ii = 1:length(casenames)
         PlotSegSkel(AQ);
         saveas(skelf, fullfile(results_dir, [casename, '_skel3d.png']))
         saveas(skelf, fullfile(results_dir, [casename, '_skel3d.fig']))
-%         
-%         lobef = figure;
-%         PlotMap3D(AQ, 'lobe');
-%         saveas(lobef, fullfile(results_dir, [casename, '_lobe3d.png']))
-%         saveas(lobef, fullfile(results_dir, [casename, '_lobe3d.fig']))
-%         
-%         genf = figure;
-%         PlotMap3D(AQ, 'generation');
-%         saveas(genf, fullfile(results_dir, [casename, '_gen3d.png']))
-%         saveas(genf, fullfile(results_dir, [casename, '_gen3d.fig']))
+        
+        lobef = figure;
+        PlotMap3D(AQ, 'lobe');
+        saveas(lobef, fullfile(results_dir, [casename, '_lobe3d.png']))
+        saveas(lobef, fullfile(results_dir, [casename, '_lobe3d.fig']))
+        
+        genf = figure;
+        PlotMap3D(AQ, 'generation');
+        saveas(genf, fullfile(results_dir, [casename, '_gen3d.png']))
+        saveas(genf, fullfile(results_dir, [casename, '_gen3d.fig']))
         
         gf = figure;
         plot(AQ);
@@ -134,14 +134,14 @@ for ii = 1:length(casenames)
         SuccessReport(AQ);
         
         % generate post analysis figures
-%         GPD = figure;
-%         GraphPlotDiameter(AQ);
-%         saveas(GPD, fullfile(results_dir, [casename, '_AvgInnerDiameterGraph.png']));
-%         
-%         LAP = figure;
-%         LobeAvgPlot(AQ, 'avg')
-%         GraphPlotDiameter(AQ);
-%         saveas(LAP, fullfile(results_dir, [casename, '_AvgInnerDiameterBar.png']));
+        GPD = figure;
+        GraphPlotDiameter(AQ);
+        saveas(GPD, fullfile(results_dir, [casename, '_AvgInnerDiameterGraph.png']));
+        
+        LAP = figure;
+        LobeAvgPlot(AQ, 'avg')
+        GraphPlotDiameter(AQ);
+        saveas(LAP, fullfile(results_dir, [casename, '_AvgInnerDiameterBar.png']));
         
         % save taper analysis to csv
         % save segment taper analysis to csv
