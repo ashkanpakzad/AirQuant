@@ -20,7 +20,11 @@ checkfield('skelsuf', '_seg_PTKskel.nii.gz');
 % names input files, give fullpaths if not in matlab path
 % add AirQuant library to path
 try
-    AirQuantDir = AirQuantAddPath();
+    if isfield(config, 'AirQuantDir')
+        AirQuantDir = AirQuantAddPath(config.AirQuantDir);
+    else
+        AirQuantDir = AirQuantAddPath();
+    end
 catch
     warning('Could not find AirQuantAddPath, try running it manually first.')
 end
