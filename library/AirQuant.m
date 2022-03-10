@@ -830,8 +830,12 @@ classdef AirQuant < handle % handle class
             % remove links
             RemoveLink(obj, link_exclude);
         end
-            
+        
+
             % lobe reclassification
+            function obj = ReclassLobeBranch(obj, branch_idx, lobelabel)
+                obj.Glink(branch_idx).lobe = lobelabel;
+            end
             function obj = ReclassLobe(obj, node, lobelabel, dryrun)
                 % reclassify airways beyond a given node to a particular
                 % lobelabel. This method is useful for when the lobe
