@@ -2,7 +2,7 @@
 % Parent function to set up and run AQ on several cases based on given
 % config file
 
-function runAQ(config, skipexist)
+function runAQ05(config, skipexist)
 % skipexist = exist if already 
 
 if nargin < 2
@@ -86,6 +86,12 @@ for ii = 1:length(casenames)
         
         AQ = AirQuant(CT, meta, S, skel, savename);
         
+        % set fixed size
+        AQ.plane_sample_sz = 0.5;
+        AQ.spline_sample_sz = 0.5;
+        AQ.plane_scaling_sz = 0;
+        AQ.max_plane_sz = 20;
+        
         % Generate initial analysis figures and save
         skelf = figure;
         PlotSegSkel(AQ);
@@ -146,12 +152,18 @@ for ii = 1:length(casenames)
         SegmentTaperResults = SegmentTaperAll(AQ, [0 0]);
         writetable(SegmentTaperResults, fullfile(results_dir, [casename, '_SegmentTaper.csv']));
         
+        % save airways from generation 5 onwards, prune airways at 2.5mm
+        % either end.
+        SaveAllAwy(AQ, 2, NaN, [2.5 2.5])
+        
         % reset
         disp(['Case: ', casename, ' complete.'])
         disp(['Total time: ', num2str(toc/60/60), ' hours.'])
         disp(datetime)
-        catch
+        catch e
             warning(['ERROR ENCOUNTERED FOR CASE:', casename])
+            fprintf(1,'The identifier was:\n%s',e.identifier);
+            fprintf(1,'There was an error! The message was:\n%s',e.message);
             disp(datetime)
             fskip
         end

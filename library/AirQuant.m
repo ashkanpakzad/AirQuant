@@ -1175,9 +1175,20 @@ classdef AirQuant < handle % handle class
                 save(obj)
             end
             
-            function obj = SaveAllAwy(obj)
+            function obj = SaveAllAwy(obj, mingen, maxgen, prunelength)
+                if nargin < 2
+                    mingen = 0;
+                end
+               
+                if nargin < 3 || isnan(maxgen)
+                    maxgen = max([obj.Glink(:).generation]);
+                end
+                
+                if nargin < 4
+                    prunelength = [0 0];
+                end
                 % make directory
-                [fPath, ~, ~] = fileparts(obj.savename);
+                [fPath, saveid, ~] = fileparts(obj.savename);
                 dirname = fullfile(fPath,'airway_patches');
                 if ~exist(dirname, 'dir')
                     mkdir(dirname)
@@ -1185,20 +1196,44 @@ classdef AirQuant < handle % handle class
                 
                 % loop through each airway seg
                 for ii = 1:size(obj.TraversedImage,1)
+                    seggen = obj.Glink(ii).generation;
+                    if  seggen <= mingen || seggen >= maxgen
+                        continue
+                    end
                     
+                    % choose which slices to save
+                    al = obj.arclength{ii, 1};
+                    prune = (al >= prunelength(1) & al <= al(end) - prunelength(2));
+                    allslices = 1:length(obj.TraversedImage{ii, 1});
+                    chosenslices = allslices(prune);
                 % loop through slices
-                    for k = 1:length(obj.TraversedImage{ii, 1})
-                        img = single(obj.TraversedImage{ii,1}{k,1});
+                    for k = chosenslices
+                        img = int16(obj.TraversedImage{ii,1}{k,1});
 
-                    % save as png
+                    % save as int16 TIF
                         imgsavename = fullfile(dirname, [ ...          
+                        saveid, '_', ...
                         'seg_',num2str(ii), ...
                         '_lobe_', char(obj.Glink(ii).lobe), ...
                         '_gen_', num2str(obj.Glink(ii).generation), ...
                         '_slice_',num2str(k), ...
-                        '.png']);
+                        '.tif']);
+                        
+                        imgdata = img;
 
-                        imwrite(img, imgsavename)
+                        t = Tiff(imgsavename,'w');
+                        tagstruct.Compression = Tiff.Compression.None;
+                        tagstruct.ImageLength = size(imgdata,1);
+                        tagstruct.ImageWidth = size(imgdata,2);
+                        tagstruct.Photometric = Tiff.Photometric.MinIsBlack;
+                        tagstruct.SampleFormat = Tiff.SampleFormat.Int; % int
+                        tagstruct.BitsPerSample = 16;
+                        tagstruct.SamplesPerPixel = 1;
+                        tagstruct.PlanarConfiguration = Tiff.PlanarConfiguration.Chunky;
+                        tagstruct.Software = 'AirQuant';
+                        setTag(t,tagstruct)
+                        write(t,imgdata)
+                        close(t);
                         if k == 1
                             disp(imgsavename)
                         end
@@ -2034,7 +2069,7 @@ classdef AirQuant < handle % handle class
                 vol_intertaper = ComputeInterIntegratedVol(obj, prunelength);
                 [tortuosity, arc_length, euc_length] = ComputeTortuosity(obj);
                 lobar_intertaper = ComputeLobarInterTaper(obj, prunelength);
-                inner_vol = ComputeIntegratedVolAll(obj, prunelength);
+                vol = ComputeIntegratedVolAll(obj, prunelength);
                 %             parent = [obj.Glink.parent_idx]';
                 
                 % organise into column headings
@@ -2060,11 +2095,18 @@ classdef AirQuant < handle % handle class
                 peak_volinter = vol_intertaper(:, 2);
                 outer_volinter = vol_intertaper(:, 3);
                 
-                if ~empty(obj.lungvol)
+                inner_vol = vol(:,1);
+                outer_vol = vol(:,3);
+                
+                if ~isempty(obj.lungvol)
                     inner_vol_lung_ratio = inner_vol./obj.lungvol;
+                    outer_vol_lung_ratio = outer_vol./obj.lungvol;
                 else
                     inner_vol_lung_ratio = NaN(size(inner_vol));
+                    outer_vol_lung_ratio = NaN(size(outer_vol));
                 end
+                
+                thickness_avg = outer_avg - inner_avg;
                 
                 % convert to table
                 SegmentTaperResults = table(branch, inner_intra, peak_intra, ...
@@ -2072,8 +2114,8 @@ classdef AirQuant < handle % handle class
                     inner_inter, peak_inter, outer_inter,...
                     inner_volinter, peak_volinter, outer_volinter, ...
                     inner_lobeinter, peak_lobeinter, outer_lobeinter, ...
-                    tortuosity, arc_length, euc_length, inner_vol, ...
-                    inner_vol_lung_ratio);
+                    tortuosity, arc_length, euc_length, inner_vol, outer_vol, ...
+                    inner_vol_lung_ratio, outer_vol_lung_ratio, thickness_avg);
                 
                 % add gen info
                 SegmentTaperResults.generation = [obj.Glink.generation]';
