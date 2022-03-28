@@ -4,6 +4,8 @@ function config = RunWholeDataset(config)
 % will populate the 'casenames' field with all the cases in that dataset
 % based on the source CT images available.
 
+
+if strcmp(usedir, 'data')
 % get list of file names in dataset folder
 AirQuantDir = AirQuantAddPath(); 
 alldir = dir(fullfile(AirQuantDir,'data',config.dataset));

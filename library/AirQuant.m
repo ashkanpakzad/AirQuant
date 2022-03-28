@@ -50,6 +50,8 @@ classdef AirQuant < handle % handle class
         TraversedSeg % perpendicular segmentation slices of all airways
         arclength % corresponding arclength measurement traversed slices
         FWHMesl % FWHMesl algorithm results for every airway {inner, peak, outer}
+        CNR % store CNR output
+        MeasureMode % either FWHM or CNR
         Specs % Store of end metrics
         OriginalGraphMap % Store original properties of graph if manipulated
         LobeClass % stores lobe and major branch node origins
@@ -1177,73 +1179,8 @@ classdef AirQuant < handle % handle class
                 % loads
                 obj.lungvol = numel(lungmask)*prod(obj.VoxDim);                
                 save(obj)
-            end
-            
-            function obj = SaveAllAwy(obj, mingen, maxgen, prunelength)
-                if nargin < 2
-                    mingen = 0;
-                end
-               
-                if nargin < 3 || isnan(maxgen)
-                    maxgen = max([obj.Glink(:).generation]);
-                end
-                
-                if nargin < 4
-                    prunelength = [0 0];
-                end
-                % make directory
-                [fPath, saveid, ~] = fileparts(obj.savename);
-                dirname = fullfile(fPath,'airway_patches');
-                if ~exist(dirname, 'dir')
-                    mkdir(dirname)
-                end
-                
-                % loop through each airway seg
-                for ii = 1:size(obj.TraversedImage,1)
-                    seggen = obj.Glink(ii).generation;
-                    if  seggen <= mingen || seggen >= maxgen
-                        continue
-                    end
-                    
-                    % choose which slices to save
-                    al = obj.arclength{ii, 1};
-                    prune = (al >= prunelength(1) & al <= al(end) - prunelength(2));
-                    allslices = 1:length(obj.TraversedImage{ii, 1});
-                    chosenslices = allslices(prune);
-                % loop through slices
-                    for k = chosenslices
-                        img = int16(obj.TraversedImage{ii,1}{k,1});
+            end   
 
-                    % save as int16 TIF
-                        imgsavename = fullfile(dirname, [ ...          
-                        saveid, '_', ...
-                        'seg_',num2str(ii), ...
-                        '_lobe_', char(obj.Glink(ii).lobe), ...
-                        '_gen_', num2str(obj.Glink(ii).generation), ...
-                        '_slice_',num2str(k), ...
-                        '.tif']);
-                        
-                        imgdata = img;
-
-                        t = Tiff(imgsavename,'w');
-                        tagstruct.Compression = Tiff.Compression.None;
-                        tagstruct.ImageLength = size(imgdata,1);
-                        tagstruct.ImageWidth = size(imgdata,2);
-                        tagstruct.Photometric = Tiff.Photometric.MinIsBlack;
-                        tagstruct.SampleFormat = Tiff.SampleFormat.Int; % int
-                        tagstruct.BitsPerSample = 16;
-                        tagstruct.SamplesPerPixel = 1;
-                        tagstruct.PlanarConfiguration = Tiff.PlanarConfiguration.Chunky;
-                        tagstruct.Software = 'AirQuant';
-                        setTag(t,tagstruct)
-                        write(t,imgdata)
-                        close(t);
-                        if k == 1
-                            disp(imgsavename)
-                        end
-                    end
-                end
-            end
                 
             %% HIGH LEVEL METHODS
             % methods that package lower level methods, often to apply analysis
@@ -1559,6 +1496,111 @@ classdef AirQuant < handle % handle class
                     pi*obj.plane_sample_sz.^2;
             end
             
+            %% CNR Methods
+            function obj = SaveAllAwy(obj, mingen, maxgen, prunelength)
+                if nargin < 2
+                    mingen = 0;
+                end
+               
+                if nargin < 3 || isnan(maxgen)
+                    maxgen = max([obj.Glink(:).generation]);
+                end
+                
+                if nargin < 4
+                    prunelength = [0 0];
+                end
+                % make directory
+                [fPath, saveid, ~] = fileparts(obj.savename);
+                dirname = fullfile(fPath,'airway_patches');
+                if ~exist(dirname, 'dir')
+                    mkdir(dirname)
+                end
+                
+                % loop through each airway seg
+                for ii = 1:size(obj.TraversedImage,1)
+                    seggen = obj.Glink(ii).generation;
+                    if  seggen <= mingen || seggen >= maxgen
+                        continue
+                    end
+                    
+                    % choose which slices to save
+                    al = obj.arclength{ii, 1};
+                    prune = (al >= prunelength(1) & al <= al(end) - prunelength(2));
+                    allslices = 1:length(obj.TraversedImage{ii, 1});
+                    chosenslices = allslices(prune);
+                % loop through slices
+                    for k = chosenslices
+                        img = int16(obj.TraversedImage{ii,1}{k,1});
+
+                    % save as int16 TIF
+                        imgsavename = fullfile(dirname, [ ...          
+                        saveid, '_', ...
+                        'seg_',num2str(ii), ...
+                        '_lobe_', char(obj.Glink(ii).lobe), ...
+                        '_gen_', num2str(obj.Glink(ii).generation), ...
+                        '_slice_',num2str(k), ...
+                        '.tif']);
+                        
+                        imgdata = img;
+
+                        t = Tiff(imgsavename,'w');
+                        tagstruct.Compression = Tiff.Compression.None;
+                        tagstruct.ImageLength = size(imgdata,1);
+                        tagstruct.ImageWidth = size(imgdata,2);
+                        tagstruct.Photometric = Tiff.Photometric.MinIsBlack;
+                        tagstruct.SampleFormat = Tiff.SampleFormat.Int; % int
+                        tagstruct.BitsPerSample = 16;
+                        tagstruct.SamplesPerPixel = 1;
+                        tagstruct.PlanarConfiguration = Tiff.PlanarConfiguration.Chunky;
+                        tagstruct.Software = 'AirQuant';
+                        setTag(t,tagstruct)
+                        write(t,imgdata)
+                        close(t);
+                        if k == 1
+                            disp(imgsavename)
+                        end
+                    end
+                end
+            end
+            
+            function LoadCNRMeasures(obj)
+                % Loads measures from CNR output placed nicely in csv file
+                % Each row in csv file has name of airway segment and slice
+                % origin. subsequent columns are:
+                % Nominal Radius, Nominal thickness, La, Lb, x0, y0, rotation,
+                % Wa, Wb
+                
+                % confirm slice measurements exist at cnrmeasures.csv
+                [fPath, saveid, ~] = fileparts(obj.savename);
+                filename = fullfile(fPath,'cnrmeasures.csv');
+                if isfile(filename) == 0
+                    error('cnrmeasures.csv does not exist.')
+                end
+                
+                % Initialise slice measurements for CNR - set to NaN
+                % loop through airway segs to set cells to num slices
+                obj.CNR = cell(length(obj.Glink),3);
+                for jj = 1:3
+                    for ii = 1:length(obj.TraversedImage)
+                        obj.CNR{ii, jj} = cell(length(obj.TraversedImage{ii,1}),1);
+                    end
+                end
+                
+                % Loop through all rows, get segment and slicenum, set
+                cnrdf = readtable(filename);
+                for ii = 1:height(cnrdf)
+                    % parse string and interpret seg and slice
+                    str1 = split(cnrdf.path{ii,1},'/');
+                    str2 = split(str1{end,1},'_');
+                    link_index = str2double(str2{4,1});
+                    str3 = split(str2{10,1},'.');
+                    slice = str2double(str3{1,1});
+                    % save info to slice
+                    obj.CNR{link_index,1}{slice,1} = cnrdf(ii,:);
+                end
+                obj.MeasureMode = 'CNR'           
+            end
+            
             %% EXTENT Methods
             % Analysis: Methods looking at the extent of airway existance that
             % the segmentation covers.
@@ -1820,27 +1862,42 @@ classdef AirQuant < handle % handle class
                 
                 % get arclength
                 al = obj.arclength{idx, 1};
-                
-                % get branch radii
-                areas = zeros(length(obj.FWHMesl{idx,1}), 3);
-                for jj = 1:length(areas)
-                    try % incase area is NaN
-                        areas(jj,1) = obj.FWHMesl{idx, 1}{jj, 1}.area;
-                        areas(jj,2) = obj.FWHMesl{idx, 2}{jj, 1}.area;
-                        areas(jj,3) = obj.FWHMesl{idx, 3}{jj, 1}.area;
-                    catch
-                        areas(jj,1) = NaN;
-                        areas(jj,2) = NaN;
-                        areas(jj,3) = NaN;
-                    end
-                end
-                
                 % prune ends
                 prune = (al >= prunelength(1) & al <= al(end) - prunelength(2));
                 al = al(prune);
                 coeff = NaN(2,3);
-                % convert area to diameters
-                diameters = real(sqrt(areas/pi)*2);
+                
+                if strcmp(obj.MeasureMode, 'FWHM')
+                    % get branch diameters
+                    areas = zeros(length(obj.FWHMesl{idx,1}), 3);
+                    for jj = 1:length(areas)
+                        try % incase area is NaN
+                            areas(jj,1) = obj.FWHMesl{idx, 1}{jj, 1}.area;
+                            areas(jj,2) = obj.FWHMesl{idx, 2}{jj, 1}.area;
+                            areas(jj,3) = obj.FWHMesl{idx, 3}{jj, 1}.area;
+                        catch
+                            areas(jj,1) = NaN;
+                            areas(jj,2) = NaN;
+                            areas(jj,3) = NaN;
+                        end
+                    end
+
+                    % convert area to diameters
+                    diameters = real(sqrt(areas/pi)*2);
+                
+                elseif strcmp(obj.MeasureMode, 'CNR')
+                    diameters = NaN(length(obj.CNR{idx,1}), 3);
+                    for jj = 1:length(obj.CNR{idx, 1})
+                        try
+                            diameters(jj,1) = obj.CNR{idx, 1}{jj, 1}.innerradius*2;
+                            diameters(jj,3) = diameters(jj,1) + obj.CNR{idx, 1}{jj, 1}.thickness*2;
+                        catch
+                            diameters(jj) = NaN;
+                        end
+                    end
+
+                end
+                
                 for jj = 1:3
                     Dvec = diameters(prune,jj);
                     try % incase no branch left after pruning/too few points
@@ -1855,7 +1912,9 @@ classdef AirQuant < handle % handle class
                     averagediameter(jj) = trimmean(Dvec, 10);
                 end
                 
-                if plotflag == 1 && ~any(isnan(intrataper))
+
+                
+                if plotflag == 1
                     titlevec = ["inner"; "peak"; "outer"];
                     for jj = 1:3
                         subplot(3,1,jj)
