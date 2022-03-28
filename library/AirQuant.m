@@ -93,6 +93,9 @@ classdef AirQuant < handle % handle class
                 % rewrite stored path to given path
                 obj.savename = savename;
                 % for backwards compatibility
+                if isempty(obj.MeasureMode)
+                    obj.MeasureMode = 'FWHM';
+                end
                 if isempty(obj.VoxDim)
                     obj.VoxDim = obj.CTinfo.PixelDimensions;
                 end
@@ -1212,6 +1215,7 @@ classdef AirQuant < handle % handle class
             end
             
             function obj = FindFWHMall(obj)
+                obj.MeasureMode = 'FWHM'
                 % Clear all FWHMesl cells
                 obj.FWHMesl = cell(length(obj.Glink),3);
                 % analyse all airway segments except the trachea.

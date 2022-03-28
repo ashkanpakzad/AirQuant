@@ -42,6 +42,8 @@ for ii = 1:length(casenames)
         
         AQ = AirQuant(savename);
 
+        obj.MeasureMode = 'FWHM';
+        
         % save segment taper analysis to csv
         SegmentTaperResults = SegmentTaperAll(AQ, [2.5 2.5]);
         writetable(SegmentTaperResults, fullfile(results_dir, [casename, '_SegmentTaper.csv']));
