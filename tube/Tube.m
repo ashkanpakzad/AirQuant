@@ -1,7 +1,7 @@
 % Lead Author: Ashkan Pakzad 2022. ashkanpakzad.github.io.
 % See https://github.com/ashkanpakzad/AirQuant for more information.
 
-classdef TQTube < handle % handle class
+classdef Tube < handle
     properties
         CaseDir % director for case
     end
@@ -32,6 +32,10 @@ classdef TQTube < handle % handle class
         %% INITIALISATION
         % Methods used to call and make AQ object.
         function obj = TQTube(LinkIndex, CaseDir, TubeType)
+            % a handle class
+            %
+            % :param x: a variable
+
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             % Initialise the TQTube class object.
             % A TQTube object, e.g. an airway or other anatomical tube.
