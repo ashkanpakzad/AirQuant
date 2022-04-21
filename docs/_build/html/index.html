@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Welcome to AirQuant’s documentation! &mdash; AirQuant  documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="AirQuant" href="modules.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="#" class="icon icon-home"> AirQuant
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="modules.html">AirQuant</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="#">AirQuant</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="#" class="icon icon-home"></a> &raquo;</li>
+      <li>Welcome to AirQuant’s documentation!</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/index.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <div class="section" id="welcome-to-airquant-s-documentation">
+<h1>Welcome to AirQuant’s documentation!<a class="headerlink" href="#welcome-to-airquant-s-documentation" title="Permalink to this headline"></a></h1>
+<div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="modules.html">AirQuant</a><ul class="simple">
+</ul>
+</li>
+</ul>
+</div>
+</div>
+<div class="section" id="tube">
+<h1>Tube<a class="headerlink" href="#tube" title="Permalink to this headline"></a></h1>
+<p>Base class of all functions</p>
+<span class="target" id="module-tube"></span><p><code class="xref mat mat-mod docutils literal notranslate"><span class="pre">Tube</span></code> is a really cool module.</p>
+<div class="section" id="id1">
+<h2>Tube<a class="headerlink" href="#id1" title="Permalink to this headline"></a></h2>
+<p>Base class of AirQuant</p>
+<dl class="mat class">
+<dt class="sig sig-object mat" id="tube.Tube">
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">tube.</span></span><span class="sig-name descname"><span class="pre">Tube</span></span><a class="headerlink" href="#tube.Tube" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <code class="xref mat mat-class docutils literal notranslate"><span class="pre">handle</span></code></p>
+<dl class="mat method">
+<dt class="sig sig-object mat" id="tube.Tube.AirwayImageAll">
+<span class="sig-name descname"><span class="pre">AirwayImageAll</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#tube.Tube.AirwayImageAll" title="Permalink to this definition"></a></dt>
+<dd><p>Traverse all airway segments except the trachea.</p>
+</dd></dl>
+
+<dl class="mat attribute">
+<dt class="sig sig-object mat" id="tube.Tube.ArcLengths">
+<span class="sig-name descname"><span class="pre">ArcLengths</span></span><em class="property"> <span class="pre">=</span> <span class="pre">None</span></em><a class="headerlink" href="#tube.Tube.ArcLengths" title="Permalink to this definition"></a></dt>
+<dd><p>corresponding arclength measurement traversed slices</p>
+</dd></dl>
+
+<dl class="mat attribute">
+<dt class="sig sig-object mat" id="tube.Tube.CTDimRed">
+<span class="sig-name descname"><span class="pre">CTDimRed</span></span><em class="property"> <span class="pre">=</span> <span class="pre">None</span></em><a class="headerlink" href="#tube.Tube.CTDimRed" title="Permalink to this definition"></a></dt>
+<dd><p>original Image</p>
+</dd></dl>
+
+<dl class="mat attribute">
+<dt class="sig sig-object mat" id="tube.Tube.CaseDir">
+<span class="sig-name descname"><span class="pre">CaseDir</span></span><em class="property"> <span class="pre">=</span> <span class="pre">None</span></em><a class="headerlink" href="#tube.Tube.CaseDir" title="Permalink to this definition"></a></dt>
+<dd><p>director for case</p>
+</dd></dl>
+
+<dl class="mat method">
+<dt class="sig sig-object mat" id="tube.Tube.ComputeBranchCharacteristics">
+<span class="sig-name descname"><span class="pre">ComputeBranchCharacteristics</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#tube.Tube.ComputeBranchCharacteristics" title="Permalink to this definition"></a></dt>
+<dd><p>Add parent and child links, and calculate length of airways.
+Save these to class to keep track of airway characteristics.</p>
+</dd></dl>
+
+<dl class="mat method">
+<dt class="sig sig-object mat" id="tube.Tube.ComputeDmapD">
+<span class="sig-name descname"><span class="pre">ComputeDmapD</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">CT_point</span></em><span class="sig-paren">)</span><a class="headerlink" href="#tube.Tube.ComputeDmapD" title="Permalink to this definition"></a></dt>
+<dd><p>Convert CT_point mm back to voxel ind</p>
+</dd></dl>
+
+<dl class="mat method">
+<dt class="sig sig-object mat" id="tube.Tube.ComputeEllipses">
+<span class="sig-name descname"><span class="pre">ComputeEllipses</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">FWHM_points</span></em><span class="sig-paren">)</span><a class="headerlink" href="#tube.Tube.ComputeEllipses" title="Permalink to this definition"></a></dt>
+<dd><p>Perform the Ellipitcal fitting
+The output will be sturct containing the major and minor lengths as well
+as all the stop points</p>
+</dd></dl>
+
+<dl class="mat method">
+<dt class="sig sig-object mat" id="tube.Tube.ComputeIntegratedVol">
+<span class="sig-name descname"><span class="pre">ComputeIntegratedVol</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">prunelength</span></em>, <em class="sig-param"><span class="pre">idx</span></em><span class="sig-paren">)</span><a class="headerlink" href="#tube.Tube.ComputeIntegratedVol" title="Permalink to this definition"></a></dt>
+<dd><p>Compute the intertapering value for all airways based on
+integrated volume along airway.</p>
+</dd></dl>
+
+<dl class="mat method">
+<dt class="sig sig-object mat" id="tube.Tube.ComputeIntegratedVolAll">
+<span class="sig-name descname"><span class="pre">ComputeIntegratedVolAll</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">prunelength</span></em><span class="sig-paren">)</span><a class="headerlink" href="#tube.Tube.ComputeIntegratedVolAll" title="Permalink to this definition"></a></dt>
+<dd><p>Compute the intertapering value for all airways based on
+integrated volume along airway.</p>
+</dd></dl>
+
+<dl class="mat method">
+<dt class="sig sig-object mat" id="tube.Tube.ComputeInterIntegratedVol">
+<span class="sig-name descname"><span class="pre">ComputeInterIntegratedVol</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">prunelength</span></em><span class="sig-paren">)</span><a class="headerlink" href="#tube.Tube.ComputeInterIntegratedVol" title="Permalink to this definition"></a></dt>
+<dd><p>Compute the intertapering value for all airways based on
+integrated volume along airway.</p>
+</dd></dl>
+
+<dl class="mat method">
+<dt class="sig sig-object mat" id="tube.Tube.ComputeIntraTaper">
+<span class="sig-name descname"><span class="pre">ComputeIntraTaper</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">prunelength</span></em>, <em class="sig-param"><span class="pre">idx</span></em>, <em class="sig-param"><span class="pre">plotflag</span></em><span class="sig-paren">)</span><a class="headerlink" href="#tube.Tube.ComputeIntraTaper" title="Permalink to this definition"></a></dt>
+<dd><p>prunelength given as a 2 element vector, the length in mm to
+ignore at the begining and end of the branch.</p>
+</dd></dl>
+
+<dl class="mat method">
+<dt class="sig sig-object mat" id="tube.Tube.ComputeLobarInterTaper">
+<span class="sig-name descname"><span class="pre">ComputeLobarInterTaper</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">prunelength</span></em><span class="sig-paren">)</span><a class="headerlink" href="#tube.Tube.ComputeLobarInterTaper" title="Permalink to this definition"></a></dt>
+<dd><p>TODO: great potential for improving efficiency.
+Compare every lobar airway with the diameter of the first
+airway of that lobe.</p>
+</dd></dl>
+
+<dl class="mat staticmethod">
+<dt class="sig sig-object mat" id="tube.Tube.ComputeNormal">
+<em class="property"><span class="pre">static</span> </em><span class="sig-name descname"><span class="pre">ComputeNormal</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">spline</span></em>, <em class="sig-param"><span class="pre">point</span></em><span class="sig-paren">)</span><a class="headerlink" href="#tube.Tube.ComputeNormal" title="Permalink to this definition"></a></dt>
+<dd><p>Based on original function by Kin Quan 2018
+* interperate real point on spline</p>
+</dd></dl>
+
+<dl class="mat method">
+<dt class="sig sig-object mat" id="tube.Tube.ComputeSpline">
+<span class="sig-name descname"><span class="pre">ComputeSpline</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">link_index</span></em><span class="sig-paren">)</span><a class="headerlink" href="#tube.Tube.ComputeSpline" title="Permalink to this definition"></a></dt>
+<dd><p>Computes a smooth spline of a single graph edge.
+Based on original function by Kin Quan 2018</p>
+</dd></dl>
+
+<dl class="mat method">
+<dt class="sig sig-object mat" id="tube.Tube.ComputeSplinePoints">
+<span class="sig-name descname"><span class="pre">ComputeSplinePoints</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">link_index</span></em><span class="sig-paren">)</span><a class="headerlink" href="#tube.Tube.ComputeSplinePoints" title="Permalink to this definition"></a></dt>
+<dd><ul class="simple">
+<li><p>Compute Spline if necessary</p></li>
+</ul>
+</dd></dl>
+
+<dl class="mat method">
+<dt class="sig sig-object mat" id="tube.Tube.ComputeTaperAll">
+<span class="sig-name descname"><span class="pre">ComputeTaperAll</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#tube.Tube.ComputeTaperAll" title="Permalink to this definition"></a></dt>
+<dd><p>get list of terminal branches</p>
+</dd></dl>
+
+<dl class="mat staticmethod">
+<dt class="sig sig-object mat" id="tube.Tube.ComputeTaperGrad">
+<em class="property"><span class="pre">static</span> </em><span class="sig-name descname"><span class="pre">ComputeTaperGrad</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">arclength</span></em>, <em class="sig-param"><span class="pre">area</span></em><span class="sig-paren">)</span><a class="headerlink" href="#tube.Tube.ComputeTaperGrad" title="Permalink to this definition"></a></dt>
+<dd><p>identify NaN data points</p>
+</dd></dl>
+
+<dl class="mat method">
+<dt class="sig sig-object mat" id="tube.Tube.ComputeTortuosity">
+<span class="sig-name descname"><span class="pre">ComputeTortuosity</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#tube.Tube.ComputeTortuosity" title="Permalink to this definition"></a></dt>
+<dd><p>La = Arclengths; Le = Euclidean lengths</p>
+</dd></dl>
+
+<dl class="mat method">
+<dt class="sig sig-object mat" id="tube.Tube.CreateAirwayImage">
+<span class="sig-name descname"><span class="pre">CreateAirwayImage</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">link_index</span></em><span class="sig-paren">)</span><a class="headerlink" href="#tube.Tube.CreateAirwayImage" title="Permalink to this definition"></a></dt>
+<dd><p>Constructs perpendicular images as if travelling along an
+airway segment in CT image and Segmentation.</p>
+</dd></dl>
+
+<dl class="mat attribute">
+<dt class="sig sig-object mat" id="tube.Tube.FWHMesl">
+<span class="sig-name descname"><span class="pre">FWHMesl</span></span><em class="property"> <span class="pre">=</span> <span class="pre">None</span></em><a class="headerlink" href="#tube.Tube.FWHMesl" title="Permalink to this definition"></a></dt>
+<dd><p>Characteristics of tube</p>
+</dd></dl>
+
+<dl class="mat method">
+<dt class="sig sig-object mat" id="tube.Tube.FindFWHMall">
+<span class="sig-name descname"><span class="pre">FindFWHMall</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#tube.Tube.FindFWHMall" title="Permalink to this definition"></a></dt>
+<dd><p>Clear all FWHMesl cells</p>
+</dd></dl>
+
+<dl class="mat attribute">
+<dt class="sig sig-object mat" id="tube.Tube.GenerationClassification">
+<span class="sig-name descname"><span class="pre">GenerationClassification</span></span><em class="property"> <span class="pre">=</span> <span class="pre">None</span></em><a class="headerlink" href="#tube.Tube.GenerationClassification" title="Permalink to this definition"></a></dt>
+<dd><p>displacement from originating branch</p>
+</dd></dl>
+
+<dl class="mat method">
+<dt class="sig sig-object mat" id="tube.Tube.GetAreas">
+<span class="sig-name descname"><span class="pre">GetAreas</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#tube.Tube.GetAreas" title="Permalink to this definition"></a></dt>
+<dd><p>Extract the inner area of all branches from FWHM results and output</p>
+</dd></dl>
+
+<dl class="mat method">
+<dt class="sig sig-object mat" id="tube.Tube.GetDiameters">
+<span class="sig-name descname"><span class="pre">GetDiameters</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#tube.Tube.GetDiameters" title="Permalink to this definition"></a></dt>
+<dd><p>Extract the inner area of all branches from FWHM results,
+convert to diameter and output.</p>
+</dd></dl>
+
+<dl class="mat method">
+<dt class="sig sig-object mat" id="tube.Tube.GraphPlotIT">
+<span class="sig-name descname"><span class="pre">GraphPlotIT</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#tube.Tube.GraphPlotIT" title="Permalink to this definition"></a></dt>
+<dd><p>graph plot for plotting intertapering relative to
+edgethicknes.</p>
+</dd></dl>
+
+<dl class="mat method">
+<dt class="sig sig-object mat" id="tube.Tube.InterpolateCT">
+<span class="sig-name descname"><span class="pre">InterpolateCT</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">normal</span></em>, <em class="sig-param"><span class="pre">CT_point</span></em>, <em class="sig-param"><span class="pre">plane_sz</span></em>, <em class="sig-param"><span class="pre">plane_sample_sz</span></em><span class="sig-paren">)</span><a class="headerlink" href="#tube.Tube.InterpolateCT" title="Permalink to this definition"></a></dt>
+<dd><p>Interpolates a CT plane of the image.
+Based on original function by Kin Quan 2018</p>
+</dd></dl>
+
+<dl class="mat method">
+<dt class="sig sig-object mat" id="tube.Tube.LobeAvgPlot">
+<span class="sig-name descname"><span class="pre">LobeAvgPlot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">metric</span></em><span class="sig-paren">)</span><a class="headerlink" href="#tube.Tube.LobeAvgPlot" title="Permalink to this definition"></a></dt>
+<dd><p>visualise average of each generation across upper and lower
+lobes for intra/inter/avg values.</p>
+</dd></dl>
+
+<dl class="mat staticmethod">
+<dt class="sig sig-object mat" id="tube.Tube.LobeLabels">
+<em class="property"><span class="pre">static</span> </em><span class="sig-name descname"><span class="pre">LobeLabels</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#tube.Tube.LobeLabels" title="Permalink to this definition"></a></dt>
+<dd><p>returns cell of lobe lables used in AirQuant</p>
+</dd></dl>
+
+<dl class="mat method">
+<dt class="sig sig-object mat" id="tube.Tube.OrthoViewAirway">
+<span class="sig-name descname"><span class="pre">OrthoViewAirway</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">link_index</span></em><span class="sig-paren">)</span><a class="headerlink" href="#tube.Tube.OrthoViewAirway" title="Permalink to this definition"></a></dt>
+<dd><p>View a series of an airway segment’s slices as a volume image
+stack using MATLAB’s inbuilt othogonal 3d viewer.</p>
+</dd></dl>
+
+<dl class="mat attribute">
+<dt class="sig sig-object mat" id="tube.Tube.ParentNode">
+<span class="sig-name descname"><span class="pre">ParentNode</span></span><em class="property"> <span class="pre">=</span> <span class="pre">None</span></em><a class="headerlink" href="#tube.Tube.ParentNode" title="Permalink to this definition"></a></dt>
+<dd><p>Graph Properties</p>
+</dd></dl>
+
+<dl class="mat method">
+<dt class="sig sig-object mat" id="tube.Tube.PlotAirway">
+<span class="sig-name descname"><span class="pre">PlotAirway</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">link_index</span></em>, <em class="sig-param"><span class="pre">slide</span></em><span class="sig-paren">)</span><a class="headerlink" href="#tube.Tube.PlotAirway" title="Permalink to this definition"></a></dt>
+<dd><p>display image</p>
+</dd></dl>
+
+<dl class="mat method">
+<dt class="sig sig-object mat" id="tube.Tube.PlotAirway3">
+<span class="sig-name descname"><span class="pre">PlotAirway3</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">link_index</span></em><span class="sig-paren">)</span><a class="headerlink" href="#tube.Tube.PlotAirway3" title="Permalink to this definition"></a></dt>
+<dd><p>Plot resampled airway slices overlayed with FWHMesl ray cast
+points and fitted ellipse</p>
+</dd></dl>
+
+<dl class="mat method">
+<dt class="sig sig-object mat" id="tube.Tube.PlotMap3D">
+<span class="sig-name descname"><span class="pre">PlotMap3D</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">mode</span></em><span class="sig-paren">)</span><a class="headerlink" href="#tube.Tube.PlotMap3D" title="Permalink to this definition"></a></dt>
+<dd><p>Recommend to use View3D if colour labels appear buggy.</p>
+</dd></dl>
+
+<dl class="mat method">
+<dt class="sig sig-object mat" id="tube.Tube.PlotSeg">
+<span class="sig-name descname"><span class="pre">PlotSeg</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#tube.Tube.PlotSeg" title="Permalink to this definition"></a></dt>
+<dd><p>plot segmentation</p>
+</dd></dl>
+
+<dl class="mat method">
+<dt class="sig sig-object mat" id="tube.Tube.PlotSegSkel">
+<span class="sig-name descname"><span class="pre">PlotSegSkel</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#tube.Tube.PlotSegSkel" title="Permalink to this definition"></a></dt>
+<dd><p>plot segmentation and skeleton within each other.</p>
+</dd></dl>
+
+<dl class="mat method">
+<dt class="sig sig-object mat" id="tube.Tube.PlotSplineTree">
+<span class="sig-name descname"><span class="pre">PlotSplineTree</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#tube.Tube.PlotSplineTree" title="Permalink to this definition"></a></dt>
+<dd><p>loop through every branch, check spline has already been
+computed, compute if necessary. Skip trachea. Plot spline.
+TODO: This may not work as well when VoxelSize ~= [1,1,1]</p>
+</dd></dl>
+
+<dl class="mat method">
+<dt class="sig sig-object mat" id="tube.Tube.PlotSplineVecs">
+<span class="sig-name descname"><span class="pre">PlotSplineVecs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">subsamp</span></em>, <em class="sig-param"><span class="pre">link_index</span></em><span class="sig-paren">)</span><a class="headerlink" href="#tube.Tube.PlotSplineVecs" title="Permalink to this definition"></a></dt>
+<dd><p>Plot and Visualise tangental vectors off spline sample
+points. 1/subsamp = proportion of spline points to sample,
+default subsamp = 2. link_index = airway indices to plot,
+default link_index = all.</p>
+</dd></dl>
+
+<dl class="mat method">
+<dt class="sig sig-object mat" id="tube.Tube.PlotTree">
+<span class="sig-name descname"><span class="pre">PlotTree</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">gen</span></em>, <em class="sig-param"><span class="pre">show_seg_txt</span></em>, <em class="sig-param"><span class="pre">show_node_txt</span></em><span class="sig-paren">)</span><a class="headerlink" href="#tube.Tube.PlotTree" title="Permalink to this definition"></a></dt>
+<dd><p>Plot the airway tree with nodes and links in image space. Set
+gen to the maximum number of generations to show.
+Original Function by Ashkan Pakzad on 27th July 2019.</p>
+</dd></dl>
+
+<dl class="mat method">
+<dt class="sig sig-object mat" id="tube.Tube.Raycast">
+<span class="sig-name descname"><span class="pre">Raycast</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">interpslice</span></em>, <em class="sig-param"><span class="pre">interpseg</span></em>, <em class="sig-param"><span class="pre">center</span></em><span class="sig-paren">)</span><a class="headerlink" href="#tube.Tube.Raycast" title="Permalink to this definition"></a></dt>
+<dd><ul class="simple">
+<li><p>Compute Rays</p></li>
+</ul>
+<p>Getting the range limit of the ray which will be the shortest
+distance from the centre to the bounadry Need to find the
+limits of the raw</p>
+</dd></dl>
+
+<dl class="mat method">
+<dt class="sig sig-object mat" id="tube.Tube.ReformatAirway">
+<span class="sig-name descname"><span class="pre">ReformatAirway</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">link_index</span></em>, <em class="sig-param"><span class="pre">slice_idx</span></em><span class="sig-paren">)</span><a class="headerlink" href="#tube.Tube.ReformatAirway" title="Permalink to this definition"></a></dt>
+<dd><p>get reformatted airway stack</p>
+</dd></dl>
+
+<dl class="mat attribute">
+<dt class="sig sig-object mat" id="tube.Tube.RegionClassification">
+<span class="sig-name descname"><span class="pre">RegionClassification</span></span><em class="property"> <span class="pre">=</span> <span class="pre">None</span></em><a class="headerlink" href="#tube.Tube.RegionClassification" title="Permalink to this definition"></a></dt>
+<dd><p>e.g. lobe</p>
+</dd></dl>
+
+<dl class="mat attribute">
+<dt class="sig sig-object mat" id="tube.Tube.SavePath">
+<span class="sig-name descname"><span class="pre">SavePath</span></span><em class="property"> <span class="pre">=</span> <span class="pre">None</span></em><a class="headerlink" href="#tube.Tube.SavePath" title="Permalink to this definition"></a></dt>
+<dd><p>filename to load/save the object.</p>
+</dd></dl>
+
+<dl class="mat attribute">
+<dt class="sig sig-object mat" id="tube.Tube.SegIndices">
+<span class="sig-name descname"><span class="pre">SegIndices</span></span><em class="property"> <span class="pre">=</span> <span class="pre">None</span></em><a class="headerlink" href="#tube.Tube.SegIndices" title="Permalink to this definition"></a></dt>
+<dd><p>indices of voxels made up by segmentation</p>
+</dd></dl>
+
+<dl class="mat method">
+<dt class="sig sig-object mat" id="tube.Tube.SegmentTaperAll">
+<span class="sig-name descname"><span class="pre">SegmentTaperAll</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">prunelength</span></em><span class="sig-paren">)</span><a class="headerlink" href="#tube.Tube.SegmentTaperAll" title="Permalink to this definition"></a></dt>
+<dd><p>high level function to compute the segmental tapering
+measurement of all airways.</p>
+</dd></dl>
+
+<dl class="mat method">
+<dt class="sig sig-object mat" id="tube.Tube.SetBranch">
+<span class="sig-name descname"><span class="pre">SetBranch</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">ParentNode</span></em>, <em class="sig-param"><span class="pre">ChildNode</span></em>, <em class="sig-param"><span class="pre">IgnoredLink</span></em><span class="sig-paren">)</span><a class="headerlink" href="#tube.Tube.SetBranch" title="Permalink to this definition"></a></dt>
+<dd><p>Set branch characteristics</p>
+</dd></dl>
+
+<dl class="mat method">
+<dt class="sig sig-object mat" id="tube.Tube.SetCT">
+<span class="sig-name descname"><span class="pre">SetCT</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">CTDimRed</span></em>, <em class="sig-param"><span class="pre">VoxDim</span></em><span class="sig-paren">)</span><a class="headerlink" href="#tube.Tube.SetCT" title="Permalink to this definition"></a></dt>
+<dd><p>CTDimRed - 6 element vector of top left to bottom right
+extremes of CT image
+VoxDim - 3 element vector of voxel dimensions of CT in mm.</p>
+</dd></dl>
+
+<dl class="mat method">
+<dt class="sig sig-object mat" id="tube.Tube.SetGraphLobeColourmap">
+<span class="sig-name descname"><span class="pre">SetGraphLobeColourmap</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">h</span></em>, <em class="sig-param"><span class="pre">G</span></em><span class="sig-paren">)</span><a class="headerlink" href="#tube.Tube.SetGraphLobeColourmap" title="Permalink to this definition"></a></dt>
+<dd><p>set the colours of a network graph by lobe.
+G is the graph object and h is the plot.
+i.e. h = plot(G)</p>
+</dd></dl>
+
+<dl class="mat method">
+<dt class="sig sig-object mat" id="tube.Tube.SetSegSkel">
+<span class="sig-name descname"><span class="pre">SetSegSkel</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">SegIndices</span></em>, <em class="sig-param"><span class="pre">SkelIndices</span></em><span class="sig-paren">)</span><a class="headerlink" href="#tube.Tube.SetSegSkel" title="Permalink to this definition"></a></dt>
+<dd><p>Each is a vector of linear indices in the frame of the
+reduced CT.</p>
+</dd></dl>
+
+<dl class="mat attribute">
+<dt class="sig sig-object mat" id="tube.Tube.SkelIndices">
+<span class="sig-name descname"><span class="pre">SkelIndices</span></span><em class="property"> <span class="pre">=</span> <span class="pre">None</span></em><a class="headerlink" href="#tube.Tube.SkelIndices" title="Permalink to this definition"></a></dt>
+<dd><p>indices of voxels made up by skeletonisation</p>
+</dd></dl>
+
+<dl class="mat attribute">
+<dt class="sig sig-object mat" id="tube.Tube.Specs">
+<span class="sig-name descname"><span class="pre">Specs</span></span><em class="property"> <span class="pre">=</span> <span class="pre">None</span></em><a class="headerlink" href="#tube.Tube.Specs" title="Permalink to this definition"></a></dt>
+<dd><p>Store of end metrics</p>
+</dd></dl>
+
+<dl class="mat method">
+<dt class="sig sig-object mat" id="tube.Tube.TQTube">
+<span class="sig-name descname"><span class="pre">TQTube</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">LinkIndex</span></em>, <em class="sig-param"><span class="pre">CaseDir</span></em>, <em class="sig-param"><span class="pre">TubeType</span></em><span class="sig-paren">)</span><a class="headerlink" href="#tube.Tube.TQTube" title="Permalink to this definition"></a></dt>
+<dd><p>a handle class</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>x</strong> – a variable</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="mat method">
+<dt class="sig sig-object mat" id="tube.Tube.TaperBoxPlot">
+<span class="sig-name descname"><span class="pre">TaperBoxPlot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">type</span></em><span class="sig-paren">)</span><a class="headerlink" href="#tube.Tube.TaperBoxPlot" title="Permalink to this definition"></a></dt>
+<dd><p>requires lobe classification</p>
+</dd></dl>
+
+<dl class="mat attribute">
+<dt class="sig sig-object mat" id="tube.Tube.TraversedImage">
+<span class="sig-name descname"><span class="pre">TraversedImage</span></span><em class="property"> <span class="pre">=</span> <span class="pre">None</span></em><a class="headerlink" href="#tube.Tube.TraversedImage" title="Permalink to this definition"></a></dt>
+<dd><p>perpendicular CT slices of all airways</p>
+</dd></dl>
+
+<dl class="mat attribute">
+<dt class="sig sig-object mat" id="tube.Tube.TraversedSeg">
+<span class="sig-name descname"><span class="pre">TraversedSeg</span></span><em class="property"> <span class="pre">=</span> <span class="pre">None</span></em><a class="headerlink" href="#tube.Tube.TraversedSeg" title="Permalink to this definition"></a></dt>
+<dd><p>perpendicular segmentation slices of all airways</p>
+</dd></dl>
+
+<dl class="mat method">
+<dt class="sig sig-object mat" id="tube.Tube.View3D">
+<span class="sig-name descname"><span class="pre">View3D</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">mode</span></em><span class="sig-paren">)</span><a class="headerlink" href="#tube.Tube.View3D" title="Permalink to this definition"></a></dt>
+<dd><p>View segmentation volume with different labels. In MATLAB’s
+volviewer.
+mode = ‘TaperGradient’, ‘generation’, ‘lobes’</p>
+</dd></dl>
+
+<dl class="mat attribute">
+<dt class="sig sig-object mat" id="tube.Tube.VoxDim">
+<span class="sig-name descname"><span class="pre">VoxDim</span></span><em class="property"> <span class="pre">=</span> <span class="pre">None</span></em><a class="headerlink" href="#tube.Tube.VoxDim" title="Permalink to this definition"></a></dt>
+<dd><p>voxel dimensions in mm usually</p>
+</dd></dl>
+
+<dl class="mat method">
+<dt class="sig sig-object mat" id="tube.Tube.airwaystack">
+<span class="sig-name descname"><span class="pre">airwaystack</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">link_index</span></em><span class="sig-paren">)</span><a class="headerlink" href="#tube.Tube.airwaystack" title="Permalink to this definition"></a></dt>
+<dd><p>generate an airway’s interpolated slices into an array
+stack.</p>
+</dd></dl>
+
+<dl class="mat method">
+<dt class="sig sig-object mat" id="tube.Tube.compareextent">
+<span class="sig-name descname"><span class="pre">compareextent</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">populationstats</span></em>, <em class="sig-param"><span class="pre">threshold</span></em><span class="sig-paren">)</span><a class="headerlink" href="#tube.Tube.compareextent" title="Permalink to this definition"></a></dt>
+<dd><p>threshold = minimum gen expected
+populationstats = table generated by summarising results from
+genperlobe over several images.</p>
+</dd></dl>
+
+<dl class="mat method">
+<dt class="sig sig-object mat" id="tube.Tube.digraph">
+<span class="sig-name descname"><span class="pre">digraph</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#tube.Tube.digraph" title="Permalink to this definition"></a></dt>
+<dd><p>TODO: REDUNDANT FUNCTION?
+compute edge weights</p>
+</dd></dl>
+
+<dl class="mat method">
+<dt class="sig sig-object mat" id="tube.Tube.exportraw">
+<span class="sig-name descname"><span class="pre">exportraw</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">savename</span></em><span class="sig-paren">)</span><a class="headerlink" href="#tube.Tube.exportraw" title="Permalink to this definition"></a></dt>
+<dd><p>export Glink table and arclengths and inner diameter
+measurements</p>
+</dd></dl>
+
+<dl class="mat method">
+<dt class="sig sig-object mat" id="tube.Tube.extentstats">
+<span class="sig-name descname"><span class="pre">extentstats</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#tube.Tube.extentstats" title="Permalink to this definition"></a></dt>
+<dd><p>make table of lobes</p>
+</dd></dl>
+
+<dl class="mat method">
+<dt class="sig sig-object mat" id="tube.Tube.plot">
+<span class="sig-name descname"><span class="pre">plot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">type</span></em><span class="sig-paren">)</span><a class="headerlink" href="#tube.Tube.plot" title="Permalink to this definition"></a></dt>
+<dd><p>Default plot is a graph network representation. Optional input is to
+provide a list of edge labels indexed by the Glink property.</p>
+</dd></dl>
+
+<dl class="mat method">
+<dt class="sig sig-object mat" id="tube.Tube.plot3">
+<span class="sig-name descname"><span class="pre">plot3</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">gen</span></em>, <em class="sig-param"><span class="pre">show_node_txt</span></em><span class="sig-paren">)</span><a class="headerlink" href="#tube.Tube.plot3" title="Permalink to this definition"></a></dt>
+<dd><p>Plot the airway tree in graph form, in 3D. nodes are in
+in image space. Set gen to the maximum number of
+generations to show.
+Original Function by Ashkan Pakzad on 27th July 2019.</p>
+</dd></dl>
+
+<dl class="mat method">
+<dt class="sig sig-object mat" id="tube.Tube.vol3daxes">
+<span class="sig-name descname"><span class="pre">vol3daxes</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">ax</span></em><span class="sig-paren">)</span><a class="headerlink" href="#tube.Tube.vol3daxes" title="Permalink to this definition"></a></dt>
+<dd><p>utility function for 3D volumetric plotting. Sets the aspect
+ratio according to voxel size and reverses the x axes for LPS
+viewing.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+</div>
+<div class="section" id="indices-and-tables">
+<h1>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Permalink to this headline"></a></h1>
+<ul class="simple">
+<li><p><a class="reference internal" href="genindex.html"><span class="std std-ref">Index</span></a></p></li>
+<li><p><a class="reference internal" href="py-modindex.html"><span class="std std-ref">Module Index</span></a></p></li>
+<li><p><a class="reference internal" href="search.html"><span class="std std-ref">Search Page</span></a></p></li>
+</ul>
+</div>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="modules.html" class="btn btn-neutral float-right" title="AirQuant" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Ashkan Pakzad.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
