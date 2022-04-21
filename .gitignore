@@ -4,3 +4,4 @@
 scripts/*
 *.csv
 .idea/*
+docs/_*
