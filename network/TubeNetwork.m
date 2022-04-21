@@ -1,59 +1,35 @@
 % Lead Author: Ashkan Pakzad 2022. ashkanpakzad.github.io.
 % See https://github.com/ashkanpakzad/AirQuant for more information.
 
-classdef TubeQuantAirway < TubeQuantTube % handle class
-    properties
-        %%% Volumes and Metadata
-        CT 
-        % CT image input as 3D array, typically from niftiread.
-        CTinfo 
-        % CT metadata from niftiinfo
-        VoxDim
-        % voxel dimensions in mm usually       
-        seg 
-        % binary airway segmentation in the same grid space as CT. 
+classdef TubeNetwork < handle
+    % Args: 
+    %   source (float, array):
+    %   sourceinfo (struct):
+    %   VoxDim (triplet,float): voxel dimensions in mm usually       
+    %   seg(bool,array): binary airway segmentation in the same grid space as CT. 
         % dimensions must match with CT.
-        skel 
-        % skeleton based on segementation with no internal loops.
+    %   skel(bool,array): % skeleton based on segementation with no internal loops.
         % in the same grid space as CT. Dimensions must match with CT.
-        lims 
-        % reduced volume indices
-        savename 
-        % filename to load/save the AirQuant object.
-        %%% CT resampling params
-        max_plane_sz = 40;% max interpolated slice size
-        plane_sample_sz % interpolated slice pixel size
-        spline_sample_sz % mm interval to sample along branch arclength
-        plane_scaling_sz = 5; % scale airway diameter approx measurement.
-        min_tube_sz % smallest measurable lumen Diameter.
-        %%% Ray params
-        num_rays = 180; 
-        % Number of rays to use about the airway centre in identifying the
-        % boundary of the airway edge.
-        ray_interval = 0.2; 
-        % Interval to resample the raycast profiles.
-        
+    %   lims: reduced volume indices
+    %   max_plane_sz(float,scalar): max interpolated slice size
+    %   plane_sample_sz(float,scalar): interpolated slice pixel size
+    %   spline_sample_sz(float,scalar): mm interval to sample along branch arclength                
+    %   skel_points(float,vector) : __private__, list of skeleton points
+    %   Dmap(float,array): __private__, distance transform of seg
+    properties
+        source 
+        sourceinfo 
+        voxdim
+        seg 
+        skel
+        lims
+        max_plane_sz
+        plane_sample_sz
+        spline_sample_sz
     end
     properties (SetAccess = private)
-        %%% Graph Properties
-        Gadj % undirected Graph Adjacency matrix
-        Gnode % Airway graph node info, struct
-        Glink % Airway graph edge info, struct
-        Gdigraph % digraph object
-        trachea_path % edges that form a connect subgraph above the carina
-        carina_node % node that corresponds to the carina
-        skel_points % list of skeleton points
-        %%% Resampled image slices along graph paths/airway segments.
-        Dmap % distance transform of seg
-        Splines % spline data of branches
-        TraversedImage % perpendicular CT slices of all airways
-        TraversedSeg % perpendicular segmentation slices of all airways
-        arclength % corresponding arclength measurement traversed slices
-        FWHMesl % FWHMesl algorithm results for every airway {inner, peak, outer}
-        Specs % Store of end metrics
-        OriginalGraphMap % Store original properties of graph if manipulated
-        LobeClass % stores lobe and major branch node origins
-        lungvol % lung volume (mm^3) calculated from given lungmask
+        skel_points
+        Dmap 
     end
     
     methods
