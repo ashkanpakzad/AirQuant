@@ -1,6 +1,6 @@
 /results/*
 /data/*
 *.asv
-scripts/run*
+scripts/*
 *.csv
-scripts/quickAQ.m
+.idea/*
