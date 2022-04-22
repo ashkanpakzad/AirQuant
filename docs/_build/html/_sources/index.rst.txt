@@ -10,23 +10,39 @@ Welcome to AirQuant's documentation!
    :maxdepth: 2
    :caption: Contents:
 
-   tube
+   modules
 
-Tube
-=========
-Base class of all functions
+tube
+====
+Base class of Airquant
 
 .. automodule:: tube
 
 :mod:`Tube` is a really cool module.
 
 Tube
-------
-Base class of AirQuant
+----
+Base class of tubes
 
 .. autoclass:: Tube
    :show-inheritance:
    :members:
+
+network
+=======
+Base class of all functions
+
+.. automodule:: network
+
+:mod:`Tube` is a really cool module.
+
+TubeNetwork
+-----------
+Base class of all networks
+
+.. autoclass:: TubeNetwork
+  :show-inheritance:
+  :members:
 
 Indices and tables
 ==================
