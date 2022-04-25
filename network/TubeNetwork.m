@@ -4,7 +4,21 @@
 classdef TubeNetwork < handle
     % TubeNetwork
     %
-    % description
+    % TubeNetwork creates and manages objects inherited from 
+    % :class:`tube` that represent anatomical tubes on 3 dimensional
+    % images.
+    %
+    % .. note:: 
+    %
+    %   TubeNetwork class is intended as a base class for analysing
+    %   anatomical tubes. sub classes refined for analysing a particular 
+    %   anatomy should be used. e.g. :class:`AirwayNetwork`
+    %
+    % .. todo:: 
+    %   * Make segmentation import more generalised by removing need
+    %   for full connectivity.
+    %   * Classify seg by tube
+    %   * Consider making tubes property private
     %
     % Args:
     %   source: source image, e.g. CT
@@ -35,6 +49,7 @@ classdef TubeNetwork < handle
         plane_sample_sz
         spline_sample_sz
         min_tube_sz
+        tubes
     end
     properties (SetAccess = private)
         skel_points
@@ -48,9 +63,7 @@ classdef TubeNetwork < handle
             %
             % The network digraph is constructed using the default method.
             %
-            % TODO:
-            % -----
-            % * Expose digraph method to user at initialisation.
+            % .. todo:: Expose digraph method to user at initialisation.
             %
             % Args:
             %   source (3darray): CT loaded from nifti using niftiread.
@@ -64,7 +77,6 @@ classdef TubeNetwork < handle
             %
 
             % check inputs
-
             seg = logical(seg);
             skel = logical(skel);
 
@@ -98,7 +110,7 @@ classdef TubeNetwork < handle
             obj.skel = CropVol(obj.skel, obj.lims);
 
             % Compute distance transform
-            ComputeDistanceTransform(obj)
+            obj = MakeDistanceTransform(obj);
 
             % Set dynamic resampling parameters and limits
             measure_limit = floor((min(obj.voxdim)/2)*10)/10;
@@ -107,24 +119,31 @@ classdef TubeNetwork < handle
             obj.min_tube_sz = 3*max(obj.voxdim);
 
             % Convert skel into digraph
-            obj = MakeDigraph(obj);
+            [digraphout, glink, gnode] = MakeDigraph(obj);
+
+            % .. todo:: Classify segmentation by tubes
 
             % make tube objects
-            
+            obj.tubes = cell(length(glink),1);
+            for ii = 1:length(glink)
+                obj.tubes{ii,1} = Tube(obj, glink(ii).point);
+            end
+
+            % set tube relationships
             
             % classify tubes by generation
 %             obj = ComputeAirwayGen(obj);
 
         end
         
-        function ComputeDistanceTransform(obj)
+        function obj = MakeDistanceTransform(obj)
             % Compute distance transform of segmentation and save as
             % property.
             obj.Dmap = bwdist(~obj.seg);
         end
 
         function branch_seg = ClassifySegmentation(obj)
-            % TODO: consider making this function more robust!
+            % .. :todo:: consider making this function more robust!
             % label every branch in segmentation to AS branch index.
 
             % Find linear indicies of skeleton
@@ -302,6 +321,7 @@ classdef TubeNetwork < handle
         function obj = ReclassLobeBranch(obj, branch_idx, lobelabel)
             obj.Glink(branch_idx).lobe = lobelabel;
         end
+        
         function obj = ReclassLobe(obj, node, lobelabel, dryrun)
             % reclassify airways beyond a given node to a particular
             % lobelabel. This method is useful for when the lobe
@@ -740,49 +760,6 @@ classdef TubeNetwork < handle
                     intertaper(ii,jj) = (averagediameter(parent, jj) - averagediameter(ii,jj))...
                         /(averagediameter(parent, jj)) * 100;
                 end
-            end
-
-        end
-
-        function lobar_intertaper = ComputeLobarInterTaper(obj, prunelength)
-            % TODO: great potential for improving efficiency.
-            % Compare every lobar airway with the diameter of the first
-            % airway of that lobe.
-
-            if nargin < 2
-                prunelength = [0 0];
-            end
-
-            % Check if lobe algorithm was successful, fail if not.
-            if ~isfield(obj.Glink, 'lobe')
-                warning('ComputeLobarInterTaper failed, run lobe classification successfully first.')
-            end
-
-            % use output from intrataperall
-            [~, averagediameter] = ComputeIntraTaperAll(obj, prunelength);
-            indexed_lobes = convertCharsToStrings([obj.Glink.lobe]);
-            % loop through branches
-            labels = AirQuant.LobeLabels();
-            lobar_intertaper = NaN(length(obj.arclength), 3);
-            for iii = 1:length(labels)
-                current_lobe = labels(iii);
-                lobe_idx = find(indexed_lobes == current_lobe);
-
-                for ii = lobe_idx
-                    if obj.Glink(ii).generation < 3
-                        continue
-                    end
-
-                    % identify avg vol of 2nd lobe gen
-                    s2nd_branch = find([obj.Glink.generation] == 2 & indexed_lobes == current_lobe);
-                    for jj = 1:3
-                        s2nd_vol = mean(averagediameter(s2nd_branch, jj),'omitnan');
-                        % identify parent by predecessor node
-                        lobar_intertaper(ii,jj) = ((s2nd_vol - averagediameter(ii,jj))...
-                            /(s2nd_vol)) * 100;
-                    end
-                end
-
             end
 
         end
@@ -1340,7 +1317,7 @@ classdef TubeNetwork < handle
         function PlotSplineTree(obj)
             % loop through every branch, check spline has already been
             % computed, compute if necessary. Skip trachea. Plot spline.
-            % TODO: This may not work as well when VoxelSize ~= [1,1,1]
+            % .. :warning: This may not work as well when VoxelSize ~= [1,1,1]
             for i = 1:length(obj.Glink)
                 if isempty(obj.Splines{i, 1})
                     if ismember(i, obj.trachea_path)
@@ -1450,7 +1427,7 @@ classdef TubeNetwork < handle
             branch_seg = ClassifySegmentation(obj);
             switch mode
                 case 'tapergradient'
-                    % TODO: rewrite this bit....
+                    % .. :todo:: rewrite this bit....
                     for i = 1:length(obj.Specs)
                         cdata(branch_seg == i) = obj.Specs(i).FWHMl_logtaper*-1;
                     end
@@ -1628,9 +1605,8 @@ classdef TubeNetwork < handle
 
                 %                     ellipse(obj.FWHMesl{link_index, 3}{slide, 1}.elliptical_info(3),obj.FWHMesl{link_index, 3}{slide, 1}.elliptical_info(4),...
                 %                         obj.FWHMesl{link_index, 3}{slide, 1}.elliptical_info(5),obj.FWHMesl{link_index, 3}{slide, 1}.elliptical_info(1)+min_centre,...
-                %                         obj.FWHMesl{link_index, 3}{slide, 1}.elliptical_info(2)+min_centre,'y');
-                %TODO: set third colour more appropiately
-
+                %                         obj.FWHMesl{link_index, 3}{slide,
+                %                         1}.elliptical_info(2)+min_centre,'y');s
                 %                     plot(obj.FWHMesl{link_index, 4}{slide, 1}(1)+min_centre,...
                 %                         obj.FWHMesl{link_index, 4}{slide, 1}(2)+min_centre, ...
                 %                         '.g', 'MarkerSize',20)
