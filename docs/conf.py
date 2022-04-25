@@ -27,8 +27,9 @@ author = 'Ashkan Pakzad'
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ['sphinxcontrib.matlab', 'sphinx.ext.autodoc', 'sphinx.ext.napoleon'
-]
+extensions = ['sphinxcontrib.matlab', 'sphinx.ext.autodoc',
+'sphinx.ext.napoleon', 'sphinx.ext.todo']
+
 this_dir = os.path.dirname(os.path.abspath(__file__))
 matlab_src_dir = os.path.abspath(os.path.join(this_dir, '..'))
 primary_domain = 'mat'
@@ -41,6 +42,12 @@ templates_path = ['_templates']
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
+# todo config
+todo_include_todos = True
+todo_emit_warnings = True
+todo_link_only = False
+
+
 
 # -- Options for HTML output -------------------------------------------------
 
@@ -48,6 +55,7 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 # a list of builtin themes.
 #
 html_theme = 'sphinx_rtd_theme'
+html_title = 'AirQuant'
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
