@@ -6,6 +6,7 @@ classdef Tube < handle
     %
     % description
     %
+    %
     % Parameters
     % ----------
     % network : :class:`AirQuant.network`
@@ -34,14 +35,14 @@ classdef Tube < handle
 
     properties
         network
-        parent
-        child
+        relatives
         localsegpoints
         skelpoints
         spline
         arclength
         reformedsource
         reformedseg
+        patchprop
         stats
     end
     properties (SetAccess = private)
@@ -49,13 +50,15 @@ classdef Tube < handle
     end
 
     methods
-        function obj = Tube(network, skelpoints, localsegpoints, parent, child)
+        function obj = Tube(network, skelpoints)
             % tube representing anatomical structure
             %
-            % TODO:
-            % -----
-            % * Ensure that tubes can be saved and loaded independently of
-            %   network.
+            % .. todo:
+            %   * make tubes saveable and loadable and that these operations 
+            %   can be done independently of the network object.
+            %   * to make independent, it may be necessary to remove the
+            %   network as a property. it will be nessesary to save the
+            %   keep the source size.
             %
             % Args:
             %   network : network object to which this tube belongs.
@@ -71,13 +74,29 @@ classdef Tube < handle
             % definitions
             obj.network = network;
             obj.skelpoints = skelpoints;
-            obj.localsegpoints = localsegpoints;
-            % parent and child
-            obj.parent = parent;
-            obj.child = child;
 
-            % compute spline
-            % compute tortuosity
+            obj.relatives = struct([]);
+            obj.patchprop = struct([]);
+            obj.stats = struct([]);
+            
+            obj.MakeSpline(obj)
+            obj.ComputeSplinePoints(obj)
+        end
+        
+        function obj = SetRelative(obj, tube, relation)
+            % Set relative to current tube object.
+            %              
+            % desc
+            % .. todo: add documentation to this function 
+            %
+            % Args: 
+            %   relativetube (:class:`tube`): the tube to set
+            %       relation to. 
+            %   relation (string): relation name. common
+            %       "parent" or "child".
+            %
+            
+            obj.relatives = setfield(obj.relatives, relation, tube);
         end
 
         function obj = ComputeTubeCharacteristics(obj)
@@ -92,7 +111,7 @@ classdef Tube < handle
                 obj.Glink(link_index).parent_idx = find([obj.Glink(:).n2] == obj.Glink(link_index).n1);
                 obj.Glink(link_index).child_idx = find(obj.Glink(link_index).n2 == [obj.Glink(:).n1]);
                 % compute splines
-                ComputeSpline(obj, link_index);
+                MakeSpline(obj, link_index);
                 ComputeSplinePoints(obj, link_index);
             end
 
@@ -178,30 +197,56 @@ classdef Tube < handle
         end
 
         % SPLINE METHODS
-        % Technical: These methods compute the central airway spline.
-        function ComputeSpline(obj, link_index)
-            % Computes a smooth spline of a single graph edge.
+        function obj = MakeSpline(obj, useparent)
+            % fits a spline to the centreline of the tube.
+            %
+            % Using the object property :attr:`skelpoints`, a polynomial
+            % spline is fit to this list of points. A moving average is
+            % used to smooth the skeletal points, it can also use the
+            % parent tube to initialise this moving average. For a better
+            % understanding of the spline output see `cscvn`.
             % Based on original function by Kin Quan 2018
-
-            % The input is the list of ordered index
-            % The output is the smooth spline as a matlab sturct
-
-            % get linear indexed points of current and previous branch,
-            % combine.
-            previous_awy = find([obj.Glink(:).n2] == obj.Glink(link_index).n1);
-            [x_p1, y_p1, z_p1] = ind2sub(size(obj.CT), obj.Glink(previous_awy).point);
-            [x_p2, y_p2, z_p2] = ind2sub(size(obj.CT), obj.Glink(link_index).point);
+            %
+            % .. warning: 
+            %   the order of skeletal points affects outcome e.g. reversing
+            %   the order of the skeleton points would reverse the spline
+            %   direction.
+            %
+            % Args:
+            %   useparent(bool): `optional` uses the parent tube skel
+            %       points if available to initialise the moving average.
+            %       True by default.
+            %
+            % Return:
+            %   obj: object :attr:`spline` property updated. A `cscvn`
+            %       struct object.
+            %
+            
+            if nargin < 1
+                useparent = True;
+            end
+            
+            % get linear indexed points of previous branch if available.
+            if useparent == true && ~isfield(obj.relatives,'parent')
+                parent_points = obj.relatives.parent.skelpoints;
+                [x_p1, y_p1, z_p1] = ind2sub(size(obj.network.source), parent_points);
+            else
+                x_p1 = []; y_p1 = []; z_p1 = []; 
+            end
+            
+            % get current tube points
+            [x_p2, y_p2, z_p2] = I2S(obj, obj.skelpoints);
             x_point = [x_p1, x_p2];
             y_point = [y_p1, y_p2];
             z_point = [z_p1, z_p2];
 
             %Smooth all points using moving average
-            voxel_sz = obj.CTinfo.PixelDimensions;
+            voxel_sz = obj.network.voxdim;
             smooth_x = smooth(x_point*voxel_sz(1),11, 'moving');
             smooth_y = smooth(y_point*voxel_sz(2),11, 'moving');
             smooth_z = smooth(z_point*voxel_sz(3),11, 'moving');
 
-            % extract just current airway smoothed points
+            % extract just current smoothed points
             csmooth_x = smooth_x(length(x_p1)+1:end);
             csmooth_y = smooth_y(length(x_p1)+1:end);
             csmooth_z = smooth_z(length(x_p1)+1:end);
@@ -210,48 +255,93 @@ classdef Tube < handle
             smooth_data_points = [csmooth_x csmooth_y csmooth_z]';
 
             %Generating the spline
-            obj.Splines{link_index, 1} = cscvn(smooth_data_points);
+            obj.spline = cscvn(smooth_data_points);
         end
 
-        function t_points = ComputeSplinePoints(obj, link_index)
-            % * Compute Spline if necessary
-            if isempty(obj.Splines{link_index, 1})
-                ComputeSpline(obj, link_index)
+        function obj = ComputeSplinePoints(obj, sample_interval)
+            % short desc
+            %
+            % long desc
+            %
+            % .. todo: add documentation to this function
+            %
+            % Args:
+            %   x(type):
+            %
+            % Return:
+            %   y(type):
+            %
+            
+            assert(~isempty(obj.spline), 'spline is empty, see method MakeSpline')
+
+            if nargin < 2
+                sample_interval = obj.network.spline_sample_sz;
             end
-            spline = obj.Splines{link_index, 1};
+            
+            % get spline points by set interval
+            [obj.stats.arclength, obj.patchprop.parapoints, obj.patchprop.arcpoints] = Compute_Spline_Points(obj.spline, sample_interval);
 
-            [t_points, arc_length] = spline_points(spline, obj.spline_sample_sz);
-
-            % save parametrised sample points in second column.
-            obj.Splines{link_index, 2} = t_points;
-
-            % save arc_length measurement of each sample point.
-            obj.arclength{link_index, 1} = arc_length;
-
+            % save stats measurement using derived spline points.
+            obj = ComputeTortuosity(obj);
         end
 
-        % tortuosity Methods
-        function [tortuosity, La, Le] = ComputeTortuosity(obj)
-            % La = Arclengths; Le = Euclidean lengths
-            La = nan(size(obj.arclength));
-            Le = nan(size(La));
-            % get difference in euclidean coordinates for each branch.
-            for ii = 1:length(La)
-                if any(ii == obj.trachea_path)
-                    continue
-                end
-                % get total arc-length
-                La(ii) = TotalSplineLength(obj.Splines{ii,1});
-                % get euclidean distance
-                [~, CT_point_1] = AirQuant.ComputeNormal(obj.Splines{ii,1}, ...
-                    obj.Splines{ii,2}(1));
-                [~, CT_point_end] = AirQuant.ComputeNormal(obj.Splines{ii,1}, ...
-                    obj.Splines{ii,2}(end));
-                Le(ii) = norm(CT_point_end - CT_point_1);
-            end
+        function obj = ComputeEucLength(obj)
+            % short desc
+            %
+            % long desc
+            %
+            % .. todo: add documentation to this function
+            %
+            % Args:
+            %   x(type):
+            %
+            % Return:
+            %   y(type):
+            %
+            assert(isfield(obj.patchprop,'parapoints'), 'no parapoints computed, see method ComputeSplinePoints')
+            [~, CT_point_1] = AirQuant.ComputeNormal(obj.spline, ...
+                obj.patchprop.parapoints(1));
+            [~, CT_point_end] = AirQuant.ComputeNormal(obj.spline, ...
+                obj.patchprop.parapoints(end));
+            obj.stats.euclength = norm(CT_point_end - CT_point_1);
+        end
 
+        function obj = ComputeArcLength(obj)
+            % short desc
+            %
+            % long desc
+            %
+            % .. todo: add documentation to this function
+            %
+            % Args:
+            %   x(type):
+            %
+            % Return:
+            %   y(type):
+            %
+            obj.stats.arclength = Compute_Spline_Points(obj.spline);
+        end
+
+        function obj = ComputeTortuosity(obj)
+            % short desc
+            %
+            % long desc
+            %
+            % .. todo: add documentation to this function
+            %
+            % Args:
+            %   x(type):
+            %
+            % Return:
+            %   y(type):
+            %
+            if ~isfield(obj.stats,'arclength')
+                obj = ComputeArcLength(obj);
+            end
+            obj = ComputeEucLength(obj);
             % arclength / euclidean length
-            tortuosity = La./Le;
+            obj.stats = obj.stats.arclength./obj.stats.euclength;
+            assert(obj.stats >= 1, 'Impossible to get a tortuosity > 1')
         end
 
         % TRAVERSING AIRWAYS METHODS %%%
@@ -622,49 +712,6 @@ classdef Tube < handle
                     intertaper(ii,jj) = (averagediameter(parent, jj) - averagediameter(ii,jj))...
                         /(averagediameter(parent, jj)) * 100;
                 end
-            end
-
-        end
-
-        function lobar_intertaper = ComputeLobarInterTaper(obj, prunelength)
-            % TODO: great potential for improving efficiency.
-            % Compare every lobar airway with the diameter of the first
-            % airway of that lobe.
-
-            if nargin < 2
-                prunelength = [0 0];
-            end
-
-            % Check if lobe algorithm was successful, fail if not.
-            if ~isfield(obj.Glink, 'lobe')
-                warning('ComputeLobarInterTaper failed, run lobe classification successfully first.')
-            end
-
-            % use output from intrataperall
-            [~, averagediameter] = ComputeIntraTaperAll(obj, prunelength);
-            indexed_lobes = convertCharsToStrings([obj.Glink.lobe]);
-            % loop through branches
-            labels = AirQuant.LobeLabels();
-            lobar_intertaper = NaN(length(obj.arclength), 3);
-            for iii = 1:length(labels)
-                current_lobe = labels(iii);
-                lobe_idx = find(indexed_lobes == current_lobe);
-
-                for ii = lobe_idx
-                    if obj.Glink(ii).generation < 3
-                        continue
-                    end
-
-                    % identify avg vol of 2nd lobe gen
-                    s2nd_branch = find([obj.Glink.generation] == 2 & indexed_lobes == current_lobe);
-                    for jj = 1:3
-                        s2nd_vol = mean(averagediameter(s2nd_branch, jj),'omitnan');
-                        % identify parent by predecessor node
-                        lobar_intertaper(ii,jj) = ((s2nd_vol - averagediameter(ii,jj))...
-                            /(s2nd_vol)) * 100;
-                    end
-                end
-
             end
 
         end
@@ -1213,6 +1260,43 @@ classdef Tube < handle
                 [h, G] = SetGraphLobeColourmap(obj, h, G);
             end
         end
+        
+        % utilities
+
+        function I = S2I(obj,I1,I2,I3)
+            % short desc
+            %
+            % long desc
+            %
+            % .. todo: add docs
+            %
+            % Args:
+            %   x():
+            %
+            % Return:
+            %   y():
+            %
+
+            I = S2I3(size(obj.network.source),I1,I2,I3);
+        end
+
+        function [I1,I2,I3] = I2S(obj,I)
+            % short desc
+            %
+            % long desc
+            %
+            % .. todo: add docs
+            %
+            % Args:
+            %   x():
+            %
+            % Return:
+            %   y():
+            %
+            
+            [I1, I2, I3] = I2S3(size(obj.network.source),I);
+        end
+
 
     end
     methods (Static)
