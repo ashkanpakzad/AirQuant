@@ -2,7 +2,7 @@ function [digraphout, glink, gnode] = Skel2Digraph(skel, method)
     % Generate digraph from skeleton.
     %
     % Generate digraph from skeleton using skel2graph library.
-    % It is necessary to use a digraph as it dictates the direction
+    % It is necessary for AirQuant to use a digraph as it dictates the direction
     % that splines are interpolated for tubes. The direction is
     % set by designating an origin node from which all directions in
     % the digraph are oriented away. :attr:`method` `topnode` selects the 
@@ -10,6 +10,8 @@ function [digraphout, glink, gnode] = Skel2Digraph(skel, method)
     %
     % See https://github.com/phi-max/skel2graph3d-matlab for more
     % details on skel2graph.
+    %
+    % 
     %
     % Args:
     %   skel: skeleton to turn into digraph
