@@ -1,4 +1,4 @@
-function [digraphout, glink, gnode] = Skel2Digraph(skel, method)
+function [digraphout, glink, gnode] = skel_2_digraph(skel, method)
     % Generate digraph from skeleton.
     %
     % Generate digraph from skeleton using skel2graph library.
