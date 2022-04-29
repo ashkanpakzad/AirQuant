@@ -3,64 +3,20 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to AirQuant's documentation!
-====================================
+AirQuant documentation
+======================
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
 
-   modules
+   install
+   quickstart
+   plugin
+   network
+   tube
+   library
+   contributing
 
-.. contents::
-
-
-tube
-====
-Base class of Airquant
-
-.. automodule:: tube
-
-:mod:`Tube` is a really cool module.
-
-Tube
-----
-Base class of tubes
-
-.. autoclass:: Tube
-   :show-inheritance:
-   :members:
-
-network
-=======
-Base class of all functions
-
-.. automodule:: network
-
-:mod:`Tube` is a really cool module.
-
-TubeNetwork
------------
-Base class of all networks
-
-.. autoclass:: TubeNetwork
-  :show-inheritance:
-  :members:
-
-For Developers:
-===============
-
-Standards:
-----------
-* class properties and struct fields are always lowercase and joined. e.g. `skelpoints`
-* general variables are lowercase and underscore separated. e.g. `link_index`
-* class methods are capitalised and joined. e.g. `ComputeSplinePoints`
-* library functions are capitalised and underscore separated e.g. `Compute_Spline_Points`
-
-
-TODO List
----------
-.. todolist::
 
 Indices and tables
 ==================
