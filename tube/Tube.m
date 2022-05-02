@@ -41,6 +41,7 @@ classdef Tube < matlab.mixin.SetGet
         seg
         patchprop
         stats
+        region
         savename
     end
     properties (SetAccess = private)
@@ -84,6 +85,7 @@ classdef Tube < matlab.mixin.SetGet
             obj.relatives = struct;
             obj.patchprop = struct;
             obj.stats = struct;
+            obj.region = struct;
 
             obj.MakeSpline();
             obj.ComputeSplinePoints();
@@ -102,16 +104,18 @@ classdef Tube < matlab.mixin.SetGet
             %   relation (string): relation name. common
             %       "parent" or "child".
             %
-            
+
             obj.children = [obj.children tube];
             tube.SetParent(obj)
         end
 
-        function obj = SetParent(obj,tube)
+        function obj = SetParent(obj, tube)
             % Set relative to current tube object.
             %
             % desc
-            % .. todo: add documentation to this function
+            % .. todo:
+            %   * add documentation to this function
+            %   * set children tube of parent without being stuck in loop.
             %
             % Args:
             %   relativetube (:class:`tube`): the tube to set
@@ -151,9 +155,19 @@ classdef Tube < matlab.mixin.SetGet
 
         end
 
-        % classification
-        function obj = SetRegion(obj, region)
-            obj.RegionClassification = region;
+        function obj = SetRegion(obj, regiontype, value)
+            % Set region classifcation of tube.
+            %
+            % .. todo: add documentation to this function
+            %
+            % Args:
+            %   relativetube (:class:`tube`): the tube to set
+            %       relation to.
+            %   relation (string): relation name. common
+            %       "parent" or "child".
+            %
+            %
+            obj.region = setfield(obj.region, regiontype, value);
         end
 
         % spline related
@@ -313,7 +327,7 @@ classdef Tube < matlab.mixin.SetGet
             %
             % long desc
             %
-            % .. todo: 
+            % .. todo:
             %   * add documentation to this function
             %   * Heavily reliant on the network class structure.
             %       Consider decoupling network in this function.
@@ -375,7 +389,7 @@ classdef Tube < matlab.mixin.SetGet
                     % get approx size from distance map of seg
                     obj.patchprop.seg_diameter(i) = ApproxSegDiameter(obj, point, i);
                     plane_sz = ceil(approx_diameter*scaling_sz);
-                    
+
                 end
                 % use max plane size if current plane size exceeds it
                 if plane_sz > max_sz
@@ -428,12 +442,12 @@ classdef Tube < matlab.mixin.SetGet
         end
 
         % visualisation - tapering
-        function PlotMeasure(obj, terminal_node_idx, type)
-            % Set relative to current tube object.
+        function h = PlotMeasure(obj, patchprop, varargin)
+            % plot patchprop measure
             %
             % desc
             %
-            % .. todo: 
+            % .. todo:
             %   * add documentation to this function
             %   * Needs attention
             %
@@ -443,144 +457,17 @@ classdef Tube < matlab.mixin.SetGet
             %  relation (string): relation name. common
             %   "parent" or "child".
             %
-
-            if nargin < 3
-                type = 'other';
+            X = obj.patchprop.arclength;
+            if isa(patchprop, "char") || isa(patchprop, "string")
+                Y = getfield(obj.patchprop, patchprop);
+            else
+                Y = patchprop;
             end
-            switch type
-                case 'inner'
-                    logtapergrad = plottaperunderfunc(obj, terminal_node_idx, type);
-                    typetxt = 'Inner lumen';
-                case 'peak'
-                    logtapergrad = plottaperunderfunc(obj, terminal_node_idx, type);
-                    typetxt = 'Peak wall';
-                case 'outer'
-                    logtapergrad = plottaperunderfunc(obj, terminal_node_idx, type);
-                    typetxt = 'Outer wall';
-                otherwise
-                    subplot(3,1,1)
-                    PlotTaperResults(obj, terminal_node_idx, 'inner')
-                    subplot(3,1,2)
-                    PlotTaperResults(obj, terminal_node_idx, 'peak')
-                    subplot(3,1,3)
-                    PlotTaperResults(obj, terminal_node_idx, 'outer')
-                    return % end function
-            end
-            ylabel('Area (mm^2)')
-            txt = sprintf('%s log taper graph; Terminal-node: %d; LogTaperGrad: %0.3g',typetxt, terminal_node_idx,logtapergrad);
-            title(txt)
+            assert(size(X) == size(Y), 'patchprop needs to be the same length as number of patch slices.')
+            h = plot(X, Y, varargin{:});
         end
 
         %%% visualisation - slices
-        function PlotAirway3(obj, link_index)
-            % short desc
-            %
-            % long desc
-            %
-            % .. todo: add documentation to this function
-            %
-            % Args:
-            %   x(type):
-            %
-            % Return:
-            %   y(type):
-            %
-
-            % Plot resampled airway slices overlayed with FWHMesl ray cast
-            % points and fitted ellipse
-            f = figure('Position',  [100, 100, 850, 600]);
-            slide = 1;
-            PlotAirway(obj, link_index, slide)
-            numSteps = size(obj.TraversedImage{link_index,1}, 1);
-
-            b = uicontrol('Parent',f,'Style','slider','Position',[50,10,750,23],...
-                'value',slide, 'min',1, 'max',numSteps, 'SliderStep', [1/(numSteps-1) , 1/(numSteps-1)]);
-            bgcolor = f.Color;
-            uicontrol('Parent',f,'Style','text','Position',[25,10,23,23],...
-                'String', '1','BackgroundColor',bgcolor);
-            uicontrol('Parent',f,'Style','text','Position',[800,10,23,23],...
-                'String',numSteps,'BackgroundColor',bgcolor);
-
-            b.Callback = @sliderselect;
-
-            function sliderselect(src,event)
-                val=round(b.Value);
-                PlotAirway(obj, link_index, val);
-            end
-
-        end
-
-        function PlotAirway(obj, link_index, slide)
-            % short desc
-            %
-            % long desc
-            %
-            % .. todo: add documentation to this function
-            %
-            % Args:
-            %   x(type):
-            %
-            % Return:
-            %   y(type):
-            %
-
-            % display image
-            canvas_sz = floor(obj.max_plane_sz/obj.plane_sample_sz);
-            canvas = nan(canvas_sz);
-            image = obj.TraversedImage{link_index, 1}{slide,1};
-            image_sz = size(image,1);
-            min_centre = canvas_sz/2 - image_sz/2;
-            max_centre = canvas_sz/2 + image_sz/2;
-            canvas(min_centre+1:max_centre, min_centre+1:max_centre) = image;
-            imagesc(canvas)
-            colormap gray
-            axis square
-
-
-            try % try block incase FWHMesl has not been executed.
-                % plot ray cast results
-                hold on
-                plot(obj.FWHMesl{link_index, 1}{slide, 1}.x_points + min_centre, obj.FWHMesl{link_index, 1}{slide, 1}.y_points + min_centre,'r.')
-                %                 plot(obj.FWHMesl{link_index, 2}{slide, 1}.x_points, obj.FWHMesl{link_index, 2}{slide, 1}.y_points,'c.')
-                %                     plot(obj.FWHMesl{link_index, 3}{slide, 1}.x_points + min_centre, obj.FWHMesl{link_index, 3}{slide, 1}.y_points + min_centre,'y.')
-
-                % plot ellipse fitting
-                ellipse(obj.FWHMesl{link_index, 1}{slide, 1}.elliptical_info(3),obj.FWHMesl{link_index, 1}{slide, 1}.elliptical_info(4),...
-                    obj.FWHMesl{link_index, 1}{slide, 1}.elliptical_info(5),obj.FWHMesl{link_index, 1}{slide, 1}.elliptical_info(1)+min_centre,...
-                    obj.FWHMesl{link_index, 1}{slide, 1}.elliptical_info(2)+min_centre,'m');
-
-                %                 ellipse(obj.FWHMesl{link_index, 2}{slide, 1}.elliptical_info(3),obj.FWHMesl{link_index, 2}{slide, 1}.elliptical_info(4),...
-                %                     obj.FWHMesl{link_index, 2}{slide, 1}.elliptical_info(5),obj.FWHMesl{link_index, 2}{slide, 1}.elliptical_info(1),...
-                %                     obj.FWHMesl{link_index, 2}{slide, 1}.elliptical_info(2),'b');
-
-                %                     ellipse(obj.FWHMesl{link_index, 3}{slide, 1}.elliptical_info(3),obj.FWHMesl{link_index, 3}{slide, 1}.elliptical_info(4),...
-                %                         obj.FWHMesl{link_index, 3}{slide, 1}.elliptical_info(5),obj.FWHMesl{link_index, 3}{slide, 1}.elliptical_info(1)+min_centre,...
-                %                         obj.FWHMesl{link_index, 3}{slide, 1}.elliptical_info(2)+min_centre,'y');
-                %TODO: set third colour more appropiately
-
-                %                     plot(obj.FWHMesl{link_index, 4}{slide, 1}(1)+min_centre,...
-                %                         obj.FWHMesl{link_index, 4}{slide, 1}(2)+min_centre, ...
-                %                         '.g', 'MarkerSize',20)
-            catch
-                % warning('No FWHMesl data, showing slices without elliptical information.')
-            end
-
-            % display area measurements
-            % TODO: is this needed?
-            %dim = [.15 .85 .24 .05];
-            %a = annotation('textbox',dim,'String',str,'FitBoxToText','on','BackgroundColor','y');
-
-            a = rectangle('Position',[0,0,133,10],'FaceColor','y','LineWidth',2);
-            ax = gca;
-            try
-                text(ax, 1,5,sprintf('Arc Length = %4.2f mm; Inner area = %4.2f mm^2; Peak area = %4.2f mm^2; Outer area = %4.2f mm^2; %3.0i of %3.0i', ...
-                    obj.arclength{link_index, 1}(slide), obj.FWHMesl{link_index, 1}{slide, 1}.area, obj.FWHMesl{link_index, 2}{slide, 1}.area ,...
-                    obj.FWHMesl{link_index, 3}{slide, 1}.area, slide, size(obj.TraversedImage{link_index, 1},3)));
-            catch
-                text(ax, 1,5,sprintf('Arc Length = %4.1f mm; %3.0i of %3.0i', ...
-                    obj.arclength{link_index, 1}(slide), slide, size(obj.TraversedImage{link_index, 1},3)));
-            end
-        end
 
         function s = OrthoView(obj, options)
             % View a series of an airway segment's slices as a volume image
@@ -617,41 +504,13 @@ classdef Tube < matlab.mixin.SetGet
             fig.Position = [0.1,0.01,0.6,0.9];
         end
 
-        function h = ReformatAirway(obj,slice_idx)
-            % short desc
-            %
-            % long desc
-            %
-            % .. todo: add documentation to this function
-            %       * Needs attention
-            %
-            % Args:
-            %   x(type):
-            %
-            % Return:
-            %   y(type):
-            %
-            % get reformatted airway stack
-            tubearray = tubestack(obj);
-            if nargin < 3
-                % set default to middle
-                slice_idx = round(size(tubearray,1)/2);
-            end
-            % generate image
-            img = squeeze(tubearray(slice_idx,:,:));
-            x = [0 obj.arclength{link_index,1}(end)];
-            y = [0 obj.max_plane_sz];
-            h = imagesc(x, y, img);
-            colormap('gray')
-        end
-
         % Data IO
         function SegmentTaperResults = SegmentTaperAll(obj, prunelength)
             % Set relative to current tube object.
             %
             % desc
             %
-            % .. todo: 
+            % .. todo:
             %   *add documentation to this function
             %   * Needs attention
             %
@@ -742,7 +601,7 @@ classdef Tube < matlab.mixin.SetGet
             %
             % long desc
             %
-            % .. todo: 
+            % .. todo:
             %   * add documentation to this function
             %   * Needs attention
             %
@@ -809,19 +668,6 @@ classdef Tube < matlab.mixin.SetGet
                 end
             end
         end
-        
-        function obj = save(obj)
-            % assign unique serialnumber to object if not existing
-            % delete network
-            % save object within network folder
-            % readd network 
-        end
-
-        function obj = load(obj)
-            % load object
-            % attach to network
-            % add tubes to object
-        end
 
         % utilities
         function I = S2I(obj,I1,I2,I3)
@@ -863,7 +709,9 @@ classdef Tube < matlab.mixin.SetGet
             %
             % long desc
             %
-            % .. todo: add documentation to this function
+            % .. todo: a
+            %   * add documentation to this function
+            %   * add version that makes tubestack back to parent
             %
             % Args:
             %   x(type):
