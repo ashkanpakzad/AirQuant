@@ -1,16 +1,16 @@
 % Lead Author: Ashkan Pakzad 2022. ashkanpakzad.github.io.
 % See https://github.com/ashkanpakzad/AirQuant for more information.
 
-classdef TubeNetwork < handle
+classdef TubeNetwork < matlab.mixin.SetGet
     % TubeNetwork
     %
-    % TubeNetwork creates and manages objects inherited from 
+    % TubeNetwork creates and manages objects inherited from
     % :class:`tube` that represent anatomical tubes on 3 dimensional
     % images.
     %
-    % .. note: 
+    % .. note:
     %   TubeNetwork class is intended as a base class for analysing
-    %    anatomical tubes. sub classes refined for analysing a particular 
+    %    anatomical tubes. sub classes refined for analysing a particular
     %    anatomy should be used. e.g. :class:`AirwayNetwork`
     %
     % .. todo:
@@ -55,6 +55,8 @@ classdef TubeNetwork < handle
     properties (SetAccess = private)
         skel_points
         Dmap
+        tubemat
+        tubepath
     end
 
     methods
@@ -129,7 +131,7 @@ classdef TubeNetwork < handle
             for ii = 1:length(glink)
                 obj.tubes = [obj.tubes, Tube(obj, glink(ii).point, ii)] ;
             end
-            
+
             % set tube relationships
             for ii = 1:length(glink)
                 child_idx = find(glink(ii).n2 == [glink(:).n1]);
@@ -137,11 +139,11 @@ classdef TubeNetwork < handle
                     obj.tubes(ii).SetChildren(obj.tubes(iii));
                 end
             end
-            
+
             obj.RunAllTubes('SetGeneration');
 
         end
-        
+
         function obj = RunAllTubes(obj, tubefunc)
             arguments
                 obj
@@ -151,7 +153,6 @@ classdef TubeNetwork < handle
                 obj.tubes(ii).(tubefunc)()
             end
         end
-
 
         function obj = MakeDistanceTransform(obj)
             % Compute distance transform of segmentation and save as
@@ -178,49 +179,24 @@ classdef TubeNetwork < handle
             obj.skel_points = [XP, YP, ZP]; % list of skel points
         end
 
-        % GRAPH NETWORK 
+        % GRAPH NETWORK
         function [g, glink, gnode] = Skel2Digraph(obj, method)
             if nargin < 2
                 method = 'topnode';
             end
             [g, glink, gnode] = skel_2_digraph(obj.skel, method);
         end
-        
+
         function g = TubesAsEdges(obj)
             % makes the digraph based on tube relationships
 
             % init edgetable
-%             varNames = {'EndNodes','tubes'};
-%             
-%             EdgeTable = table(zeros(length(obj.tubes),2), ...
-%                 obj.tubes,...
-%                 'VariableNames',varNames);
-%             
-%             % get all tubes with generation 0
-%             zerogentubes = find(obj.tubes(:).generation == 0);
-%             
-%             % set up initial nodes with zero gen tubes
-%             initnodes = 1:length(zerogentubes);
-%             initendnodes = length(zerogentubes)+1:length(zerogentubes)*2+1;
-%             for ii = 1:length(zerogentubes)
-%                 EdgeTable.EndNodes(zerogentubes(ii)) = [initnodes(ii) initendnodes(ii)];
-%             end
-% 
-%             % DFS from each zero gen tube, creating edgetable.
-%             for ii = 1:length(zerogentubes)
-%                 edgestosearch = EdgeTable.tubes(zerogentubes(ii)).children;
-%                 while ~isempty(edgestosearch)
-%                         edgestosearch(1)
-%                 end
-%             end
-% 
-%             g = digraph();
-            
+
             gn = TubesAsNodes(obj);
 
             % add incomming edge to nodes have no incoming edges
             nin = find(indegree(gn) == 0);
-            
+
             asedges = gn.Edges;
             for nini = nin
                 asedges.EndNodes(height(asedges)+1,:) = [max(asedges.EndNodes(:))+1 nini];
@@ -232,7 +208,7 @@ classdef TubeNetwork < handle
 
         function g = TubesAsNodes(obj)
             % make the digraph with tubes as nodes
-            % 
+            %
             %
             % ..todo:
             %   * Scope for improving efficiency, variables that change
@@ -262,12 +238,12 @@ classdef TubeNetwork < handle
                     edgestosearch(1) = [];
                 end
             end
-    
+
             g = digraph(s,t);
 
         end
 
-        % UTILITIES 
+        % UTILITIES
         function [h, G] = SetGraphLobeColourmap(obj, h, G)
             % set the colours of a network graph by lobe.
             % G is the graph object and h is the plot.
@@ -306,7 +282,6 @@ classdef TubeNetwork < handle
         % * perpinterp
         % * measure
 
-
         % VISUALISATION
         % Airway Strucutral Tree
         function h = plot(obj, options)
@@ -316,36 +291,36 @@ classdef TubeNetwork < handle
             options.weights = []
             options.shownodes = false
             end
-            % Default plot is a graph network representation. 
+            % Default plot is a graph network representation.
 
-            ge = TubesAsEdges(obj); 
-            
+            ge = TubesAsEdges(obj);
+
             edgelabels = ge.Edges.ID;
 
             switch options.label
                 case isnumeric(options.label)
                     edgelabels = options.label;
                 case 'ID' % default
-                    
+
                 case {'generation','gen'}
                     edgelabels = [obj.tubes(edgelabels).generation];
                 otherwise
                     warning('Unexpected options.label type. Resorting to default type.')
             end
-            
+
             if options.shownodes == true
                 nodelabels = 1:numnodes(ge);
             else
                 nodelabels = [''];
             end
 
-            h = plot(ge,nodelabel=nodelabels,edgelabel=edgelabels,layout='layered'); 
+            h = plot(ge,nodelabel=nodelabels,edgelabel=edgelabels,layout='layered');
 
             h.NodeColor = 'r';
             h.EdgeColor = 'k';
             h.LineWidth = 3;
         end
-        
+
         function plot3(obj, gen, show_node_txt)
             % Plot the airway tree in graph form, in 3D. nodes are in
             % in image space. Set gen to the maximum number of
@@ -802,19 +777,26 @@ classdef TubeNetwork < handle
         end
 
         % Data IO
-        function obj = save(obj)
-            % delete tubes
-            % save object
-            % readd tubes
-        end
 
-        function obj = load(obj)
-            % load object
-            % load tubes
-            % add tubes to object
-        end
+%         function obj = savetube(obj, tube)
+%             % update specific tube object only in matfile
+%             %
+%             % firstrun
+%             if isempty(obj.tubepath)
+%               % init matfile
+%               obj.tubemat = matfile(fileparts(obj.objpath,'tubes.mat'),'Writable',true);
+%               % save each tube to new variable in mat by ID
+%               for ii = 1:length(obj.tubes)
+%                 currenttube = obj.tubes(ii);
+%                 currentID = ['tube_',num2str(currenttube.ID)];
+%                 assignin('base',currentID, currenttube)
+%                 obj.tubemat
+%               end
+%             end
+% 
+%         end
 
-        function obj = SaveAllAwy(obj, mingen, maxgen, prunelength)
+      function obj = SaveAllAwy(obj, mingen, maxgen, prunelength)
 
             if nargin < 2
                 mingen = 0;
@@ -880,82 +862,69 @@ classdef TubeNetwork < handle
                 end
             end
         end
-        
-        function SegmentTaperResults = SegmentTaperAll(obj, prunelength)
-            % high level function to compute the segmental tapering
-            % measurement of all airways.
 
-            % compute taper results by segment
-            [intrataper, avg] = ComputeIntraTaperAll(obj, prunelength);
-            intertaper = ComputeInterTaper(obj, prunelength);
-            vol_intertaper = ComputeInterIntegratedVol(obj, prunelength);
-            [tortuosity, arc_length, euc_length] = ComputeTortuosity(obj);
-            lobar_intertaper = ComputeLobarInterTaper(obj, prunelength);
-            vol = ComputeIntegratedVolAll(obj, prunelength);
-            %             parent = [obj.Glink.parent_idx]';
-
-            % organise into column headings
-            branch = [1:length(obj.Glink)]';
-
-            inner_intra = intrataper(:, 1);
-            peak_intra = intrataper(:, 2);
-            outer_intra = intrataper(:, 3);
-
-            inner_avg = avg(:, 1);
-            peak_avg = avg(:, 2);
-            outer_avg = avg(:, 3);
-
-            inner_inter = intertaper(:, 1);
-            peak_inter = intertaper(:, 2);
-            outer_inter = intertaper(:, 3);
-
-            inner_lobeinter = lobar_intertaper(:, 1);
-            peak_lobeinter = lobar_intertaper(:, 2);
-            outer_lobeinter = lobar_intertaper(:, 3);
-
-            inner_volinter = vol_intertaper(:, 1);
-            peak_volinter = vol_intertaper(:, 2);
-            outer_volinter = vol_intertaper(:, 3);
-
-            inner_vol = vol(:,1);
-            outer_vol = vol(:,3);
-
-            if ~isempty(obj.lungvol)
-                inner_vol_lung_ratio = inner_vol./obj.lungvol;
-                outer_vol_lung_ratio = outer_vol./obj.lungvol;
-            else
-                inner_vol_lung_ratio = NaN(size(inner_vol));
-                outer_vol_lung_ratio = NaN(size(outer_vol));
-            end
-
-            thickness_avg = outer_avg - inner_avg;
-
-            % convert to table
-            SegmentTaperResults = table(branch, inner_intra, peak_intra, ...
-                outer_intra, inner_avg, peak_avg, outer_avg, ...
-                inner_inter, peak_inter, outer_inter,...
-                inner_volinter, peak_volinter, outer_volinter, ...
-                inner_lobeinter, peak_lobeinter, outer_lobeinter, ...
-                tortuosity, arc_length, euc_length, inner_vol, outer_vol, ...
-                inner_vol_lung_ratio, outer_vol_lung_ratio, thickness_avg);
-
-            % add gen info
-            SegmentTaperResults.generation = [obj.Glink.generation]';
-
-            % add lobe info if available
-            try % only add lobe information if it exists
-                SegmentTaperResults.lobe = [obj.Glink.lobe]';
-            catch
-            end
-
-            % delete excluded branches
-            if isfield(obj.Glink,'exclude')
-                SegmentTaperResults(logical([obj.Glink.exclude]),:) = [];
-            end
-
-            % Save to AQ object
-            obj.Specs.SegmentTaperResults = SegmentTaperResults;
+        function save(obj, path)
+            % save class object to disk
+            %
+            % long desc
+            %
+            % .. todo: add documentation to this function
+            %   * consider copying object and removing tubes property.
+            %
+            % Args:
+            %   x(type):
+            %
+            % Return:
+            %   y(type):
+            %
+            tubes = obj.tubes;
+            obj.tubes = [];
+            save(path, 'obj', '-v7.3')
+            disp(['Saved to ',path])
+            % tubes save seperately
+            obj.tubepath = replace(path,'.m','_tubes.m');
+            save(obj.tubepath, 'tubes');
+            obj.tubemat = matfile(obj.tubepath,'Writable',true);
+            disp(['Tubes cache saved to ',obj.tubepath]);
+            obj.tubes = tubes;
         end
+          
+        function savetube(obj,tubetosave)
+            % change only tube on disk.
+            %
+            % long desc
+            %
+            % .. todo: add documentation to this function
+            %   * Needs attention.: make tubes individual files to save. 
+            %
+            %
+            %
+            % Args:
+            %   x(type):
+            %
+            % Return:
+            %   y(type):
+            %
 
+            assert(~isempty(obj.tubemat), 'Need to first run save methods, see documentation.')
+            objid = find([obj.tubes(:).ID] == tubetosave.ID);
+            assert(~isempty(objid), 'tube ID not found in network object.')
+            obj.tubemat.tubes(1,objid) = tubetosave;
+            
+        end
+    end
+
+    methods(Static)
+        function obj = load(path)
+          s = load(path);
+          obj = s.obj;
+          disp(['Network loaded from ', path]);
+
+          obj.tubepath = replace(path,'.m','_tubes.m');
+          t = load(obj.tubepath);
+          obj.tubemat = matfile(obj.tubepath,'Writable',true);
+          obj.tubes = t.tubes;
+          disp(['Tubes loaded from ',obj.tubepath]);
+        end
     end
 end
