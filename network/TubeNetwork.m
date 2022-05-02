@@ -144,13 +144,11 @@ classdef TubeNetwork < matlab.mixin.SetGet
 
         end
 
-        function obj = RunAllTubes(obj, tubefunc)
-            arguments
-                obj
-                tubefunc char
-            end
+        function obj = RunAllTubes(obj, tubefunc, varargin)
+            assert(isa(tubefunc,"char") || isa(tubefunc,"string"), ...
+                'tubefunction must be provided as char/string.')
             for ii = 1:length(obj.tubes)
-                obj.tubes(ii).(tubefunc)()
+                obj.tubes(ii).(tubefunc)(varargin{:})
             end
         end
 
