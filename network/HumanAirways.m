@@ -31,6 +31,7 @@ classdef HumanAirways < TubeNetwork
             %   y(type):
             obj.Property1 = inputArg1 + inputArg2;
         end
+        
         function outputArg = ParseSeg(obj,inputArg)
             % short desc
             %
@@ -46,6 +47,7 @@ classdef HumanAirways < TubeNetwork
             %
             outputArg = obj.Property1 + inputArg;
         end
+        
         function outputArg = MakeDigraph(obj,inputArg)
             % short desc
             %
@@ -61,12 +63,15 @@ classdef HumanAirways < TubeNetwork
             %
             outputArg = obj.Property1 + inputArg;
         end
-        function outputArg = IdentifyCarina(obj,inputArg)
+        
+        function IdentifyCarinaAndTrachea(obj)
             % short desc
             %
             % long desc
             %
-            % .. todo: add documentation to this function
+            % .. todo:
+            %   * May need to add further methods to reidentify generations
+            %   for all airways.
             %
             % Args:
             %   x(type):
@@ -74,8 +79,20 @@ classdef HumanAirways < TubeNetwork
             % Return:
             %   y(type):
             %
-            outputArg = obj.Property1 + inputArg;
+
+            g = TubesAsEdges(obj);
+            [~, carina_node] = max(centrality(g,'outcloseness'));
+            carinaend_gidx = inedges(carina_node);
+            obj.tubes(g.Edges.ID(carinaend_gidx)).carinaend = true;
+            tracheanodes = predecessors(g, carina_node);
+            for nid = tracheanodes
+                eid = inedges(g, nid);
+                tubeid = g.Edges(eid).ID;
+                obj.tubes(tubeid).istrachea = true;
+                obj.tubes(tubeid).generation = 0;
+            end
         end
+
         function outputArg = IdentifyTrachea(obj,inputArg)
             % short desc
             %
@@ -91,6 +108,7 @@ classdef HumanAirways < TubeNetwork
             %
             outputArg = obj.Property1 + inputArg;
         end
+        
         function outputArg = ClassifyLobes(obj,inputArg)
             % short desc
             %
