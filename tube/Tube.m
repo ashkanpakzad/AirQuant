@@ -40,7 +40,7 @@ classdef Tube < matlab.mixin.SetGet
         source
         seg
         patchprop
-        prunelength
+        prunelength = []
         stats
         region
         savename
@@ -790,7 +790,10 @@ classdef Tube < matlab.mixin.SetGet
         end
         
         function prunedprop = PruneMeasure(obj, var)
-            assert(~isempty(obj.prunelength), 'Must first set prunelength property.')
+            if isempty(obj.prunelength)
+                obj.prunelength = [0 0];
+                warning('Object prunelength not set, using zero pruning.')
+            end
             pl = obj.prunelength;
             al = obj.patchprop.arclength;
             assert(length(al) == length(var), 'Input variable must be the same length as arclength.')
