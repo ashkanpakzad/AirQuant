@@ -40,6 +40,7 @@ classdef Tube < matlab.mixin.SetGet
         source
         seg
         patchprop
+        prunelength
         stats
         region
         savename
@@ -260,65 +261,6 @@ classdef Tube < matlab.mixin.SetGet
             obj = ComputeTortuosity(obj);
         end
 
-        function obj = ComputeEucLength(obj)
-            % short desc
-            %
-            % long desc
-            %
-            % .. todo: add documentation to this function
-            %
-            % Args:
-            %   x(type):
-            %
-            % Return:
-            %   y(type):
-            %
-            assert(isfield(obj.patchprop,'parapoints'), 'no parapoints computed, see method ComputeSplinePoints')
-            [~, point_1] = spline_normal(obj.spline, ...
-                obj.patchprop.parapoints(1));
-            [~, point_end] = spline_normal(obj.spline, ...
-                obj.patchprop.parapoints(end));
-            obj.stats.euclength = norm(point_end - point_1);
-        end
-
-        function obj = ComputeArcLength(obj)
-            % short desc
-            %
-            % long desc
-            %
-            % .. todo: add documentation to this function
-            %
-            % Args:
-            %   x(type):
-            %
-            % Return:
-            %   y(type):
-            %
-            obj.stats.arclength = Compute_Spline_Points(obj.spline);
-        end
-
-        function obj = ComputeTortuosity(obj)
-            % short desc
-            %
-            % long desc
-            %
-            % .. todo: add documentation to this function
-            %
-            % Args:
-            %   x(type):
-            %
-            % Return:
-            %   y(type):
-            %
-            if ~isfield(obj.stats,'arclength')
-                obj = ComputeArcLength(obj);
-            end
-            obj = ComputeEucLength(obj);
-            % arclength / euclidean length
-            obj.stats.tortuosity = obj.stats.arclength./obj.stats.euclength;
-            assert(obj.stats.tortuosity >= 1, 'Impossible to get a tortuosity > 1')
-        end
-
         % perpendicular slice interpolation
         function obj = MakePatchSlices(obj, vol, options)
             % Constructs perpendicular images as if travelling along an
@@ -440,8 +382,145 @@ classdef Tube < matlab.mixin.SetGet
                 segdiameter = 2;
             end
         end
+    
+        % stats
+        function obj = ComputeEucLength(obj)
+            % short desc
+            %
+            % long desc
+            %
+            % .. todo: add documentation to this function
+            %
+            % Args:
+            %   x(type):
+            %
+            % Return:
+            %   y(type):
+            %
+            assert(isfield(obj.patchprop,'parapoints'), 'no parapoints computed, see method ComputeSplinePoints')
+            [~, point_1] = spline_normal(obj.spline, ...
+                obj.patchprop.parapoints(1));
+            [~, point_end] = spline_normal(obj.spline, ...
+                obj.patchprop.parapoints(end));
+            obj.stats.euclength = norm(point_end - point_1);
+        end
 
-        % visualisation - tapering
+        function obj = ComputeArcLength(obj)
+            % short desc
+            %
+            % long desc
+            %
+            % .. todo: add documentation to this function
+            %
+            % Args:
+            %   x(type):
+            %
+            % Return:
+            %   y(type):
+            %
+            obj.stats.arclength = Compute_Spline_Points(obj.spline);
+        end
+
+        function obj = ComputeTortuosity(obj)
+            % short desc
+            %
+            % long desc
+            %
+            % .. todo: add documentation to this function
+            %
+            % Args:
+            %   x(type):
+            %
+            % Return:
+            %   y(type):
+            %
+            if ~isfield(obj.stats,'arclength')
+                obj = ComputeArcLength(obj);
+            end
+            obj = ComputeEucLength(obj);
+            % arclength / euclidean length
+            obj.stats.tortuosity = obj.stats.arclength./obj.stats.euclength;
+            assert(obj.stats.tortuosity >= 1, 'Impossible to get a tortuosity > 1')
+        end
+        
+        function meanval = ComputeMean(obj, patchprop, trim)
+            % short desc
+            %
+            % long desc
+            %
+            % .. todo: add documentation to this function
+            %
+            % Args:
+            %   x(type):
+            %
+            % Return:
+            %   y(type):
+            %
+            if nargin < 3
+                trim = 0;
+            end
+            assert(isfield(obj.patchprop, patchprop), 'input must be named variable in obj.patchprop.')
+            
+            % prune the two variables
+            var = obj.PruneMeasure(getfield(obj.patchprop,patchprop));
+
+            % compute average
+            meanval = trimmean(var, trim);
+            obj.stats.('patchprop').trimmean = meanval;
+            obj.stats.('patchprop').trim = trim;
+        end
+
+        function intrataperval = ComputeIntrataper(obj, patchprop)
+            % short desc
+            %
+            % long desc
+            %
+            % .. todo: add documentation to this function
+            %
+            % Args:
+            %   x(type):
+            %
+            % Return:
+            %   y(type):
+            %
+            assert(isfield(obj.patchprop, patchprop), 'input must be named variable in obj.patchprop.')
+
+            % prune the two variables
+            al = obj.PruneMeasure(obj.patchprop.arclength);
+            var = obj.PruneMeasure(getfield(obj.patchprop,patchprop));
+            % fit bisquare method
+            coeff = robustfit(al, var,'bisquare');
+            % compute intra-branch tapering as percentage
+            intrataperval = -coeff(2)/coeff(1) * 100;
+            obj.stats.(patchprop).intrataper = intrataperval;
+        end
+        
+        function intertaperval = ComputeIntertaper(obj, patchprop, trim)
+            % short desc
+            %
+            % long desc
+            %
+            % .. todo: add documentation to this function
+            %
+            % Args:
+            %   x(type):
+            %
+            % Return:
+            %   y(type):
+            %
+            assert(isfield(obj.patchprop, patchprop), 'input must be named variable in obj.patchprop.')
+            assert(length(obj.parents)==1, 'must only have one parent tube.')
+
+            % compute means
+            parentmean = obj.parent.ComputeMean(patchprop, trim);
+            currentmean = obj.ComputeMean(patchprop, trim);
+
+            % compute interbranch tapering as percentage
+            intertaperval = (parentmean - currentmean)/(parentmean) * 100;
+            obj.stats.(patchprop).intertaperval = intertaperval;
+        end
+
+        % visualisation
         function h = PlotMeasure(obj, patchprop, varargin)
             % plot patchprop measure
             %
@@ -466,9 +545,7 @@ classdef Tube < matlab.mixin.SetGet
             assert(size(X) == size(Y), 'patchprop needs to be the same length as number of patch slices.')
             h = plot(X, Y, varargin{:});
         end
-
-        %%% visualisation - slices
-
+        
         function s = OrthoView(obj, options)
             % View a series of an airway segment's slices as a volume image
             % stack using MATLAB's inbuilt othogonal 3d viewer.
@@ -702,6 +779,24 @@ classdef Tube < matlab.mixin.SetGet
             %
 
             [I1, I2, I3] = I2S3(size(obj.network.source),I);
+        end
+        
+        function obj = SetPruneLength(obj, prunelength)
+            arguments
+                obj
+                prunelength (2,1) mustBeNumeric
+            end
+            obj.prunelength = prunelength;
+        end
+        
+        function prunedprop = PruneMeasure(obj, var)
+            assert(~isempty(obj.prunelength), 'Must first set prunelength property.')
+            pl = obj.prunelength;
+            al = obj.patchprop.arclength;
+            assert(length(al) == length(var), 'Input variable must be the same length as arclength.')
+
+            prunebool = (al >= pl & al <= al(end) - pl);
+            prunedprop = var(prunebool);
         end
 
         function tubearray = tubestack(obj,options)
