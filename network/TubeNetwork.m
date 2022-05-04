@@ -125,11 +125,11 @@ classdef TubeNetwork < matlab.mixin.SetGet
             obj.min_plane_sz = 3*max(obj.voxdim);
 
             % Convert skel into digraph
-            [digraphout, glink, gnode] = Skel2Digraph(obj);
+            [~, glink, ~] = Skel2Digraph(obj);
 
             % make tube objects
             for ii = 1:length(glink)
-                obj.tubes = [obj.tubes, Tube(obj, glink(ii).point, ii)] ;
+                obj.tubes = [obj.tubes, Tube(obj, glink(ii).point, ii)];
             end
 
             % set tube relationships
@@ -161,15 +161,22 @@ classdef TubeNetwork < matlab.mixin.SetGet
         function obj = MakeTubePatches(obj, options)
             arguments
                 obj
-                options.makesegpatches logical = false
+                options.type = 'both'
                 options.usesegcrop logical = false
             end
+
             for ii = 1:length(obj.tubes)
-                MakePatchSlices(obj.tubes(ii,1), obj.source, type='source', usesegcrop=options.usesegcrop);
-                if options.makesegpatches == true
-                    MakePatchSlices(obj.tubes{ii,1}, obj.seg, type='seg', usesegcrop=options.usesegcrop);
+
+                if strcmp(options.type,'source') || strcmp(options.type,'both')
+                    MakePatchSlices(obj.tubes(ii), obj.source, type='source', usesegcrop=options.usesegcrop);
                 end
+
+                if strcmp(options.type,'seg') || strcmp(options.type,'both')
+                    MakePatchSlices(obj.tubes(ii), obj.seg, type='seg', usesegcrop=options.usesegcrop);
+                end
+
             end
+
         end
 
         function obj = ComputeSkelPoints(obj)
@@ -242,52 +249,24 @@ classdef TubeNetwork < matlab.mixin.SetGet
         end
 
         % UTILITIES
-        function [h, G] = SetGraphLobeColourmap(obj, h, G)
-            % set the colours of a network graph by lobe.
-            % G is the graph object and h is the plot.
-            % i.e. h = plot(G)
-
-            % get lobe info
-            lobes = [obj.Glink(:).lobe];
-            % convert to graph indices
-            edgelobe = lobes(G.Edges.Label);
-            % convert labels into numbers
-            lobeid = {'B','RUL','RML','RLL','LUL','LML','LLL'};
-            cdata = zeros(size(edgelobe));
-            for ii = 1:length(cdata)
-                [~, ~, cdata(ii)] = intersect(edgelobe(ii),lobeid);
-            end
-
-            % set edge colour by index
-            G.Edges.EdgeColors = cdata';
-            h.EdgeCData = G.Edges.EdgeColors;
-
-            % set colours map and text
-            clims = [1 max(cdata(:))];
-            colorbarstring = 'Lobe';
-            colourshow = clims(1):clims(2);
-            colourlabels = lobeid;
-            maptype = 'qualitative';
-            map = linspecer(max(cdata(:)), maptype);
-            colormap(map)
-            c = colorbar('Ticks', colourshow, 'TickLabels', colourlabels);
-            c.Label.String = colorbarstring;
-            caxis(clims)
-        end
 
         % HIGH LEVEL - group run lower level methods
         % * spline
         % * perpinterp
-        % * measure
 
+        function Measure(obj, varargin)
+            obj.RunAllTubes('Measure', varargin{:});
+        end
+
+        
         % VISUALISATION
         % Airway Strucutral Tree
         function h = plot(obj, options)
             arguments
-            obj
-            options.label = 'ID'
-            options.weights = []
-            options.shownodes = false
+                obj
+                options.label = 'ID'
+                options.weights = []
+                options.shownodes = false
             end
             % Default plot is a graph network representation.
 
@@ -491,6 +470,7 @@ classdef TubeNetwork < matlab.mixin.SetGet
             ax.XDir = 'reverse';
 
         end
+        
 
         % Splines
         function PlotSplineTree(obj)
@@ -776,25 +756,25 @@ classdef TubeNetwork < matlab.mixin.SetGet
 
         % Data IO
 
-%         function obj = savetube(obj, tube)
-%             % update specific tube object only in matfile
-%             %
-%             % firstrun
-%             if isempty(obj.tubepath)
-%               % init matfile
-%               obj.tubemat = matfile(fileparts(obj.objpath,'tubes.mat'),'Writable',true);
-%               % save each tube to new variable in mat by ID
-%               for ii = 1:length(obj.tubes)
-%                 currenttube = obj.tubes(ii);
-%                 currentID = ['tube_',num2str(currenttube.ID)];
-%                 assignin('base',currentID, currenttube)
-%                 obj.tubemat
-%               end
-%             end
-% 
-%         end
+        %         function obj = savetube(obj, tube)
+        %             % update specific tube object only in matfile
+        %             %
+        %             % firstrun
+        %             if isempty(obj.tubepath)
+        %               % init matfile
+        %               obj.tubemat = matfile(fileparts(obj.objpath,'tubes.mat'),'Writable',true);
+        %               % save each tube to new variable in mat by ID
+        %               for ii = 1:length(obj.tubes)
+        %                 currenttube = obj.tubes(ii);
+        %                 currentID = ['tube_',num2str(currenttube.ID)];
+        %                 assignin('base',currentID, currenttube)
+        %                 obj.tubemat
+        %               end
+        %             end
+        %
+        %         end
 
-      function obj = SaveAllAwy(obj, mingen, maxgen, prunelength)
+        function obj = SaveAllAwy(obj, mingen, maxgen, prunelength)
 
             if nargin < 2
                 mingen = 0;
@@ -886,14 +866,14 @@ classdef TubeNetwork < matlab.mixin.SetGet
             disp(['Tubes cache saved to ',obj.tubepath]);
             obj.tubes = tubes;
         end
-          
+
         function savetube(obj,tubetosave)
             % change only tube on disk.
             %
             % long desc
             %
             % .. todo: add documentation to this function
-            %   * Needs attention.: make tubes individual files to save. 
+            %   * Needs attention.: make tubes individual files to save.
             %
             %
             %
@@ -908,21 +888,21 @@ classdef TubeNetwork < matlab.mixin.SetGet
             objid = find([obj.tubes(:).ID] == tubetosave.ID);
             assert(~isempty(objid), 'tube ID not found in network object.')
             obj.tubemat.tubes(1,objid) = tubetosave;
-            
+
         end
     end
 
     methods(Static)
         function obj = load(path)
-          s = load(path);
-          obj = s.obj;
-          disp(['Network loaded from ', path]);
+            s = load(path);
+            obj = s.obj;
+            disp(['Network loaded from ', path]);
 
-          obj.tubepath = replace(path,'.m','_tubes.m');
-          t = load(obj.tubepath);
-          obj.tubemat = matfile(obj.tubepath,'Writable',true);
-          obj.tubes = t.tubes;
-          disp(['Tubes loaded from ',obj.tubepath]);
+            obj.tubepath = replace(path,'.m','_tubes.m');
+            t = load(obj.tubepath);
+            obj.tubemat = matfile(obj.tubepath,'Writable',true);
+            obj.tubes = t.tubes;
+            disp(['Tubes loaded from ',obj.tubepath]);
         end
     end
 end
