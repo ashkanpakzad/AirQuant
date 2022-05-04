@@ -36,6 +36,9 @@ classdef Tube < matlab.mixin.SetGet
         network
         relatives
         skelpoints
+        measures = []
+        diameters = []
+        areas = []
         spline
         source
         seg
@@ -273,6 +276,7 @@ classdef Tube < matlab.mixin.SetGet
             %   * add documentation to this function
             %   * Heavily reliant on the network class structure.
             %       Consider decoupling network in this function.
+            %   * Consider incorporating matlabs obliqueslice function.
             %
             % Args:
             %   x(type):
@@ -309,6 +313,9 @@ classdef Tube < matlab.mixin.SetGet
                 end
                 reformedproperty = 'seg';
             end
+            
+            % cast volume to single for interpolation
+            vol = single(vol);
 
             if options.usesegcrop == true
                 obj.patchprop.approx_diameter = NaN(size(obj.patchprop.arclength));
@@ -519,6 +526,34 @@ classdef Tube < matlab.mixin.SetGet
             intertaperval = (parentmean - currentmean)/(parentmean) * 100;
             obj.stats.(patchprop).intertaperval = intertaperval;
         end
+        
+        % measures
+        function obj = Measure(obj, classmethod, varargin)
+            % Call desired method to make measurement on tube patch slices.
+            %
+            % long desc
+            %
+            % .. todo: add documentation to this function
+            %
+            % Args:
+            %   x(type):
+            %
+            % Return:
+            %   y(type):
+            %
+
+            % reset measures property
+            obj.measures = [];
+            % reset diameter and area
+            obj.diameters = [];
+            obj.areas = [];
+            % call measure method
+            varargin = {obj.network.plane_sample_sz, obj, varargin{:}};
+            classmeasures = feval(classmethod, varargin{:});
+            obj.measures = classmeasures.measures;
+            obj.diameters = classmeasures.OutputDiameter();
+            obj.areas = classmeasures.OutputArea();
+        end
 
         % visualisation
         function h = PlotMeasure(obj, patchprop, varargin)
@@ -565,20 +600,82 @@ classdef Tube < matlab.mixin.SetGet
             arguments
                 obj
                 options.type {mustBeMember(options.type,{'source','seg'})} = 'source'
+                options.rings = ones(size(obj.measures,1),1)
+                options.showellipses = true
+                options.showpoints = false
             end
+
+            assert(size(options.rings,1)==size(obj.measures,1), ...
+                'Viewrings must be same length as number of rings')
 
             % convert from cell stack to 3D array.
             tubearray = tubestack(obj, type=options.type);
+
             % display with orthoview
-            fig = figure;
             s = orthosliceViewer(tubearray, 'DisplayRangeInteraction','off', ...
                 'ScaleFactors',[obj.network.plane_sample_sz, ...
                 obj.network.plane_sample_sz, ...
                 obj.network.spline_sample_sz], 'CrosshairLineWidth', 0.3);
-            % Can only alter size of figure window after orthosliceviewer.
-            fig.Name = 'AirQuant: Ortho View';
-            fig.Units = 'normalized';
-            fig.Position = [0.1,0.01,0.6,0.9];
+            % get axial axes
+            [ax, ~, ~] = getAxesHandles(s);
+
+            addlistener(s,'CrosshairMoving',@allevents);
+            addlistener(s,'CrosshairMoved',@allevents);
+
+            function allevents(src,evt)
+                evname = evt.EventName;
+                switch(evname)
+                    case{'CrosshairMoving','CrosshairMoved'}
+                        ppos = evt.PreviousPosition(3);
+                        cpos = evt.CurrentPosition(3);
+                        if ppos ~= cpos
+                            disp(['Crosshair slice position: ' num2str(cpos)]);
+                            for ii = 1:size(obj.measures,1)
+                                if options.rings(ii) == 1
+                                    % delete old linetype graphics
+                                    axesHandlesToChildObjects = findobj(ax, 'Type', 'Line');
+                                    if ~isempty(axesHandlesToChildObjects)
+                                        delete(axesHandlesToChildObjects);
+                                    end
+                                    % get centre displacement
+                                    canvas_sz = floor(obj.network.max_plane_sz/obj.network.plane_sample_sz);
+                                    image_sz = size(obj.source{ii,1},1);
+                                    min_centre = canvas_sz/2 - image_sz/2;
+                                    obj.measures{ii,cpos}.plot(min_centre, ax, options.showellipses, options.showpoints);
+                                end
+                            end
+                        end
+                end
+            end
+        end
+        
+        function v = zvideo(obj, options)
+            % View a series of an airway segment's slices as a volume image
+            % stack using MATLAB's inbuilt othogonal 3d viewer.
+            % short desc
+            %
+            % long desc
+            %
+            % .. todo: add documentation to this function
+            %
+            % Args:
+            %   x(type):
+            %
+            % Return:
+            %   y(type):
+            %
+
+            arguments
+                obj
+                options.type {mustBeMember(options.type,{'source','seg'})} = 'source'
+                options.rings = ones(size(obj.measures,1),1)
+                options.showellipses = true
+                options.showpoints = false
+                options.path char
+            end
+
+            
+        
         end
 
         % Data IO
