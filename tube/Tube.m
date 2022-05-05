@@ -35,6 +35,7 @@ classdef Tube < matlab.mixin.SetGet
         network
         relatives
         skelpoints
+        segpoints
         spline
         source
         seg
@@ -93,7 +94,7 @@ classdef Tube < matlab.mixin.SetGet
             obj.region = struct;
 
             obj.MakeSpline();
-            obj.ComputeSplinePoints();
+            obj.FindSplinePoints();
 
         end
 
@@ -237,7 +238,7 @@ classdef Tube < matlab.mixin.SetGet
             obj.spline = cscvn(smooth_data_points);
         end
 
-        function obj = ComputeSplinePoints(obj, options)
+        function obj = FindSplinePoints(obj, options)
             % short desc
             %
             % long desc
@@ -451,7 +452,7 @@ classdef Tube < matlab.mixin.SetGet
             assert(obj.stats.tortuosity >= 1, 'Impossible to get a tortuosity > 1')
         end
         
-        function meanval = ComputeMean(obj, patchprop, trim)
+        function meanDval = ComputeMeanDiameter(obj, trim)
             % short desc
             %
             % long desc
@@ -464,21 +465,22 @@ classdef Tube < matlab.mixin.SetGet
             % Return:
             %   y(type):
             %
-            if nargin < 3
+            if nargin < 2
                 trim = 0;
             end
-            assert(isfield(obj.patchprop, patchprop), 'input must be named variable in obj.patchprop.')
+
+            assert(~isempty(obj.diameters), 'No diameters property. Need measurements.')
             
             % prune the two variables
-            var = obj.PruneMeasure(getfield(obj.patchprop,patchprop));
+            pruned = obj.PruneMeasure(obj.diameters);
 
             % compute average
-            meanval = trimmean(var, trim);
-            obj.stats.('patchprop').trimmean = meanval;
-            obj.stats.('patchprop').trim = trim;
+            meanDval = trimmean(pruned', trim);
+            obj.stats.trimmean = meanDval;
+            obj.stats.TRIM = trim;
         end
-
-        function intrataperval = ComputeIntrataper(obj, patchprop)
+    
+        function meanAval = ComputeMeanArea(obj, trim)
             % short desc
             %
             % long desc
@@ -491,19 +493,78 @@ classdef Tube < matlab.mixin.SetGet
             % Return:
             %   y(type):
             %
-            assert(isfield(obj.patchprop, patchprop), 'input must be named variable in obj.patchprop.')
+            if nargin < 2
+                trim = 0;
+            end
 
+            assert(~isempty(obj.areas), 'No areas property. Need measurements.')
+            
             % prune the two variables
-            al = obj.PruneMeasure(obj.patchprop.arclength);
-            var = obj.PruneMeasure(getfield(obj.patchprop,patchprop));
+            pruned = obj.PruneMeasure(obj.areas);
+
+            % compute average
+            meanAval = trimmean(pruned', trim);
+            obj.stats.trimmeanarea = meanAval;
+            obj.stats.TRIM = trim;
+        end
+
+        function intrataperval = ComputeIntrataper(obj)
+            % short desc
+            %
+            % long desc
+            %
+            % .. todo: add documentation to this function
+            %
+            % Args:
+            %   x(type):
+            %
+            % Return:
+            %   y(type):
+            %
+            assert(~isempty(obj.diameters), 'No diameters property. Need measurements.')
+            % prune the two variables
+            al = obj.PruneMeasure(obj.patchprop.arcpoints);
+            var = obj.PruneMeasure(obj.diameters);
             % fit bisquare method
-            coeff = robustfit(al, var,'bisquare');
+            nrings = size(obj.diameters,1);
+            coeff = NaN(nrings,2);
+            for ii = 1:nrings
+                coeff(ii,:) = robustfit(al, var(ii,:),'bisquare');
+            end
             % compute intra-branch tapering as percentage
-            intrataperval = -coeff(2)/coeff(1) * 100;
-            obj.stats.(patchprop).intrataper = intrataperval;
+            intrataperval = -coeff(:,2)./coeff(:,1) * 100;
+            obj.stats.intrataper = intrataperval;
+        end
+
+        function gradientval = ComputeGradient(obj)
+            % short desc
+            %
+            % long desc
+            %
+            % .. todo: add documentation to this function
+            %
+            % Args:
+            %   x(type):
+            %
+            % Return:
+            %   y(type):
+            %
+            assert(~isempty(obj.diameters), 'No diameters property. Need measurements.')
+            % prune the two variables
+            al = obj.PruneMeasure(obj.patchprop.arcpoints);
+            var = obj.PruneMeasure(obj.diameters);
+            % fit bisquare method
+            nrings = size(obj.diameters,1);
+            coeff = NaN(nrings,2);
+            for ii = 1:nrings
+                coeff(ii,:) = robustfit(al, var(ii,:),'bisquare');
+            end
+            % compute intra-branch tapering as percentage
+            gradientval = -coeff(:,2) * 100;
+            obj.stats.gradient = gradientval;
         end
         
-        function intertaperval = ComputeIntertaper(obj, patchprop, trim)
+        function intertaperval = ComputeIntertaper(obj, trim)
             % short desc
             %
             % long desc
@@ -516,18 +577,34 @@ classdef Tube < matlab.mixin.SetGet
             % Return:
             %   y(type):
             %
-            assert(isfield(obj.patchprop, patchprop), 'input must be named variable in obj.patchprop.')
-            assert(length(obj.parents)==1, 'must only have one parent tube.')
+            assert(~isempty(obj.diameters), 'No diameters property. Need measurements.')
+            assert(length(obj.parent) < 2, ['Must only have max one ' ...
+                'parent tube. Got ',num2str(length(obj.parent))])
 
             % compute means
-            parentmean = obj.parent.ComputeMean(patchprop, trim);
-            currentmean = obj.ComputeMean(patchprop, trim);
+            parentmean = obj.parent.ComputeMeanDiameter(trim);
+            currentmean = obj.ComputeMeanDiameter(trim);
 
             % compute interbranch tapering as percentage
-            intertaperval = (parentmean - currentmean)/(parentmean) * 100;
-            obj.stats.(patchprop).intertaperval = intertaperval;
+            intertaperval = (parentmean - currentmean)./(parentmean) * 100;
+            obj.stats.intertaperval = intertaperval;
         end
         
+        function volumeval = ComputeVolume(obj)
+            assert(~isempty(obj.diameters), 'No diameters property. Need measurements.')
+            % prune the two variables
+            al = obj.PruneMeasure(obj.patchprop.arcpoints);
+            var = obj.PruneMeasure(obj.diameters);
+            % fit bisquare method
+            nrings = size(obj.diameters,1);
+            volumeval = NaN(nrings,1);
+            for ii = 1:nrings
+                volumeval(ii) = trapz(al, var(ii,:));
+            end
+            % compute intra-branch tapering as percentage
+            obj.stats.volume = volumeval;
+        end
+
         % measures
         function obj = Measure(obj, classmethod, varargin)
             % Call desired method to make measurement on tube patch slices.
@@ -557,8 +634,13 @@ classdef Tube < matlab.mixin.SetGet
             obj.areas = classmeasures.OutputArea();
         end
 
-        % visualisation
-        function h = PlotMeasure(obj, patchprop, varargin)
+        % 2D visualisation
+        function h = plot(obj, X, Y)
+            arguments
+            obj
+            X = obj.patchprop.arcpoints
+            Y = obj.diameters
+            end
             % plot patchprop measure
             %
             % desc
@@ -573,14 +655,29 @@ classdef Tube < matlab.mixin.SetGet
             %  relation (string): relation name. common
             %   "parent" or "child".
             %
-            X = obj.patchprop.arclength;
-            if isa(patchprop, "char") || isa(patchprop, "string")
-                Y = getfield(obj.patchprop, patchprop);
-            else
-                Y = patchprop;
+
+            X = parsearg(X);
+            Y = parsearg(Y);
+
+            assert(all(size(X,2) == size(Y,2)), ['X and Y needs have same n cols' ...
+                '. Got X [', num2str(size(X,2)), ['] and Y [' ...
+                ''], num2str(size(Y,2)),']'])
+
+            X = repmat(X, size(Y,1), 1);
+
+            h = plot(X', Y', '.');
+            legend(arrayfun(@(mode) sprintf('Ring %d', mode), 1:size(Y, 2), 'UniformOutput', false))
+            
+            % default color order
+            colororder(linspecer(12))
+
+            function parsedarg = parsearg(arg)
+                if isa(arg, "char") || isa(arg, "string")
+                    parsedarg = obj.(arg);
+                else
+                    parsedarg = arg;
+                end
             end
-            assert(size(X) == size(Y), 'patchprop needs to be the same length as number of patch slices.')
-            h = plot(X, Y, varargin{:});
         end
         
         function s = View(obj, options)
@@ -590,7 +687,10 @@ classdef Tube < matlab.mixin.SetGet
             %
             % long desc
             %
-            % .. todo: add documentation to this function
+            % .. todo: 
+            %   * add documentation to this function
+            %   * add 4th panel to show plot
+            %   * make scrollable by mousewheel
             %
             % Args:
             %   x(type):
@@ -625,11 +725,14 @@ classdef Tube < matlab.mixin.SetGet
             addlistener(s,'CrosshairMoving',@allevents);
             addlistener(s,'CrosshairMoved',@allevents);
             
+            % default color order
+            colororder(linspecer(12))
+
             % set initial annotation
             obj.UpdateAnnotateOrthoviewer(ax,s.SliceNumbers(3),...
                 options.rings,options.ellipses...
                 ,options.points)
-
+                        
             function allevents(src,evt)
                 evname = evt.EventName;
                 switch(evname)
@@ -645,6 +748,99 @@ classdef Tube < matlab.mixin.SetGet
             end
 
         end
+        
+        % 3D visualisation - level 1
+        function h = View3D(obj, options)
+            arguments
+                obj
+                options.type {mustBeMember(options.type,{'seg','skel'})} = 'seg'
+                options.alpha = 0.1
+                options.color = 'c'
+                options.context = true;
+                options.contextcolor = 'y'
+            end
+            if options.context == true
+                % get adjacent tubes
+                adjtubes = [obj.parent, obj.children, obj.parent(1).children];
+                for adjii = adjtubes
+                    adjii.View3D(type=options.type, color=options.contextcolor,...
+                        context=false, alpha=options.alpha)
+                    hold on
+                end
+            end
+            V = zeros(size(obj.network.seg));
+            switch options.type
+                case 'seg'
+                    V(obj.segpoints) = 1;
+                case 'skel'
+                    V(obj.skelpoints) = 1;
+            end
+            
+            h = patch(isosurface(V),...
+                'FaceAlpha', options.alpha,...
+                'FaceColor', options.color,...
+                'EdgeColor', 'none');
+            obj.network.vol3daxes()
+            hold off
+        end
+            
+        function ViewSpline(obj,options)
+            arguments
+                obj
+                options.color = 'c'
+                options.context = true;
+                options.contextcolor = 'y'
+            end
+
+            if options.context == true
+                % get adjacent tubes
+                adjtubes = [obj.parent, obj.children, obj.parent(1).children];
+                for adjii = adjtubes
+                    adjii.ViewSpline(color=options.contextcolor,...
+                        context=false)
+                    hold on
+                end
+            end
+
+            fnplt(obj.spline,options.color);
+            obj.network.vol3daxes();
+            hold off
+        end
+
+        % 3D visualisation - level 2
+        function h = ViewSplineVecs(obj, options)
+            arguments
+            obj
+            options.subsamp = 2
+            end
+        
+            % viewvol for adjacent tubes
+            obj.View3D()
+            hold on
+            
+            % get spline points and their normals
+            % subsample data, for better visualisation
+            samplepnts = obj.patchprop.parapoints(1:options.subsamp:end);
+            origins = NaN(3,size(samplepnts,2)); 
+            normvecs = NaN(3,size(samplepnts,2));
+            
+            for ii = 1:length(samplepnts)
+                [normvecs(:,ii), origins(:,ii)] = spline_normal(obj.spline, ...
+                    samplepnts(ii));
+            end
+
+            % rescale origins from mm to vox and swap x and y in plot.
+            origins = origins./obj.network.voxdim';
+            normvecs = normvecs./obj.network.voxdim';
+
+            % plot vectors
+            h = quiver3(origins(2,:),origins(1,:),origins(3,:),...
+                normvecs(2,:),normvecs(1,:),normvecs(3,:),'k');
+            hold off
+
+            obj.network.vol3daxes()
+        end
+
 
         % Data IO
         function SegmentTaperResults = SegmentTaperAll(obj, prunelength)
@@ -894,14 +1090,29 @@ classdef Tube < matlab.mixin.SetGet
             %
             arguments
                 obj
-                options.type {mustBeMember(options.type,{'source','seg'})} = 'source'
+                options.type {mustBeMember(options.type,{'source','seg','both'})} = 'both'
             end
             
             % set up temp file
-            filename = parse_filename_extension(tempname, '.nii');
-            obj.toNii(filename, type=options.type, gz=false)
+            if strcmp(options.type,'source')|| strcmp(options.type,'both')
+                sourcefile = parse_filename_extension(tempname, '.nii');
+                obj.toNii(sourcefile, type='source', gz=false)
+            end
+            if strcmp(options.type,'seg')|| strcmp(options.type,'both')
+                segfile = parse_filename_extension(tempname, '.nii');
+                obj.toNii(segfile, type='seg', gz=false)
+            end
             
-            command = ['itksnap ', filename];
+            % call itk
+            switch options.type
+                case 'source'
+                    command = ['itksnap ', sourcefile];
+                case 'seg'
+                    command = ['itksnap ', segfile];
+                case 'both'
+                    command = ['itksnap -g ', sourcefile, ' -o ', segfile];
+            end
+
             status = system(command);
 
             if status ~= 0
@@ -909,11 +1120,9 @@ classdef Tube < matlab.mixin.SetGet
                     'please see documentation to check this facility is ' ...
                     'set up correctly.'])
             end
-
         end
         
-        % utilities
-        
+        % utilities  
         function I = S2I(obj,I1,I2,I3)
             % short desc
             %
@@ -957,16 +1166,21 @@ classdef Tube < matlab.mixin.SetGet
         end
         
         function prunedprop = PruneMeasure(obj, var)
+            % var is of dimensions nrings x nslices
             if isempty(obj.prunelength)
                 obj.prunelength = [0 0];
                 warning('Object prunelength not set, using zero pruning.')
             end
+            nrings = size(var,1);
             pl = obj.prunelength;
-            al = obj.patchprop.arclength;
+            al = obj.patchprop.arcpoints;
             assert(length(al) == length(var), 'Input variable must be the same length as arclength.')
 
-            prunebool = (al >= pl & al <= al(end) - pl);
-            prunedprop = var(prunebool);
+            prunebool = (al >= pl(1) & al <= (al(end) - pl(2)));
+            % scale to number of measures
+            prunebool = repmat(prunebool,nrings,1);
+            prunedprop = var(prunebool == 1);
+            prunedprop = reshape(prunedprop,nrings,[]);
         end
 
         function tubearray = tubestack(obj,options)
