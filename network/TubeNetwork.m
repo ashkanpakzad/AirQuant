@@ -141,7 +141,9 @@ classdef TubeNetwork < matlab.mixin.SetGet
             end
 
             obj.RunAllTubes('SetGeneration');
-
+            
+            % classify segmentation to tubes
+            obj.ClassifySegmentationTubes();
         end
 
         function obj = RunAllTubes(obj, tubefunc, varargin)
@@ -178,12 +180,40 @@ classdef TubeNetwork < matlab.mixin.SetGet
             end
 
         end
+        
+        function obj = ClassifySegmentationTubes(obj)
+            % create classified skeleton
+            classedskel = zeros(size(obj.skel));
+            for ii = 1:length(obj.tubes)
+                classedskel(obj.tubes(ii).skelpoints) = obj.tubes(ii).ID;
+            end
+                
+            % get list of everypoint on segmentation
+            [XPQ, YPQ, ZPQ] = obj.I2S(find(obj.seg == 1));
+            PQ = [XPQ,YPQ,ZPQ];
 
-        function obj = ComputeSkelPoints(obj)
-            [XP, YP, ZP] = ind2sub(size(obj.seg), find(obj.skel == 1));
-            obj.skel_points = [XP, YP, ZP]; % list of skel points
+            % get list of everypoint on skeleton
+            [XP, YP, ZP] = obj.I2S(find(obj.skel == 1));
+            P = [XP, YP, ZP];
+
+            % find nearest seg point to it on skeleton
+            T = delaunayn(P);
+            k = dsearchn(P,T,PQ);
+
+            % find that skeleton point's tube assignment
+            classedseg = zeros(size(obj.seg));
+            for i = 1:length(PQ)
+                skelpoint = P(k(i),:);
+                skelval = classedskel(skelpoint(1),skelpoint(2),skelpoint(3));
+                classedseg(PQ(i,1),PQ(i,2),PQ(i,3)) = skelval;
+            end
+
+            % assign segs to tube
+            for ii = 1:length(obj.tubes)
+                obj.tubes(ii).segpoints = find(classedseg==obj.tubes(ii).ID);
+            end
+
         end
-
         % GRAPH NETWORK
         function [g, glink, gnode] = Skel2Digraph(obj, method)
             if nargin < 2
@@ -249,6 +279,40 @@ classdef TubeNetwork < matlab.mixin.SetGet
         end
 
         % UTILITIES
+        
+        function I = S2I(obj,I1,I2,I3)
+            % short desc
+            %
+            % long desc
+            %
+            % .. todo: add docs
+            %
+            % Args:
+            %   x():
+            %
+            % Return:
+            %   y():
+            %
+
+            I = S2I3(size(obj.source),I1,I2,I3);
+        end
+
+        function [I1,I2,I3] = I2S(obj,I)
+            % short desc
+            %
+            % long desc
+            %
+            % .. todo: add docs
+            %
+            % Args:
+            %   x():
+            %
+            % Return:
+            %   y():
+            %
+
+            [I1, I2, I3] = I2S3(size(obj.source),I);
+        end
 
         % HIGH LEVEL - group run lower level methods
         % * spline
@@ -496,78 +560,6 @@ classdef TubeNetwork < matlab.mixin.SetGet
 
         end
 
-        function h = PlotSplineVecs(obj, subsamp, link_index)
-            % Plot and Visualise tangental vectors off spline sample
-            % points. 1/subsamp = proportion of spline points to sample,
-            % default subsamp = 2. link_index = airway indices to plot,
-            % default link_index = all.
-
-            % plot all branches if specific airway not provided
-            if nargin < 2
-                subsamp = 2;
-            end
-
-            if nargin < 3
-                link_index = 1:length(obj.Glink);
-            end
-
-            for iidx = link_index
-                % generate spline and points if it doesnt exist
-                if isempty(obj.Splines{iidx, 1})
-                    ComputeSplinePoints(obj, iidx);
-                end
-
-                % get vecs and origin for spline
-                spline = obj.Splines{iidx, 1};
-                samplepnts = obj.Splines{iidx, 2};
-                vecs = zeros(3, length(samplepnts));
-                origins = zeros(3, length(samplepnts));
-                for jj = 1:length(samplepnts)
-                    point = samplepnts(jj);
-                    [vecs(:,jj), origins(:,jj)]= AirQuant.ComputeNormal(spline, point);
-                end
-
-                % subsample data, i.e. delete a portion
-                vecs = vecs(:,1:subsamp:end); origins = origins(:,1:subsamp:end);
-
-                % rescale origins from mm to vox and swap x and y in plot.
-                origins = origins./obj.CTinfo.PixelDimensions';
-                vecs = vecs./obj.CTinfo.PixelDimensions';
-
-
-                % plot vectors with translucent airway volume
-                h = quiver3(origins(2,:),origins(1,:),origins(3,:),...
-                    vecs(2,:),vecs(1,:),vecs(3,:));
-                branch_seg = obj.ClassifySegmentation(); % get labelled segmentation
-                patch(isosurface(branch_seg == iidx), ...
-                    'FaceAlpha', 0.3, 'FaceColor', [0 .55 .55], 'EdgeAlpha', 0);
-                hold on
-            end
-
-            % visualise the connecting airway segs if only 1 airway
-            % requested
-            if length(link_index) < 2
-                % find connecting airways
-                nodes = [obj.Glink(link_index).n1, obj.Glink(link_index).n2];
-                conn_awy = [];
-                for connii = 1:length(obj.Glink)
-                    for nodeii = nodes
-                        conn_awy = [conn_awy find([obj.Glink.n1] == nodeii | ...
-                            [obj.Glink.n2] == nodeii)];
-                    end
-                end
-                conn_awy = unique(conn_awy);
-                conn_awy(conn_awy == link_index) = [];
-                % visualise them
-                for awyii = conn_awy
-                    patch(isosurface(branch_seg == awyii), ...
-                        'FaceAlpha', 0.3, 'FaceColor', [.93 .79 0], 'EdgeAlpha', 0);
-                end
-            end
-            vol3daxes(obj)
-            hold off
-        end
-
         %%% Volumetric
         function PlotSeg(obj)
             % plot segmentation
@@ -699,11 +691,11 @@ classdef TubeNetwork < matlab.mixin.SetGet
                 ax = gca;
             end
             axis vis3d
-            view(80,0)
+            view(-110, 20)
             % aspect ratio
-            ax.DataAspectRatio = 1./obj.CTinfo.PixelDimensions;
-            % undo matlab display flip
-            ax.XDir = 'reverse';
+            ax.DataAspectRatio = 1./obj.voxdim;
+            grid on
+            light
         end
 
         %%% Novel/tapering visualisation
