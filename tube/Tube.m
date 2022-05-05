@@ -29,16 +29,12 @@ classdef Tube < matlab.mixin.SetGet
     % see also
 
     properties
-        ID
         parent = []
         children = []
         generation
         network
         relatives
         skelpoints
-        measures = []
-        diameters = []
-        areas = []
         spline
         source
         seg
@@ -48,8 +44,13 @@ classdef Tube < matlab.mixin.SetGet
         region
         savename
     end
-    properties (SetAccess = private)
-
+    properties (SetAccess = protected)
+        ID
+        measures = []
+        method
+        diameters = []
+        areas = []
+        volumes = []
     end
 
     methods
@@ -544,6 +545,7 @@ classdef Tube < matlab.mixin.SetGet
 
             % reset measures property
             obj.measures = [];
+            obj.method = classmethod;
             % reset diameter and area
             obj.diameters = [];
             obj.areas = [];
@@ -581,7 +583,7 @@ classdef Tube < matlab.mixin.SetGet
             h = plot(X, Y, varargin{:});
         end
         
-        function s = OrthoView(obj, options)
+        function s = View(obj, options)
             % View a series of an airway segment's slices as a volume image
             % stack using MATLAB's inbuilt othogonal 3d viewer.
             % short desc
@@ -600,13 +602,14 @@ classdef Tube < matlab.mixin.SetGet
             arguments
                 obj
                 options.type {mustBeMember(options.type,{'source','seg'})} = 'source'
-                options.rings = ones(size(obj.measures,1),1)
-                options.showellipses = true
-                options.showpoints = false
+                options.rings = ones(1,size(obj.measures,1))
+                options.ellipses = true
+                options.points = false
             end
 
-            assert(size(options.rings,1)==size(obj.measures,1), ...
-                'Viewrings must be same length as number of rings')
+            assert(size(options.rings,2)==size(obj.measures,1), ...
+                ['rings must be same length as number of measurements, got ' ...
+                , num2str(size(options.rings,2)), ' instead of ' num2str(size(obj.measures,1),2)])
 
             % convert from cell stack to 3D array.
             tubearray = tubestack(obj, type=options.type);
@@ -621,6 +624,11 @@ classdef Tube < matlab.mixin.SetGet
 
             addlistener(s,'CrosshairMoving',@allevents);
             addlistener(s,'CrosshairMoved',@allevents);
+            
+            % set initial annotation
+            obj.UpdateAnnotateOrthoviewer(ax,s.SliceNumbers(3),...
+                options.rings,options.ellipses...
+                ,options.points)
 
             function allevents(src,evt)
                 evname = evt.EventName;
@@ -629,53 +637,13 @@ classdef Tube < matlab.mixin.SetGet
                         ppos = evt.PreviousPosition(3);
                         cpos = evt.CurrentPosition(3);
                         if ppos ~= cpos
-                            disp(['Crosshair slice position: ' num2str(cpos)]);
-                            for ii = 1:size(obj.measures,1)
-                                if options.rings(ii) == 1
-                                    % delete old linetype graphics
-                                    axesHandlesToChildObjects = findobj(ax, 'Type', 'Line');
-                                    if ~isempty(axesHandlesToChildObjects)
-                                        delete(axesHandlesToChildObjects);
-                                    end
-                                    % get centre displacement
-                                    canvas_sz = floor(obj.network.max_plane_sz/obj.network.plane_sample_sz);
-                                    image_sz = size(obj.source{ii,1},1);
-                                    min_centre = canvas_sz/2 - image_sz/2;
-                                    obj.measures{ii,cpos}.plot(min_centre, ax, options.showellipses, options.showpoints);
-                                end
-                            end
+                            obj.UpdateAnnotateOrthoviewer(ax,cpos,...
+                                options.rings,options.ellipses...
+                                ,options.points)
                         end
                 end
             end
-        end
-        
-        function v = zvideo(obj, options)
-            % View a series of an airway segment's slices as a volume image
-            % stack using MATLAB's inbuilt othogonal 3d viewer.
-            % short desc
-            %
-            % long desc
-            %
-            % .. todo: add documentation to this function
-            %
-            % Args:
-            %   x(type):
-            %
-            % Return:
-            %   y(type):
-            %
 
-            arguments
-                obj
-                options.type {mustBeMember(options.type,{'source','seg'})} = 'source'
-                options.rings = ones(size(obj.measures,1),1)
-                options.showellipses = true
-                options.showpoints = false
-                options.path char
-            end
-
-            
-        
         end
 
         % Data IO
@@ -842,8 +810,110 @@ classdef Tube < matlab.mixin.SetGet
                 end
             end
         end
+        
+        function toGif(obj, filename, options)
+            % View a series of an airway segment's slices as a volume image
+            % stack using MATLAB's inbuilt othogonal 3d viewer.
+            % short desc
+            %
+            % long desc
+            %
+            % .. todo: add documentation to this function
+            %
+            % Args:
+            %   x(type):
+            %
+            % Return:
+            %   y(type):
+            %
 
+            arguments
+                obj
+                filename
+                options.type {mustBeMember(options.type,{'source','seg'})} = 'source'
+                options.rings = ones(size(obj.measures,1),1)
+                options.ellipses = true
+                options.points = false
+            end
+            
+            % parse filename
+            filename = parse_filename_extension(filename, '.gif');
+
+            % instantiate orthosliceviewer
+            s = obj.View(type=options.type, rings=options.rings, ...
+                ellipses=options.ellipses, ...
+                points=options.points);
+            [ax, ~, ~] = getAxesHandles(s);
+            
+            set(s,'CrosshairEnable','off');
+            sliceNums = 1:length(obj.source);
+            for idx = sliceNums
+                % Update z slice number and annotation to get XY Slice.
+                s.SliceNumbers(3) = idx;
+                obj.UpdateAnnotateOrthoviewer(ax,idx,options.rings,...
+                    options.ellipses,options.points)
+
+                % Use getframe to capture image.
+                I = getframe(ax);
+                [indI,cm] = rgb2ind(I.cdata,256);
+
+                % Write frame to the GIF File.
+                if idx == 1
+                    imwrite(indI,cm,filename,'gif','Loopcount',inf,'DelayTime',0.05);
+                else
+                    imwrite(indI,cm,filename,'gif','WriteMode','append','DelayTime',0.05);
+                end
+            end
+        end
+
+        function toNii(obj, filename, options)
+            arguments
+                obj
+                filename char
+                options.type {mustBeMember(options.type,{'source','seg'})} = 'source'
+                options.gz logical = true
+            end
+
+            filename = parse_filename_extension(filename, '.nii');
+
+            tubearray = tubestack(obj, type=options.type);
+            niftiwrite(tubearray,filename)
+            
+            if options.gz == true
+                gzip(filename)
+                delete(filename)
+            end
+        end
+    
+        function status = toITKsnap(obj, options)
+            % view in itksnap
+            %
+            % May need to set up enviroments on matlab search path for
+            % system terminal. 
+            % setenv('PATH', [getenv('PATH') ':/Applications/ITK-SNAP.app/Contents/bin']);
+            %
+            arguments
+                obj
+                options.type {mustBeMember(options.type,{'source','seg'})} = 'source'
+            end
+            
+            % set up temp file
+            filename = parse_filename_extension(tempname, '.nii');
+            obj.toNii(filename, type=options.type, gz=false)
+            
+            command = ['itksnap ', filename];
+            status = system(command);
+
+            if status ~= 0
+                error(['Failed to open in ITK-snap, ' ...
+                    'please see documentation to check this facility is ' ...
+                    'set up correctly.'])
+            end
+
+        end
+        
         % utilities
+        
         function I = S2I(obj,I1,I2,I3)
             % short desc
             %
@@ -933,5 +1003,25 @@ classdef Tube < matlab.mixin.SetGet
             end
         end
 
+    end
+
+    methods (Access = protected)
+        function UpdateAnnotateOrthoviewer(obj,ax,pos,rings,showellipses,showpoints)
+            % delete old linetype graphics
+            axesHandlesToChildObjects = findobj(ax, 'Type', 'Line');
+            if ~isempty(axesHandlesToChildObjects)
+                delete(axesHandlesToChildObjects);
+            end
+            for ii = 1:size(obj.measures,1)
+                if rings(ii) == 1
+
+                    % get centre displacement
+                    canvas_sz = floor(obj.network.max_plane_sz/obj.network.plane_sample_sz);
+                    image_sz = size(obj.source{ii,1},1);
+                    min_centre = canvas_sz/2 - image_sz/2;
+                    obj.measures{ii,pos}.plot(min_centre, ax, showellipses, showpoints);
+                end
+            end
+        end
     end
 end
