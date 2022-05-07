@@ -28,7 +28,7 @@ author = 'Ashkan Pakzad'
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = ['sphinxcontrib.matlab', 'sphinx.ext.autodoc',
-'sphinx.ext.napoleon', 'sphinx.ext.todo']
+'sphinx.ext.napoleon', 'sphinx.ext.todo', 'sphinx.ext.viewcode', 'sphinx_copybutton']
 
 this_dir = os.path.dirname(os.path.abspath(__file__))
 matlab_src_dir = os.path.abspath(os.path.join(this_dir, '..'))
@@ -44,8 +44,12 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
 # todo config
 todo_include_todos = True
-todo_emit_warnings = True
+todo_emit_warnings = False
 todo_link_only = False
+
+# copybutton configure
+copybutton_prompt_text = r">>> |\.\.\. |\$ |In \[\d*\]: | {2,5}\.\.\.: | {5,8}: "
+copybutton_prompt_is_regexp = True
 
 
 
