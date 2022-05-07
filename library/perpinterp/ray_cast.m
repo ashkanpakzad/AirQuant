@@ -1,5 +1,5 @@
 function [source_rays, seg_rays, coords] = ray_cast(interp_source, interp_seg, center, num_rays, ray_interval)
-                % * Compute Rays
+                % Compute Rays
                 % Getting the range limit of the ray which will be the shortest
                 % distance from the centre to the bounadry Need to find the
                 % limits of the raw
@@ -17,7 +17,7 @@ function [source_rays, seg_rays, coords] = ray_cast(interp_source, interp_seg, c
                 x_component = radial'*cos(theata) + center(1);
                 y_component = radial'*sin(theata) + center(2);
 
-                % * Cast rays
+                % Cast rays
                 interp_source = double(interp_source);
 
                 source_rays = interp2(interp_source, x_component(:),...
@@ -26,7 +26,7 @@ function [source_rays, seg_rays, coords] = ray_cast(interp_source, interp_seg, c
                 seg_rays = interp2(interp_seg, x_component(:),...
                     y_component(:));
 
-                %Need to reshape
+                % Need to reshape
                 source_rays = ...
                     reshape(source_rays,[size(y_component,1) size(y_component,2)]);
                 seg_rays = ...

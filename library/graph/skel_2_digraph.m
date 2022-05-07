@@ -5,26 +5,33 @@ function [digraphout, glink, gnode] = skel_2_digraph(skel, method)
     % It is necessary for AirQuant to use a digraph as it dictates the direction
     % that splines are interpolated for tubes. The direction is
     % set by designating an origin node from which all directions in
-    % the digraph are oriented away. :attr:`method` `topnode` selects the 
+    % the digraph are oriented away. :attr:`method` `topnode` selects the
     % highest z-point. The nodes are ordered by a BFS from the origin node.
     %
     % See https://github.com/phi-max/skel2graph3d-matlab for more
     % details on skel2graph.
     %
-    % 
     %
     % Args:
     %   skel: skeleton to turn into digraph
-    %   method(string): method to choose originating direction.
+    %   method(string): *OPTIONAL* method to choose originating direction.
     %       default uses `topnode` method but chossing the most
     %       superior node.
-    % Return:
-    %   digraph: converted digraph object
-    %   glink(struct): positional information for each branch relating to
-    %       skel
-    %   gnode(struct): positional information for each node relating to
-    %       skel
     %
+    % Return:
+    %   3 items
+    %
+    %   - **digraph** : converted digraph object
+    %   - **glink** (:class:`struct`): positional information for each branch relating to
+    %     skel.
+    %   - **gnode** (:class:`struct`): positional information for each node relating to
+    %     skel.
+    %
+    % Example:
+    %
+    %   >>> [digraphout, glink, gnode] = skel_2_digraph(skel, 'topnode')
+    %
+
 
     if nargin < 2
         method = 'topnode';
@@ -39,7 +46,7 @@ function [digraphout, glink, gnode] = skel_2_digraph(skel, method)
         otherwise
             error('Invalid method')
     end
-    
+
     % Create digraph with edges in both directions, loop through
     % branches and remove opposing direction to originating node.
     G = digraph(gadj);

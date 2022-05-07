@@ -6,7 +6,7 @@ classdef Tube < matlab.mixin.SetGet
     %
     % description
     %
-    % .. todo: add documentation to this function
+    % .. todo:: add documentation to this function
     %
     % Args:
     %   network (:class:`AirQuant.network`): tube network object that this
@@ -58,12 +58,13 @@ classdef Tube < matlab.mixin.SetGet
         function obj = Tube(network, skelpoints, ID)
             % tube representing anatomical structure
             %
-            % .. todo:
+            % .. todo::
             %   * make tubes saveable and loadable and that these operations
-            %   can be done independently of the network object.
+            %     can be done independently of the network object.
             %   * to make independent, it may be necessary to remove the
-            %   network as a property. it will be nessesary to save the
-            %   keep the source size.
+            %     network as a property. it will be nessesary to save the
+            %     keep the source size.
+            %
             %
             % Args:
             %   network : network object to which this tube belongs.
@@ -102,7 +103,8 @@ classdef Tube < matlab.mixin.SetGet
             % Set relative to current tube object.
             %
             % desc
-            % .. todo: add documentation to this function
+            %
+            % .. todo::: add documentation to this function
             %
             % Args:
             %   relativetube (:class:`tube`): the tube to set
@@ -119,7 +121,8 @@ classdef Tube < matlab.mixin.SetGet
             % Set relative to current tube object.
             %
             % desc
-            % .. todo:
+            %
+            % .. todo::
             %   * add documentation to this function
             %   * set children tube of parent without being stuck in loop.
             %
@@ -129,6 +132,7 @@ classdef Tube < matlab.mixin.SetGet
             %   relation (string): relation name. common
             %       "parent" or "child".
             %
+
             obj.parent = [obj.parent tube];
         end
 
@@ -137,7 +141,7 @@ classdef Tube < matlab.mixin.SetGet
             %
             %
             %
-            % .. todo: add documentation to this function
+            % .. todo::: add documentation to this function
             %
             % Args:
             %   relativetube (:class:`tube`): the tube to set
@@ -164,7 +168,7 @@ classdef Tube < matlab.mixin.SetGet
         function obj = SetRegion(obj, regiontype, value)
             % Set region classifcation of tube.
             %
-            % .. todo: add documentation to this function
+            % .. todo::: add documentation to this function
             %
             % Args:
             %   relativetube (:class:`tube`): the tube to set
@@ -243,7 +247,7 @@ classdef Tube < matlab.mixin.SetGet
             %
             % long desc
             %
-            % .. todo: add documentation to this function
+            % .. todo::: add documentation to this function
             %
             % Args:
             %   x(type):
@@ -274,7 +278,7 @@ classdef Tube < matlab.mixin.SetGet
             %
             % long desc
             %
-            % .. todo:
+            % .. todo::
             %   * add documentation to this function
             %   * Heavily reliant on the network class structure.
             %       Consider decoupling network in this function.
@@ -315,7 +319,7 @@ classdef Tube < matlab.mixin.SetGet
                 end
                 reformedproperty = 'seg';
             end
-            
+
             % cast volume to single for interpolation
             vol = single(vol);
 
@@ -368,7 +372,7 @@ classdef Tube < matlab.mixin.SetGet
             %
             % long desc
             %
-            % .. todo: * add documentation to this function
+            % .. todo:: * add documentation to this function
             %   * consider diameter conversion to mm
             %
             % Args:
@@ -391,14 +395,14 @@ classdef Tube < matlab.mixin.SetGet
                 segdiameter = 2;
             end
         end
-    
+
         % stats
         function obj = ComputeEucLength(obj)
             % short desc
             %
             % long desc
             %
-            % .. todo: add documentation to this function
+            % .. todo:: add documentation to this function
             %
             % Args:
             %   x(type):
@@ -419,7 +423,7 @@ classdef Tube < matlab.mixin.SetGet
             %
             % long desc
             %
-            % .. todo: add documentation to this function
+            % .. todo:: add documentation to this function
             %
             % Args:
             %   x(type):
@@ -435,7 +439,7 @@ classdef Tube < matlab.mixin.SetGet
             %
             % long desc
             %
-            % .. todo: add documentation to this function
+            % .. todo:: add documentation to this function
             %
             % Args:
             %   x(type):
@@ -451,13 +455,13 @@ classdef Tube < matlab.mixin.SetGet
             obj.stats.tortuosity = obj.stats.arclength./obj.stats.euclength;
             assert(obj.stats.tortuosity >= 1, 'Impossible to get a tortuosity > 1')
         end
-        
+
         function meanDval = ComputeMeanDiameter(obj, trim)
             % short desc
             %
             % long desc
             %
-            % .. todo: add documentation to this function
+            % .. todo:: add documentation to this function
             %
             % Args:
             %   x(type):
@@ -470,7 +474,7 @@ classdef Tube < matlab.mixin.SetGet
             end
 
             assert(~isempty(obj.diameters), 'No diameters property. Need measurements.')
-            
+
             % prune the two variables
             pruned = obj.PruneMeasure(obj.diameters);
 
@@ -479,13 +483,13 @@ classdef Tube < matlab.mixin.SetGet
             obj.stats.trimmean = meanDval;
             obj.stats.TRIM = trim;
         end
-    
+
         function meanAval = ComputeMeanArea(obj, trim)
             % short desc
             %
             % long desc
             %
-            % .. todo: add documentation to this function
+            % .. todo:: add documentation to this function
             %
             % Args:
             %   x(type):
@@ -498,7 +502,7 @@ classdef Tube < matlab.mixin.SetGet
             end
 
             assert(~isempty(obj.areas), 'No areas property. Need measurements.')
-            
+
             % prune the two variables
             pruned = obj.PruneMeasure(obj.areas);
 
@@ -513,7 +517,7 @@ classdef Tube < matlab.mixin.SetGet
             %
             % long desc
             %
-            % .. todo: add documentation to this function
+            % .. todo:: add documentation to this function
             %
             % Args:
             %   x(type):
@@ -541,7 +545,7 @@ classdef Tube < matlab.mixin.SetGet
             %
             % long desc
             %
-            % .. todo: add documentation to this function
+            % .. todo:: add documentation to this function
             %
             % Args:
             %   x(type):
@@ -563,13 +567,13 @@ classdef Tube < matlab.mixin.SetGet
             gradientval = -coeff(:,2) * 100;
             obj.stats.gradient = gradientval;
         end
-        
+
         function intertaperval = ComputeIntertaper(obj, trim)
             % short desc
             %
             % long desc
             %
-            % .. todo: add documentation to this function
+            % .. todo:: add documentation to this function
             %
             % Args:
             %   x(type):
@@ -589,7 +593,7 @@ classdef Tube < matlab.mixin.SetGet
             intertaperval = (parentmean - currentmean)./(parentmean) * 100;
             obj.stats.intertaperval = intertaperval;
         end
-        
+
         function volumeval = ComputeVolume(obj)
             assert(~isempty(obj.diameters), 'No diameters property. Need measurements.')
             % prune the two variables
@@ -611,7 +615,7 @@ classdef Tube < matlab.mixin.SetGet
             %
             % long desc
             %
-            % .. todo: add documentation to this function
+            % .. todo:: add documentation to this function
             %
             % Args:
             %   x(type):
@@ -645,7 +649,7 @@ classdef Tube < matlab.mixin.SetGet
             %
             % desc
             %
-            % .. todo:
+            % .. todo::
             %   * add documentation to this function
             %   * Needs attention
             %
@@ -667,7 +671,7 @@ classdef Tube < matlab.mixin.SetGet
 
             h = plot(X', Y', '.');
             legend(arrayfun(@(mode) sprintf('Ring %d', mode), 1:size(Y, 2), 'UniformOutput', false))
-            
+
             % default color order
             colororder(linspecer(12))
 
@@ -679,7 +683,7 @@ classdef Tube < matlab.mixin.SetGet
                 end
             end
         end
-        
+
         function s = View(obj, options)
             % View a series of an airway segment's slices as a volume image
             % stack using MATLAB's inbuilt othogonal 3d viewer.
@@ -687,7 +691,7 @@ classdef Tube < matlab.mixin.SetGet
             %
             % long desc
             %
-            % .. todo: 
+            % .. todo::
             %   * add documentation to this function
             %   * add 4th panel to show plot
             %   * make scrollable by mousewheel
@@ -724,7 +728,7 @@ classdef Tube < matlab.mixin.SetGet
 
             addlistener(s,'CrosshairMoving',@allevents);
             addlistener(s,'CrosshairMoved',@allevents);
-            
+
             % default color order
             colororder(linspecer(12))
 
@@ -732,7 +736,7 @@ classdef Tube < matlab.mixin.SetGet
             obj.UpdateAnnotateOrthoviewer(ax,s.SliceNumbers(3),...
                 options.rings,options.ellipses...
                 ,options.points)
-                        
+
             function allevents(src,evt)
                 evname = evt.EventName;
                 switch(evname)
@@ -748,7 +752,7 @@ classdef Tube < matlab.mixin.SetGet
             end
 
         end
-        
+
         % 3D visualisation - level 1
         function h = View3D(obj, options)
             arguments
@@ -775,7 +779,7 @@ classdef Tube < matlab.mixin.SetGet
                 case 'skel'
                     V(obj.skelpoints) = 1;
             end
-            
+
             h = patch(isosurface(V),...
                 'FaceAlpha', options.alpha,...
                 'FaceColor', options.color,...
@@ -783,7 +787,7 @@ classdef Tube < matlab.mixin.SetGet
             obj.network.vol3daxes()
             hold off
         end
-            
+
         function ViewSpline(obj,options)
             arguments
                 obj
@@ -813,17 +817,17 @@ classdef Tube < matlab.mixin.SetGet
             obj
             options.subsamp = 2
             end
-        
+
             % viewvol for adjacent tubes
             obj.View3D()
             hold on
-            
+
             % get spline points and their normals
             % subsample data, for better visualisation
             samplepnts = obj.patchprop.parapoints(1:options.subsamp:end);
-            origins = NaN(3,size(samplepnts,2)); 
+            origins = NaN(3,size(samplepnts,2));
             normvecs = NaN(3,size(samplepnts,2));
-            
+
             for ii = 1:length(samplepnts)
                 [normvecs(:,ii), origins(:,ii)] = spline_normal(obj.spline, ...
                     samplepnts(ii));
@@ -841,105 +845,14 @@ classdef Tube < matlab.mixin.SetGet
             obj.network.vol3daxes()
         end
 
-
         % Data IO
-        function SegmentTaperResults = SegmentTaperAll(obj, prunelength)
-            % Set relative to current tube object.
-            %
-            % desc
-            %
-            % .. todo:
-            %   *add documentation to this function
-            %   * Needs attention
-            %
-            % Args:
-            %  relativetube (:class:`tube`): the tube to set
-            %   relation to.
-            %  relation (string): relation name. common
-            %   "parent" or "child".
-            %
-            % high level function to compute the segmental tapering
-            % measurement of all airways.
-            %
-
-            % compute taper results by segment
-            [intrataper, avg] = ComputeIntraTaperAll(obj, prunelength);
-            intertaper = ComputeInterTaper(obj, prunelength);
-            vol_intertaper = ComputeInterIntegratedVol(obj, prunelength);
-            [tortuosity, arc_length, euc_length] = ComputeTortuosity(obj);
-            lobar_intertaper = ComputeLobarInterTaper(obj, prunelength);
-            vol = ComputeIntegratedVolAll(obj, prunelength);
-            %             parent = [obj.Glink.parent_idx]';
-
-            % organise into column headings
-            branch = [1:length(obj.Glink)]';
-
-            inner_intra = intrataper(:, 1);
-            peak_intra = intrataper(:, 2);
-            outer_intra = intrataper(:, 3);
-
-            inner_avg = avg(:, 1);
-            peak_avg = avg(:, 2);
-            outer_avg = avg(:, 3);
-
-            inner_inter = intertaper(:, 1);
-            peak_inter = intertaper(:, 2);
-            outer_inter = intertaper(:, 3);
-
-            inner_lobeinter = lobar_intertaper(:, 1);
-            peak_lobeinter = lobar_intertaper(:, 2);
-            outer_lobeinter = lobar_intertaper(:, 3);
-
-            inner_volinter = vol_intertaper(:, 1);
-            peak_volinter = vol_intertaper(:, 2);
-            outer_volinter = vol_intertaper(:, 3);
-
-            inner_vol = vol(:,1);
-            outer_vol = vol(:,3);
-
-            if ~isempty(obj.lungvol)
-                inner_vol_lung_ratio = inner_vol./obj.lungvol;
-                outer_vol_lung_ratio = outer_vol./obj.lungvol;
-            else
-                inner_vol_lung_ratio = NaN(size(inner_vol));
-                outer_vol_lung_ratio = NaN(size(outer_vol));
-            end
-
-            thickness_avg = outer_avg - inner_avg;
-
-            % convert to table
-            SegmentTaperResults = table(branch, inner_intra, peak_intra, ...
-                outer_intra, inner_avg, peak_avg, outer_avg, ...
-                inner_inter, peak_inter, outer_inter,...
-                inner_volinter, peak_volinter, outer_volinter, ...
-                inner_lobeinter, peak_lobeinter, outer_lobeinter, ...
-                tortuosity, arc_length, euc_length, inner_vol, outer_vol, ...
-                inner_vol_lung_ratio, outer_vol_lung_ratio, thickness_avg);
-
-            % add gen info
-            SegmentTaperResults.generation = [obj.Glink.generation]';
-
-            % add lobe info if available
-            try % only add lobe information if it exists
-                SegmentTaperResults.lobe = [obj.Glink.lobe]';
-            catch
-            end
-
-            % delete excluded branches
-            if isfield(obj.Glink,'exclude')
-                SegmentTaperResults(logical([obj.Glink.exclude]),:) = [];
-            end
-
-            % Save to AQ object
-            obj.Specs.SegmentTaperResults = SegmentTaperResults;
-        end
 
         function obj = SaveAwyPatches(obj, prunelength)
             % short desc
             %
             % long desc
             %
-            % .. todo:
+            % .. todo::
             %   * add documentation to this function
             %   * Needs attention
             %
@@ -1006,7 +919,7 @@ classdef Tube < matlab.mixin.SetGet
                 end
             end
         end
-        
+
         function toGif(obj, filename, options)
             % View a series of an airway segment's slices as a volume image
             % stack using MATLAB's inbuilt othogonal 3d viewer.
@@ -1014,7 +927,7 @@ classdef Tube < matlab.mixin.SetGet
             %
             % long desc
             %
-            % .. todo: add documentation to this function
+            % .. todo:: add documentation to this function
             %
             % Args:
             %   x(type):
@@ -1030,8 +943,9 @@ classdef Tube < matlab.mixin.SetGet
                 options.rings = ones(size(obj.measures,1),1)
                 options.ellipses = true
                 options.points = false
+                options.framerate (1,1) mustBeNumeric = 20
             end
-            
+
             % parse filename
             filename = parse_filename_extension(filename, '.gif');
 
@@ -1040,7 +954,7 @@ classdef Tube < matlab.mixin.SetGet
                 ellipses=options.ellipses, ...
                 points=options.points);
             [ax, ~, ~] = getAxesHandles(s);
-            
+
             set(s,'CrosshairEnable','off');
             sliceNums = 1:length(obj.source);
             for idx = sliceNums
@@ -1055,9 +969,11 @@ classdef Tube < matlab.mixin.SetGet
 
                 % Write frame to the GIF File.
                 if idx == 1
-                    imwrite(indI,cm,filename,'gif','Loopcount',inf,'DelayTime',0.05);
+                    imwrite(indI,cm,filename,'gif','Loopcount',inf,...
+                        'DelayTime',1/options.framerate);
                 else
-                    imwrite(indI,cm,filename,'gif','WriteMode','append','DelayTime',0.05);
+                    imwrite(indI,cm,filename,'gif','WriteMode',...
+                        'append','DelayTime',1/options.framerate);
                 end
             end
         end
@@ -1074,25 +990,25 @@ classdef Tube < matlab.mixin.SetGet
 
             tubearray = tubestack(obj, type=options.type);
             niftiwrite(tubearray,filename)
-            
+
             if options.gz == true
                 gzip(filename)
                 delete(filename)
             end
         end
-    
+
         function status = toITKsnap(obj, options)
             % view in itksnap
             %
             % May need to set up enviroments on matlab search path for
-            % system terminal. 
+            % system terminal.
             % setenv('PATH', [getenv('PATH') ':/Applications/ITK-SNAP.app/Contents/bin']);
             %
             arguments
                 obj
                 options.type {mustBeMember(options.type,{'source','seg','both'})} = 'both'
             end
-            
+
             % set up temp file
             if strcmp(options.type,'source')|| strcmp(options.type,'both')
                 sourcefile = parse_filename_extension(tempname, '.nii');
@@ -1102,7 +1018,7 @@ classdef Tube < matlab.mixin.SetGet
                 segfile = parse_filename_extension(tempname, '.nii');
                 obj.toNii(segfile, type='seg', gz=false)
             end
-            
+
             % call itk
             switch options.type
                 case 'source'
@@ -1121,14 +1037,14 @@ classdef Tube < matlab.mixin.SetGet
                     'set up correctly.'])
             end
         end
-        
-        % utilities  
+
+        % utilities
         function I = S2I(obj,I1,I2,I3)
             % short desc
             %
             % long desc
             %
-            % .. todo: add docs
+            % .. todo:: add docs
             %
             % Args:
             %   x():
@@ -1145,7 +1061,7 @@ classdef Tube < matlab.mixin.SetGet
             %
             % long desc
             %
-            % .. todo: add docs
+            % .. todo:: add docs
             %
             % Args:
             %   x():
@@ -1156,7 +1072,7 @@ classdef Tube < matlab.mixin.SetGet
 
             [I1, I2, I3] = I2S3(size(obj.network.source),I);
         end
-        
+
         function obj = SetPruneLength(obj, prunelength)
             arguments
                 obj
@@ -1164,7 +1080,7 @@ classdef Tube < matlab.mixin.SetGet
             end
             obj.prunelength = prunelength;
         end
-        
+
         function prunedprop = PruneMeasure(obj, var)
             % var is of dimensions nrings x nslices
             if isempty(obj.prunelength)
@@ -1188,7 +1104,7 @@ classdef Tube < matlab.mixin.SetGet
             %
             % long desc
             %
-            % .. todo: a
+            % .. todo::
             %   * add documentation to this function
             %   * add version that makes tubestack back to parent
             %

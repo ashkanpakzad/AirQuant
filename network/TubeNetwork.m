@@ -2,7 +2,7 @@
 % See https://github.com/ashkanpakzad/AirQuant for more information.
 
 classdef TubeNetwork < matlab.mixin.SetGet
-    % TubeNetwork
+    % TubeNetwork for managing analysis of a set of tubes in AirQuant.
     %
     % TubeNetwork creates and manages objects inherited from
     % :class:`tube` that represent anatomical tubes on 3 dimensional
@@ -11,18 +11,17 @@ classdef TubeNetwork < matlab.mixin.SetGet
     % .. note:
     %   TubeNetwork class is intended as a base class for analysing
     %    anatomical tubes. sub classes refined for analysing a particular
-    %    anatomy should be used. e.g. :class:`AirwayNetwork`
+    %    anatomy should be used. e.g. :class:`HumanAirways`
     %
-    % .. todo:
+    % .. todo::
     %   * Make segmentation import more generalised by removing need
     %       for full connectivity.
-    %   * Classify seg by tube
-    %   * Consider making tubes property private
+    %   * Consider making tubes property protected.
     %
     % Args:
-    %   source: source image, e.g. CT
+    %   source(3Darray): source image, e.g. CT
     %   sourceinfo(struct): header information from source
-    %   voxdim: `[float, float, float]` voxel dimensions in mm usually
+    %   voxdim: `[float, float, float]` voxel dimensions
     %   seg: binary airway segmentation in the same grid space as
     %       :attr:`source` dimensions must match with :attr:`source`.
     %   skel: skeleton based on segementation with no internal loops in the
@@ -38,7 +37,7 @@ classdef TubeNetwork < matlab.mixin.SetGet
     %
     %
     properties
-        tubes = []
+        tubes = [];
         source
         sourceinfo
         voxdim
@@ -66,9 +65,8 @@ classdef TubeNetwork < matlab.mixin.SetGet
             %
             % The network digraph is constructed using the default method.
             %
-            % .. todo:
+            % .. todo::
             %   * Expose digraph method to user at initialisation.
-            %   * Classify segmentation by tubes.
             %
             % Args:
             %   source (3darray): CT loaded from nifti using niftiread.
@@ -81,7 +79,7 @@ classdef TubeNetwork < matlab.mixin.SetGet
             %
             %
 
-            % check inputs
+            % parse inputs
             seg = logical(seg);
             skel = logical(skel);
 
@@ -97,8 +95,6 @@ classdef TubeNetwork < matlab.mixin.SetGet
                 size(skel),' differs from source ', size(source)])
 
             obj.sourceinfo = sourceinfo;
-
-            % process segmentation
             robustseg = ParseSeg(seg);
 
             % reorient volumes and get properties
@@ -147,6 +143,18 @@ classdef TubeNetwork < matlab.mixin.SetGet
         end
 
         function obj = RunAllTubes(obj, tubefunc, varargin)
+            % Call a `Tube` method to run on all `obj.tubes`.
+            %
+            % Useful method for calling a :class:`Tube` method to run on
+            % all tubes of a :class:`TubeNetwork` object.
+            %
+            %
+            % Args:
+            %   tubefunc (char): CT loaded from nifti using niftiread.
+            %   **kwargs : `OPTIONAL` arguments of method :attr:`tubefunc`.
+            %
+            %
+
             assert(isa(tubefunc,"char") || isa(tubefunc,"string"), ...
                 'tubefunction must be provided as char/string.')
             for ii = 1:length(obj.tubes)
@@ -214,8 +222,10 @@ classdef TubeNetwork < matlab.mixin.SetGet
             end
 
         end
+        
         % GRAPH NETWORK
         function [g, glink, gnode] = Skel2Digraph(obj, method)
+            
             if nargin < 2
                 method = 'topnode';
             end
@@ -245,7 +255,7 @@ classdef TubeNetwork < matlab.mixin.SetGet
             % make the digraph with tubes as nodes
             %
             %
-            % ..todo:
+            % .. todo::
             %   * Scope for improving efficiency, variables that change
             %       size.
             %
@@ -285,7 +295,7 @@ classdef TubeNetwork < matlab.mixin.SetGet
             %
             % long desc
             %
-            % .. todo: add docs
+            % .. todo:: add docs
             %
             % Args:
             %   x():
@@ -302,7 +312,7 @@ classdef TubeNetwork < matlab.mixin.SetGet
             %
             % long desc
             %
-            % .. todo: add docs
+            % .. todo:: add docs
             %
             % Args:
             %   x():
@@ -838,7 +848,7 @@ classdef TubeNetwork < matlab.mixin.SetGet
             %
             % long desc
             %
-            % .. todo: add documentation to this function
+            % .. todo:: add documentation to this function
             %   * consider copying object and removing tubes property.
             %
             % Args:
@@ -864,7 +874,7 @@ classdef TubeNetwork < matlab.mixin.SetGet
             %
             % long desc
             %
-            % .. todo: add documentation to this function
+            % .. todo:: add documentation to this function
             %   * Needs attention.: make tubes individual files to save.
             %
             %

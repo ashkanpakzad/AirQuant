@@ -1,5 +1,6 @@
 function varargout = Compute_Spline_Points(spline, sample_interval)
     % Computes the parametrised points along a spline at sample interval.
+    %
     % Polynomial splines are defined by discontinuous polynomial
     % functions. They are parametrised by a continuous variable. An
     % interval in parameterised space does not correspond to the same
@@ -7,32 +8,37 @@ function varargout = Compute_Spline_Points(spline, sample_interval)
     % parametrised points for an equidistant spacing along the arclength of
     % the spline.
     %
-    % .. note: The last value in :attr:`arcpoints` is equal to 
-    % :attr:`total_arclength` if the latter is exactly divisible by  
-    % :attr:`sample_interval`. 
-    % 
-    % Example:
-    %   totalarclength = Compute_Spline_Points(spline);
-    %   [totalarclength, para_points, arc_points] = Compute_Spline_Points(spline, sample_interval);
+    % .. note: The last value in :attr:`arcpoints` is equal to
+    %     :attr:`total_arclength` if the latter is exactly divisible by
+    %     :attr:`sample_interval`.
+    %
     %
     % Args:
-    %   spline: polynomial spline object, e.g. computed using `cscvn`.
-    %   sample_interval: scalar value defining the sample interval in
-    %   cartesian space.
+    %   spline(struct): polynomial spline object, e.g. computed using `cscvn`.
+    %   sample_interval(scalar): scalar value defining the sample interval in
+    %     cartesian space.
     %
-    % Return:
-    %   total_arclength: Total arclength of the 
-    %   parapoints: parametrised points on spline corresponding to the
-    %       defined sample interval.
-    %   arcpoints: cartesian points on spline corresponding to the defined
-    %       sample interval.
-    
+    % Returns:
+    %   3 items
+    %
+    %   - **total_arclength** (:attr:`scalar`): Total arclength of the spline.
+    %   - **parapoints** (:attr:`vector`): *OPTIONAL* parametrised points on spline corresponding to the
+    %     defined sample interval.
+    %   - **arcpoints** (:attr:`vector`): *OPTIONAL* cartesian points on spline corresponding to the defined
+    %     sample interval.
+    %
+    % Example:
+    %   >>> totalarclength = Compute_Spline_Points(spline);
+    %   >>> [totalarclength, para_points, arc_points] = Compute_Spline_Points(spline, sample_interval);
+    %
+    %
+
     arguments
-        spline 
+        spline
         sample_interval = []
     end
 
-    
+
     % Get t break points
     breaks = ppbrk(spline, 'breaks');
     Npp = ppbrk(spline, 'pieces');
