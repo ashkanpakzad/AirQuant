@@ -1,0 +1,39 @@
+alabaster==0.7.12
+Babel @ file:///home/conda/feedstock_root/build_artifacts/babel_1619719576210/work
+brotlipy @ file:///Users/runner/miniforge3/conda-bld/brotlipy_1648854211613/work
+certifi==2021.10.8
+cffi @ file:///Users/runner/miniforge3/conda-bld/cffi_1636046181956/work
+charset-normalizer @ file:///home/conda/feedstock_root/build_artifacts/charset-normalizer_1644853463426/work
+colorama @ file:///home/conda/feedstock_root/build_artifacts/colorama_1602866480661/work
+cryptography @ file:///Users/runner/miniforge3/conda-bld/cryptography_1649035270543/work
+docutils @ file:///Users/runner/miniforge3/conda-bld/docutils_1610127908145/work
+future==0.18.2
+idna @ file:///home/conda/feedstock_root/build_artifacts/idna_1642433548627/work
+imagesize @ file:///home/conda/feedstock_root/build_artifacts/imagesize_1636492669893/work
+importlib-metadata @ file:///Users/runner/miniforge3/conda-bld/importlib-metadata_1648728334687/work
+Jinja2 @ file:///home/conda/feedstock_root/build_artifacts/jinja2_1648299710939/work
+MarkupSafe @ file:///Users/runner/miniforge3/conda-bld/markupsafe_1648737704633/work
+packaging @ file:///home/conda/feedstock_root/build_artifacts/packaging_1637239678211/work
+pockets==0.9.1
+pycparser @ file:///home/conda/feedstock_root/build_artifacts/pycparser_1636257122734/work
+Pygments @ file:///home/conda/feedstock_root/build_artifacts/pygments_1641580240686/work
+pyOpenSSL @ file:///home/conda/feedstock_root/build_artifacts/pyopenssl_1643496850550/work
+pyparsing @ file:///home/conda/feedstock_root/build_artifacts/pyparsing_1649603503565/work
+PySocks @ file:///Users/runner/miniforge3/conda-bld/pysocks_1648857336012/work
+pytz @ file:///home/conda/feedstock_root/build_artifacts/pytz_1647961439546/work
+requests @ file:///home/conda/feedstock_root/build_artifacts/requests_1641580202195/work
+six==1.16.0
+snowballstemmer @ file:///home/conda/feedstock_root/build_artifacts/snowballstemmer_1637143057757/work
+Sphinx @ file:///home/conda/feedstock_root/build_artifacts/sphinx_1648404928645/work
+sphinx-copybutton @ file:///home/conda/feedstock_root/build_artifacts/sphinx-copybutton_1644147394672/work
+sphinx-rtd-theme==1.0.0
+sphinxcontrib-applehelp==1.0.2
+sphinxcontrib-devhelp==1.0.2
+sphinxcontrib-htmlhelp @ file:///home/conda/feedstock_root/build_artifacts/sphinxcontrib-htmlhelp_1621704829796/work
+sphinxcontrib-jsmath==1.0.1
+sphinxcontrib-matlabdomain==0.13.0
+sphinxcontrib-napoleon==0.7
+sphinxcontrib-qthelp==1.0.3
+sphinxcontrib-serializinghtml @ file:///home/conda/feedstock_root/build_artifacts/sphinxcontrib-serializinghtml_1649380998999/work
+urllib3 @ file:///home/conda/feedstock_root/build_artifacts/urllib3_1647489083693/work
+zipp @ file:///home/conda/feedstock_root/build_artifacts/zipp_1649012893348/work
