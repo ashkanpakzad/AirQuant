@@ -679,7 +679,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
                 'CameraPosition', [-4.2 0.8  2], 'CameraViewAngle', 10, ...
                 'CameraTarget', [0, 0, 0.1]);
         end
-
+        
         function PlotSegSkel(obj)
             % plot segmentation and skeleton within each other.
             patch(isosurface(obj.seg),'EdgeColor', 'none','FaceAlpha',0.1);
@@ -704,7 +704,42 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             grid on
             light
         end
+        
+        function s = OrthoView(obj, options)
+            % View a series of an airway segment's slices as a volume image
+            % stack using MATLAB's inbuilt othogonal 3d viewer.
+            % short desc
+            %
+            % long desc
+            %
+            % .. todo::
+            %   * add documentation to this function
+            %   * make scrollable by mousewheel
+            %   * refactor to :class:`AirQuant` superclass
+            %   * investigate saggital view
+            %
+            % Args:
+            %   x(type):
+            %
+            % Return:
+            %   y(type):
+            %
 
+            arguments
+                obj
+                options.type {mustBeMember(options.type,{'source','seg'})} = 'source'
+            end
+
+            % get volume
+            volout = ParseVolOut(obj, type=options.type);
+            volout = permute(volout, [2,1,3]);
+            volout = flip(volout, 3);
+
+            % display with orthoview
+            s = orthosliceViewer(volout, 'DisplayRangeInteraction','off', ...
+                'ScaleFactors',obj.voxdim, 'CrosshairLineWidth', 0.3);
+
+        end
         %%% Novel/tapering visualisation
         function [h, G] = GraphPlotDiameter(obj, showlabels, XData, YData)
             if nargin < 2
@@ -755,28 +790,64 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
 
         % Data IO
 
-%         function volout = ParseVolOut(obj,options)
-%             % short desc
-%             %
-%             % long desc
-%             %
-%             % .. todo::
-%             %   * add documentation to this function
-%             %   * add version that makes tubestack back to parent
-%             %
-%             % Args:
-%             %   x(type):
-%             %
-%             % Return:
-%             %   y(type):
-%             %
-% 
-%             arguments
-%                 obj
-%                 options.type {mustBeMember(options.type,{'source','seg'})} = 'source'
-%             end
-%             volout = int16(obj,options.type);
-%         end
+        function toGif(obj, filename, options)
+            % View a series of an airway segment's slices as a volume image
+            % stack using MATLAB's inbuilt othogonal 3d viewer.
+            % short desc
+            %
+            % long desc
+            %
+            % .. todo:: add documentation to this function
+            %
+            % Args:
+            %   x(type):
+            %
+            % Return:
+            %   y(type):
+            %
+
+            arguments
+                obj
+                filename
+                options.type {mustBeMember(options.type,{'source','seg'})} = 'source'
+                options.rings = ones(size(obj.measures,1),1)
+                options.ellipses = true
+                options.points = false
+                options.framerate (1,1) mustBeNumeric = 20
+            end
+
+            % parse filename
+            filename = parse_filename_extension(filename, '.gif');
+
+            % instantiate orthosliceviewer
+            s = obj.View(type=options.type, rings=options.rings, ...
+                ellipses=options.ellipses, ...
+                points=options.points);
+            [ax, ~, ~] = getAxesHandles(s);
+
+            set(s,'CrosshairEnable','off');
+            sliceNums = 1:length(obj.source);
+
+            for idx = sliceNums
+                % Update z slice number and annotation to get XY Slice.
+                s.SliceNumbers(3) = idx;
+                obj.UpdateAnnotateOrthoviewer(ax,idx,options.rings,...
+                    options.ellipses,options.points)
+
+                % Use getframe to capture image.
+                I = getframe(ax);
+                [indI,cm] = rgb2ind(I.cdata,256);
+
+                % Write frame to the GIF File.
+                if idx == 1
+                    imwrite(indI,cm,filename,'gif','Loopcount',inf,...
+                        'DelayTime',1/options.framerate);
+                else
+                    imwrite(indI,cm,filename,'gif','WriteMode',...
+                        'append','DelayTime',1/options.framerate);
+                end
+            end
+        end
 
         %         function obj = savetube(obj, tube)
         %             % update specific tube object only in matfile
