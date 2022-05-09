@@ -1,6 +1,4 @@
-ANNOUNCEMENT: AirQuant is currently undergoing a major refactor, set for release by the end of May 2022 with improved documnetation and object-oriented programming practices. This will result in major API changes.
-
-```
+**ANNOUNCEMENT: AirQuant is currently undergoing a major refactor, set for release by the end of May 2022 with improved documnetation and object-oriented programming practices. This will result in major API changes.**
 
 AirQuant is a software tool based in MATLAB primarily for extracting airway measurements from fully segmented airways of a chest CT. If you use this work, please cite our preprint:
 
