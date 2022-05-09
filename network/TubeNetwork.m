@@ -57,7 +57,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
 
     methods
         % init
-        function obj = TubeNetwork(source, sourceinfo, seg, skel)
+        function obj = TubeNetwork(source, sourceinfo, seg, skel, options)
             % Initialise the TubeNetwork class object.
             %
             % The network digraph is constructed using the default method.
@@ -75,12 +75,15 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             %       same grid space as CT. Dimensions must match with CT
             %
             %
+            arguments
+            source (:,:,:) mustBeNumeric
+            sourceinfo struct
+            seg (:,:,:) logical
+            skel (:,:,:) logical
+            options.fillholes logical = 1
+            options.largestCC logical = 0
+            end
 
-            % parse inputs
-            seg = logical(seg);
-            skel = logical(skel);
-
-            assert(ndims(source) == 3, 'source must be a 3D array.')
             assert(ndims(seg) == 3, 'seg must be a 3D array.')
             assert(ndims(skel) == 3, 'skel must be a 3D array.')
 
@@ -92,7 +95,8 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
                 size(skel),' differs from source ', size(source)])
 
             obj.sourceinfo = sourceinfo;
-            robustseg = ParseSeg(seg);
+            robustseg = ParseSeg(seg, fillholes=options.fillholes, ...
+                largestCC=options.largestCC);
 
             % reorient volumes and get properties
             [obj.source, obj.voxdim] = ReorientVolume(source, obj.sourceinfo);
@@ -148,7 +152,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             %
             % Args:
             %   tubefunc (char): CT loaded from nifti using niftiread.
-            %   **kwargs : `OPTIONAL` arguments of method :attr:`tubefunc`.
+            %   varargin : `OPTIONAL` arguments of method :attr:`tubefunc`.
             %
             %
 
@@ -319,6 +323,9 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             %
 
             [I1, I2, I3] = I2S3(size(obj.source),I);
+            if nargout == 1
+                I1 = [I1; I2; I3]';
+            end
         end
 
         % HIGH LEVEL - group run lower level methods
@@ -542,7 +549,6 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
 
         end
         
-
         % Splines
         function PlotSplineTree(obj)
             % loop through every branch, check spline has already been
@@ -705,12 +711,12 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             light
         end
         
-        function s = OrthoView(obj, options)
-            % View a series of an airway segment's slices as a volume image
-            % stack using MATLAB's inbuilt othogonal 3d viewer.
-            % short desc
+        function s = OrthoView(obj, type)
+            % View volume using MATLAB's inbuilt othogonal viewer.
             %
-            % long desc
+            % Call MATLAB's orthosliceViewer for a property that is a 3D
+            % array of this class. All params are inferred from the object
+            % properties.
             %
             % .. todo::
             %   * add documentation to this function
@@ -719,19 +725,21 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             %   * investigate saggital view
             %
             % Args:
-            %   x(type):
+            %   type(`char`): `OPTIONAL` default = `source` property name
+            %   of 3D array object to view.
             %
             % Return:
-            %   y(type):
+            %   - **s** (:attr:`orthosliceViewer`): see ___ for more
+            %       details.
             %
 
             arguments
                 obj
-                options.type {mustBeMember(options.type,{'source','seg'})} = 'source'
+                type {mustBeMember(type,{'source','seg'})} = 'source'
             end
 
             % get volume
-            volout = ParseVolOut(obj, type=options.type);
+            volout = ParseVolOut(obj, type=type);
             volout = permute(volout, [2,1,3]);
             volout = flip(volout, 3);
 
@@ -740,7 +748,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
                 'ScaleFactors',obj.voxdim, 'CrosshairLineWidth', 0.3);
 
         end
-        %%% Novel/tapering visualisation
+        
         function [h, G] = GraphPlotDiameter(obj, showlabels, XData, YData)
             if nargin < 2
                 showlabels = 1;
@@ -770,7 +778,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             edgevar = real(tapertable.inner_avg(G.Edges.Label));
 
             title('Average Inner lumen Diameter')
-            if ~isempty(XData) && ~isempty(XData)
+            if ~isempty(XData) && ~isempty(YData)
                 h = plot(G,'EdgeLabel',edgelabels,'XData',XData,'YData',YData);
             else
                 h = plot(G,'EdgeLabel',edgelabels, 'Layout', 'layered');
@@ -790,66 +798,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
 
         % Data IO
 
-        function toGif(obj, filename, options)
-            % View a series of an airway segment's slices as a volume image
-            % stack using MATLAB's inbuilt othogonal 3d viewer.
-            % short desc
-            %
-            % long desc
-            %
-            % .. todo:: add documentation to this function
-            %
-            % Args:
-            %   x(type):
-            %
-            % Return:
-            %   y(type):
-            %
-
-            arguments
-                obj
-                filename
-                options.type {mustBeMember(options.type,{'source','seg'})} = 'source'
-                options.rings = ones(size(obj.measures,1),1)
-                options.ellipses = true
-                options.points = false
-                options.framerate (1,1) mustBeNumeric = 20
-            end
-
-            % parse filename
-            filename = parse_filename_extension(filename, '.gif');
-
-            % instantiate orthosliceviewer
-            s = obj.View(type=options.type, rings=options.rings, ...
-                ellipses=options.ellipses, ...
-                points=options.points);
-            [ax, ~, ~] = getAxesHandles(s);
-
-            set(s,'CrosshairEnable','off');
-            sliceNums = 1:length(obj.source);
-
-            for idx = sliceNums
-                % Update z slice number and annotation to get XY Slice.
-                s.SliceNumbers(3) = idx;
-                obj.UpdateAnnotateOrthoviewer(ax,idx,options.rings,...
-                    options.ellipses,options.points)
-
-                % Use getframe to capture image.
-                I = getframe(ax);
-                [indI,cm] = rgb2ind(I.cdata,256);
-
-                % Write frame to the GIF File.
-                if idx == 1
-                    imwrite(indI,cm,filename,'gif','Loopcount',inf,...
-                        'DelayTime',1/options.framerate);
-                else
-                    imwrite(indI,cm,filename,'gif','WriteMode',...
-                        'append','DelayTime',1/options.framerate);
-                end
-            end
-        end
-
-        %         function obj = savetube(obj, tube)
+        % function obj = savetube(obj, tube)
         %             % update specific tube object only in matfile
         %             %
         %             % firstrun
