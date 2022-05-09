@@ -1,7 +1,7 @@
 % Lead Author: Ashkan Pakzad 2022. ashkanpakzad.github.io.
 % See https://github.com/ashkanpakzad/AirQuant for more information.
 
-classdef TubeNetwork < matlab.mixin.SetGet
+classdef TubeNetwork < AirQuant & matlab.mixin.SetGet 
     % TubeNetwork for managing analysis of a set of tubes in AirQuant.
     %
     % TubeNetwork creates and manages objects inherited from
@@ -38,10 +38,7 @@ classdef TubeNetwork < matlab.mixin.SetGet
     %
     properties
         tubes = [];
-        source
         sourceinfo
-        voxdim
-        seg
         skel
         lims
         spline_sample_sz
@@ -757,6 +754,29 @@ classdef TubeNetwork < matlab.mixin.SetGet
         end
 
         % Data IO
+
+%         function volout = ParseVolOut(obj,options)
+%             % short desc
+%             %
+%             % long desc
+%             %
+%             % .. todo::
+%             %   * add documentation to this function
+%             %   * add version that makes tubestack back to parent
+%             %
+%             % Args:
+%             %   x(type):
+%             %
+%             % Return:
+%             %   y(type):
+%             %
+% 
+%             arguments
+%                 obj
+%                 options.type {mustBeMember(options.type,{'source','seg'})} = 'source'
+%             end
+%             volout = int16(obj,options.type);
+%         end
 
         %         function obj = savetube(obj, tube)
         %             % update specific tube object only in matfile

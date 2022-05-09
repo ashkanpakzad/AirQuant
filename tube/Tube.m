@@ -1,7 +1,7 @@
 % Lead Author: Ashkan Pakzad 2022. ashkanpakzad.github.io.
 % See https://github.com/ashkanpakzad/AirQuant for more information.
 
-classdef Tube < matlab.mixin.SetGet
+classdef Tube < AirQuant & matlab.mixin.SetGet 
     % Initialise the Tube class object.
     %
     % description
@@ -37,8 +37,6 @@ classdef Tube < matlab.mixin.SetGet
         skelpoints
         segpoints
         spline
-        source
-        seg
         patchprop
         prunelength = []
         stats
@@ -716,7 +714,7 @@ classdef Tube < matlab.mixin.SetGet
                 , num2str(size(options.rings,2)), ' instead of ' num2str(size(obj.measures,1),2)])
 
             % convert from cell stack to 3D array.
-            tubearray = tubestack(obj, type=options.type);
+            tubearray = ParseVolOut(obj, type=options.type);
 
             % display with orthoview
             s = orthosliceViewer(tubearray, 'DisplayRangeInteraction','off', ...
@@ -957,6 +955,7 @@ classdef Tube < matlab.mixin.SetGet
 
             set(s,'CrosshairEnable','off');
             sliceNums = 1:length(obj.source);
+            
             for idx = sliceNums
                 % Update z slice number and annotation to get XY Slice.
                 s.SliceNumbers(3) = idx;
@@ -975,66 +974,6 @@ classdef Tube < matlab.mixin.SetGet
                     imwrite(indI,cm,filename,'gif','WriteMode',...
                         'append','DelayTime',1/options.framerate);
                 end
-            end
-        end
-
-        function toNii(obj, filename, options)
-            arguments
-                obj
-                filename char
-                options.type {mustBeMember(options.type,{'source','seg'})} = 'source'
-                options.gz logical = true
-            end
-
-            filename = parse_filename_extension(filename, '.nii');
-
-            tubearray = tubestack(obj, type=options.type);
-            niftiwrite(tubearray,filename)
-
-            if options.gz == true
-                gzip(filename)
-                delete(filename)
-            end
-        end
-
-        function status = toITKsnap(obj, options)
-            % view in itksnap
-            %
-            % May need to set up enviroments on matlab search path for
-            % system terminal.
-            % setenv('PATH', [getenv('PATH') ':/Applications/ITK-SNAP.app/Contents/bin']);
-            %
-            arguments
-                obj
-                options.type {mustBeMember(options.type,{'source','seg','both'})} = 'both'
-            end
-
-            % set up temp file
-            if strcmp(options.type,'source')|| strcmp(options.type,'both')
-                sourcefile = parse_filename_extension(tempname, '.nii');
-                obj.toNii(sourcefile, type='source', gz=false)
-            end
-            if strcmp(options.type,'seg')|| strcmp(options.type,'both')
-                segfile = parse_filename_extension(tempname, '.nii');
-                obj.toNii(segfile, type='seg', gz=false)
-            end
-
-            % call itk
-            switch options.type
-                case 'source'
-                    command = ['itksnap ', sourcefile];
-                case 'seg'
-                    command = ['itksnap ', segfile];
-                case 'both'
-                    command = ['itksnap -g ', sourcefile, ' -o ', segfile];
-            end
-
-            status = system(command);
-
-            if status ~= 0
-                error(['Failed to open in ITK-snap, ' ...
-                    'please see documentation to check this facility is ' ...
-                    'set up correctly.'])
             end
         end
 
@@ -1099,7 +1038,7 @@ classdef Tube < matlab.mixin.SetGet
             prunedprop = reshape(prunedprop,nrings,[]);
         end
 
-        function tubearray = tubestack(obj,options)
+        function volout = ParseVolOut(obj,options)
             % short desc
             %
             % long desc
@@ -1123,13 +1062,13 @@ classdef Tube < matlab.mixin.SetGet
             % stack.
             tubecell = get(obj,options.type);
             canvas_sz = floor(obj.network.max_plane_sz/obj.network.plane_sample_sz);
-            tubearray = zeros([canvas_sz, canvas_sz, length(tubecell)]);
+            volout = zeros([canvas_sz, canvas_sz, length(tubecell)]);
             for slice = 1:length(tubecell)
                 image = tubecell{slice,1};
                 image_sz = size(image,1);
                 min_centre = canvas_sz/2 - image_sz/2;
                 max_centre = canvas_sz/2 + image_sz/2;
-                tubearray(min_centre+1:max_centre, min_centre+1:max_centre, slice) = image;
+                volout(min_centre+1:max_centre, min_centre+1:max_centre, slice) = image;
             end
         end
 
