@@ -86,6 +86,9 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             obj.network = network;
             obj.skelpoints = skelpoints;
             obj.ID = ID;
+            obj.voxdim = [obj.network.plane_sample_sz, ...
+                obj.network.plane_sample_sz, ...
+                obj.network.spline_sample_sz];
 
             obj.relatives = struct;
             obj.patchprop = struct;
@@ -152,6 +155,11 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             count = 0;
             while ~isempty(currentbranch.parent)
                 count = count + 1;
+                if currentbranch.generation == 0
+                    % effective when the true 0th gen is set for a
+                    % particular case.
+                    break
+                end
                 currentbranch = currentbranch.parent;
                 if length(currentbranch.parent) > 1
                     obj.generation = NaN;
@@ -176,6 +184,85 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             %
             %
             obj.region = setfield(obj.region, regiontype, value);
+        end
+        
+        function obj = SetRegionDescendants(obj, regiontype, value)
+            % Set region classifcation of tube for current and all
+            % children.
+            %
+            % .. todo::: add documentation to this function
+            %
+            % Args:
+            %   relativetube (:class:`tube`): the tube to set
+            %       relation to.
+            %   relation (string): relation name. common
+            %       "parent" or "child".
+            %
+            %
+            
+            % get all desendants
+            for tubeii = obj.Descendants()
+                tubeii.region = setfield(tubeii.region, regiontype, value);
+            end
+        end
+        
+        function obj = SetRegionGeneration(obj, regiontype)
+        % set generation by give region to region property
+        %
+        % Example:
+        %   >>> AQnet.tubes(1).SetRegionGeneration('lobe')
+        %   >>> AQnet.tubes(1).region.lobegen
+        %
+        %
+        %
+        genname = [regiontype, '_gen'];
+        currentube = obj;
+        count = 0;
+        while ~strcmp(currentube.region.(regiontype), ...
+                currentube.parent.region.(regiontype))||...
+                isempty(currentube.parent)
+            if length(currentube.parent) > 1
+                obj.region.(genname) = NaN;
+                warning('Multiple parents, not possible to set generation')
+                return
+            end
+            count = count + 1;
+            currentube = currentube.parent;
+        end
+        obj.region.(genname) = count;
+        end
+
+        function descendants = Descendants(obj)
+            % returns children of children tubes in a breadth-first search
+            % list inclusive.
+            %
+            % .. note: if tubes can have multiple parents there may be
+            % duplicates.
+            %
+            descendants = obj;
+            tubes = obj;
+            while ~isempty(tubes)
+                currenttube = tubes(1);
+                descendants = [descendants currenttube.children];
+                tubes = [tubes currenttube.children];
+                tubes(1) = [];
+            end
+        end
+
+        function ancestors = Ancestors(obj)
+            % returns parents of parent tubes inclusive.
+            %
+            % .. note: if tubes can have multiple parents there may be
+            % duplicates.
+            %
+            ancestors = obj;
+            tubes = obj;
+            while ~isempty(tubes)
+                currenttube = tubes(1);
+                ancestors = [ancestors currenttube.parent];
+                tubes = [tubes currenttube.parent];
+                tubes(1) = [];
+            end
         end
 
         % spline related
@@ -682,7 +769,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             end
         end
 
-        function s = View(obj, options)
+        function s = OrthoView(obj, options)
             % View a series of an airway segment's slices as a volume image
             % stack using MATLAB's inbuilt othogonal 3d viewer.
             % short desc
@@ -718,9 +805,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
 
             % display with orthoview
             s = orthosliceViewer(tubearray, 'DisplayRangeInteraction','off', ...
-                'ScaleFactors',[obj.network.plane_sample_sz, ...
-                obj.network.plane_sample_sz, ...
-                obj.network.spline_sample_sz], 'CrosshairLineWidth', 0.3);
+                'ScaleFactors',obj.voxdim, 'CrosshairLineWidth', 0.3);
             % get axial axes
             [ax, ~, ~] = getAxesHandles(s);
 
@@ -948,7 +1033,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             filename = parse_filename_extension(filename, '.gif');
 
             % instantiate orthosliceviewer
-            s = obj.View(type=options.type, rings=options.rings, ...
+            s = obj.OrthoView(type=options.type, rings=options.rings, ...
                 ellipses=options.ellipses, ...
                 points=options.points);
             [ax, ~, ~] = getAxesHandles(s);
