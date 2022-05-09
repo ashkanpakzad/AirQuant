@@ -1,5 +1,5 @@
-function robustseg = ParseSeg(seg)
-    % Fills holes in segmentation and keeps only the largest connected 
+function seg = ParseSeg(seg, options)
+    % Fills holes in segmentation and keeps only the largest connected
     % component.
     %
     % Args:
@@ -7,13 +7,27 @@ function robustseg = ParseSeg(seg)
     % Returns:
     %   robustseg: input segmentation without holes
     
-    % fill holes
-    segfilled = imfill(seg,'holes');
+    arguments
+    seg
+    options.fillholes = 1
+    options.largestCC = 1
+    end
     
+    % fill holes
+    if options.fillholes == 1
+        seg = imfill(seg,'holes');
+    else
+        return
+    end
+
     % preprocess segmentation to keep largest
     % connected component.
-    CC = bwconncomp(segfilled);
-    numOfPixels = cellfun(@numel,CC.PixelIdxList);
-    [~,indexOfMax] = max(numOfPixels);
-    robustseg = false(size(segfilled));
-    robustseg(CC.PixelIdxList{indexOfMax}) = 1;
+    if options.largestCC == 1
+        CC = bwconncomp(seg);
+        numOfPixels = cellfun(@numel,CC.PixelIdxList);
+        [~,indexOfMax] = max(numOfPixels);
+        seg = false(size(seg));
+        seg(CC.PixelIdxList{indexOfMax}) = 1;
+    else
+        return
+    end
