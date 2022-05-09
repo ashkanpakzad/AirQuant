@@ -1,3 +1,7 @@
+ANNOUNCEMENT: AirQuant is currently undergoing a major refactor, set for release by the end of May 2022 with improved documnetation and object-oriented programming practices. This will result in major API changes.
+
+```
+
 AirQuant is a software tool based in MATLAB primarily for extracting airway measurements from fully segmented airways of a chest CT. If you use this work, please cite our preprint:
 
 *Pakzad, A., Cheung, W. K., Quan, K., Mogulkoc, N., Van Moorsel, C. H. M., Bartholmai, B. J., … Jacob, J. (2021). Evaluation of automated airway morphological quantification for assessing fibrosing lung disease. arXiv [physics.med-ph]. Opgehaal van http://arxiv.org/abs/2111.10443*
