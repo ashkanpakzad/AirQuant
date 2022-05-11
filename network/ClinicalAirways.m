@@ -1,4 +1,4 @@
-classdef ClincalAirways < TubeNetwork
+classdef ClinicalAirways < TubeNetwork
     % short desc
     %
     % long desc
@@ -13,7 +13,7 @@ classdef ClincalAirways < TubeNetwork
     %
 
     methods
-        function obj = ClincalAirways(varargin)
+        function obj = ClinicalAirways(varargin)
             % short desc
             %
             % long desc
@@ -29,11 +29,17 @@ classdef ClincalAirways < TubeNetwork
             
             obj.IdentifyCarinaAndTrachea()
 
-            obj.ClassifyLungLobes()
+%             obj.ClassifyLungLobes()
 
         end
 
-        function IdentifyCarinaAndTrachea(obj)
+        function obj = MakeTubes(obj, glink)
+            for ii = 1:length(glink)
+                obj.tubes = [obj.tubes, Airway(obj, glink(ii).point, ii)];
+            end
+        end
+
+        function obj = IdentifyCarinaAndTrachea(obj)
             % short desc
             %
             % long desc
@@ -52,17 +58,16 @@ classdef ClincalAirways < TubeNetwork
             % identfy carina
             g = TubesAsEdges(obj);
             [~, carina_node] = max(centrality(g,'outcloseness'));
-            carinaend_gidx = inedges(carina_node);
-            obj.tubes(g.Edges.ID(carinaend_gidx)).carinaend = true;
+            carinaend_gidx = inedges(g,carina_node);
+            obj.tubes(g.Edges.ID(carinaend_gidx)).SetCarinaEnd();
 
             % all tubes predecessing the carina is considered part of the
             % trachea and are therefore generation 0
             tracheanodes = predecessors(g, carina_node);
             for nid = tracheanodes
-                eid = inedges(g, nid);
-                tubeid = g.Edges(eid).ID;
-                obj.tubes(tubeid).istrachea = true;
-                obj.tubes(tubeid).generation = 0;
+                eid = outedges(g, nid);
+                tubeid = g.Edges.ID(eid);
+                obj.tubes(tubeid).SetTrachea();
             end
 
             % reclass all tube generations by n decendants from 0 gen.
@@ -86,13 +91,14 @@ classdef ClincalAirways < TubeNetwork
 
             % find carina-end tube and init algorithm
             carinaendID = find([obj.tubes(:).carinaend]);
-            assert(length(carinaendID) == 1, ['There should only be one carina end.' ...
-                'this indicates a major failure in the lobe classification algorithm.'])
+            assert(length(carinaendID) == 1, ['There should only be one' ...
+                ' carina end. This indicates a major failure in the lobe ' ...
+                'classification algorithm.'])
 
             % Identify left and right major bronchi by comparing ends of
             % child of carina-end trachea
             MB = obj.tubes(carinaendID).children;
-            [mX, ~, ~] = I2S([MB(:).skelpoints(end)]);
+            [mX, ~, ~] = obj.I2S(ClinicalAirways.SkelEnds(MB));
             [~,leftMBI] = max(mX);
             [~,rightMBI] = min(mX);
             MB(leftMBI).SetRegion('lobe','B')
@@ -102,7 +108,7 @@ classdef ClincalAirways < TubeNetwork
 
             % Identify upper/lingular and lower left lobe 'LLL'
             MLlung = MB(leftMBI).children;
-            [~, ~, MLlz] = I2S([MLlung(:).skelpoints(end)]);
+            [~, ~, MLlz] = obj.I2S(ClinicalAirways.SkelEnds(MLlung));
             [~,MLULLML] = max(MLlz);
             [~,MLLL] = min(MLlz);
             MLlung(MLULLML).SetRegion('lobe','B')
@@ -111,7 +117,7 @@ classdef ClincalAirways < TubeNetwork
 
             % identify upper lobe and lingular
             MLULLML2 = MLlung(MLULLML).children;
-            [~, ~, MLl2z] = I2S([MLULLML2(:).skelpoints(end)]);
+            [~, ~, MLl2z] = obj.I2S(ClinicalAirways.SkelEnds(MLULLML2));
             [~,MLUL] = max(MLl2z);
             [~,MLML] = min(MLl2z);
             MLULLML2(MLUL).SetRegionDescendants('lobe','LUL')
@@ -119,7 +125,7 @@ classdef ClincalAirways < TubeNetwork
 
             % % Identify right upper lobe
             MRlung = MB(rightMBI).children;
-            [~, ~, MRz] = I2S([MRlung(:).skelpoints(end)]);
+            [~, ~, MRz] = obj.I2S(ClinicalAirways.SkelEnds(MRlung));
             [~,MRULi] = max(MRz);
             MRlung(MRULi).SetRegionDescendants('lobe','RUL');
 
@@ -134,11 +140,13 @@ classdef ClincalAirways < TubeNetwork
             end
 
             % subgraph remaining and get endtubes
+            [~,MRMLRLLi] = min(MRz);
             subtubes = MRlung(MRMLRLLi).Descendants;
-            endtubes = subtubes(isempty(subtubes.children));
+%             nchildren = {subtubes.children};
+            endtubes = subtubes(cellfun(@isempty, {subtubes.children}));
             % compare endpoints of endtubes
-            endtubes_ep = [endtubes(:).skelpoints(end)];
-            [~, epy, epz] = I2S(endtubes_ep);
+            endtubes_ep = ClinicalAirways.SkelEnds(endtubes);
+            [~, epy, epz] = obj.I2S(endtubes_ep);
             z_minus_y = epz - epy;
             [~, RMLepi] = max(z_minus_y);
             RML_eptube = endtubes(RMLepi);
@@ -155,13 +163,13 @@ classdef ClincalAirways < TubeNetwork
             obj.tubes(RML_RLLNid).SetRegion('name','RightIntermedius')
 
             % assign RML
-            RML_id = RML_endpath(min(intersections)-1);
+            RML_id = RML_endpath(min(intersections))-1;
             obj.tubes(RML_id).SetRegionDescendants('lobe','RML')
 
             % assign remaining labels to RLL
-            for ii = 1:length(obj.subtubes)
-                if ~isfield(obj.subtubes(ii).region,'lobe')
-                    obj.subtubes(ii).SetRegion('lobe','RLL')
+            for ii = 1:length(subtubes)
+                if ~isfield(subtubes(ii).region,'lobe')
+                    subtubes(ii).SetRegion('lobe','RLL')
                 end
             end
 
@@ -174,9 +182,31 @@ classdef ClincalAirways < TubeNetwork
             end
 
             % set gen by lobe
-            obj.RunAllTubes('SetRegionGeneration', 'lobe')
+%             obj.RunAllTubes('SetRegionGeneration', 'lobe')
+        end
+    
+        function h = plot(obj, options)
+            arguments
+                obj
+                options.label = 'ID'
+                options.weights = []
+                options.shownodes = false
+            end
+            h = plot@TubeNetwork(obj, label=options.label, ...
+                weights=options.weights, shownodes=options.shownodes);
+            
+            G = obj.TubesAsEdges;
+            regiontouse = 'lobe';
+            [h, G] = SetGraphRegionColourmap(obj, h, G, regiontouse);
         end
 
+    end
+
+    methods(Static)
+        function skelends = SkelEnds(airwaylist)
+            skelends = cell2mat(cellfun(@(c) [c(end)], ...
+                {airwaylist.skelpoints}, 'UniformOutput', false));
+        end
     end
 end
 

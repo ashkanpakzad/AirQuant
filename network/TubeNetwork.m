@@ -76,7 +76,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             %
             %
             arguments
-            source (:,:,:) mustBeNumeric
+            source (:,:,:)
             sourceinfo struct
             seg (:,:,:) logical
             skel (:,:,:) logical
@@ -125,9 +125,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             [~, glink, ~] = Skel2Digraph(obj);
 
             % make tube objects
-            for ii = 1:length(glink)
-                obj.tubes = [obj.tubes, Tube(obj, glink(ii).point, ii)];
-            end
+            obj.MakeTubes(glink)
 
             % set tube relationships
             for ii = 1:length(glink)
@@ -136,30 +134,16 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
                     obj.tubes(ii).SetChildren(obj.tubes(iii));
                 end
             end
-
+            
             obj.RunAllTubes('SetGeneration');
             
             % classify segmentation to tubes
             obj.ClassifySegmentationTubes();
         end
-
-        function obj = RunAllTubes(obj, tubefunc, varargin)
-            % Call a `Tube` method to run on all `obj.tubes`.
-            %
-            % Useful method for calling a :class:`Tube` method to run on
-            % all tubes of a :class:`TubeNetwork` object.
-            %
-            %
-            % Args:
-            %   tubefunc (char): CT loaded from nifti using niftiread.
-            %   varargin : `OPTIONAL` arguments of method :attr:`tubefunc`.
-            %
-            %
-
-            assert(isa(tubefunc,"char") || isa(tubefunc,"string"), ...
-                'tubefunction must be provided as char/string.')
-            for ii = 1:length(obj.tubes)
-                obj.tubes(ii).(tubefunc)(varargin{:})
+        
+        function obj = MakeTubes(obj, glink)
+            for ii = 1:length(glink)
+                obj.tubes = [obj.tubes, Tube(obj, glink(ii).point, ii)];
             end
         end
 
@@ -174,16 +158,20 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
                 obj
                 options.type = 'both'
                 options.usesegcrop logical = false
+                options.method char = 'cubic'
             end
 
             for ii = 1:length(obj.tubes)
 
                 if strcmp(options.type,'source') || strcmp(options.type,'both')
-                    MakePatchSlices(obj.tubes(ii), obj.source, type='source', usesegcrop=options.usesegcrop);
+                    MakePatchSlices(obj.tubes(ii), obj.source, ...
+                        type='source', usesegcrop=options.usesegcrop,...
+                        method=options.method);
                 end
 
                 if strcmp(options.type,'seg') || strcmp(options.type,'both')
-                    MakePatchSlices(obj.tubes(ii), obj.seg, type='seg', usesegcrop=options.usesegcrop);
+                    MakePatchSlices(obj.tubes(ii), obj.seg, type='seg', ...
+                        usesegcrop=options.usesegcrop, method=options.method);
                 end
 
             end
@@ -290,7 +278,27 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
         end
 
         % UTILITIES
-        
+
+        function obj = RunAllTubes(obj, tubefunc, varargin)
+            % Call a `Tube` method to run on all `obj.tubes`.
+            %
+            % Useful method for calling a :class:`Tube` method to run on
+            % all tubes of a :class:`TubeNetwork` object.
+            %
+            %
+            % Args:
+            %   tubefunc (char): CT loaded from nifti using niftiread.
+            %   varargin : `OPTIONAL` arguments of method :attr:`tubefunc`.
+            %
+            %
+
+            assert(isa(tubefunc,"char") || isa(tubefunc,"string"), ...
+                'tubefunction must be provided as char/string.')
+            for ii = 1:length(obj.tubes)
+                obj.tubes(ii).(tubefunc)(varargin{:})
+            end
+        end
+
         function I = S2I(obj,I1,I2,I3)
             % short desc
             %
@@ -335,7 +343,6 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
         function Measure(obj, varargin)
             obj.RunAllTubes('Measure', varargin{:});
         end
-
         
         % VISUALISATION
         % Airway Strucutral Tree
@@ -351,7 +358,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             ge = TubesAsEdges(obj);
 
             edgelabels = ge.Edges.ID;
-
+            
             switch options.label
                 case isnumeric(options.label)
                     edgelabels = options.label;
@@ -360,7 +367,8 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
                 case {'generation','gen'}
                     edgelabels = [obj.tubes(edgelabels).generation];
                 otherwise
-                    warning('Unexpected options.label type. Resorting to default type.')
+                    warning(['Unexpected options.label type. ' ...
+                        'Resorting to default type.'])
             end
 
             if options.shownodes == true
@@ -369,12 +377,45 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
                 nodelabels = [''];
             end
 
-            h = plot(ge,nodelabel=nodelabels,edgelabel=edgelabels,layout='layered');
+            h = plot(ge,nodelabel=nodelabels,edgelabel=edgelabels, ...
+                layout='layered');
 
             h.NodeColor = 'r';
             h.EdgeColor = 'k';
             h.LineWidth = 3;
         end
+
+        function [h, G] = SetGraphRegionColourmap(obj, h, G, regiontouse)
+                % set the colours of graph by some region.
+                % G is the graph object and h is the plot.
+                
+                % get region info
+                regionlist = AirQuant.list_property({obj.tubes.region},'lobe');
+                % convert to graph indices
+                edgeregion = regionlist(G.Edges.ID);
+                % convert labels into numbers
+                lobeid = unique(AirQuant.list_property({obj.tubes.region},'lobe'));
+                cdata = zeros(size(edgeregion));
+                for ii = 1:length(cdata)
+                    [~, ~, cdata(ii)] = intersect(edgeregion(ii),lobeid);
+                end
+                
+                % set edge colour by index
+                G.Edges.EdgeColors = cdata';
+                h.EdgeCData = G.Edges.EdgeColors;
+                
+                % set colours map and text
+                clims = [1 max(cdata(:))];
+                colorbarstring = 'Lobe';
+                colourshow = clims(1):clims(2);
+                colourlabels = lobeid;
+                maptype = 'qualitative';
+                map = linspecer(max(cdata(:)), maptype);
+                colormap(map)
+                c = colorbar('Ticks', colourshow, 'TickLabels', colourlabels);
+                c.Label.String = colorbarstring;
+                caxis(clims)
+            end
 
         function plot3(obj, gen, show_node_txt)
             % Plot the airway tree in graph form, in 3D. nodes are in
@@ -792,7 +833,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
 
             % highlight by lobe colour if available
             if isfield(obj.Glink, 'lobe')
-                [h, G] = SetGraphLobeColourmap(obj, h, G);
+                [h, G] = SetGraphRegionColourmap(obj, h, G);
             end
         end
 
