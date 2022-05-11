@@ -3,16 +3,16 @@
 % CLINICAL AIRWAYS
 tic
 AirQuantDir = AirQuantAddPath();
-dataset = 'example';
-casename = 'github_demo';
+dataset = 'airquant';
+casename = 'chestct';
 results_dir = fullfile(AirQuantDir,'results', dataset, casename);
-savepath = fullfile(AirQuantDir,'profile','profile_AQ.mat');
+savepath = fullfile(AirQuantDir,'profile','chestct_airways_AQ.mat');
 % By Ashkan Pakzad, 2022. ashkanpakzad.github.io
 
 %% load and init
-CT_name = [casename, '_raw.nii.gz'];
-seg_name = [casename, '_seg.nii.gz'];
-skel_name = [casename, '_seg_PTKskel.nii.gz'];
+CT_name = [casename, '_source.nii.gz'];
+seg_name = [casename, '_airway.nii.gz'];
+skel_name = [casename, '_airway_PTKskel.nii.gz'];
 
 % % Load CT data as double
 meta = niftiinfo(CT_name);
