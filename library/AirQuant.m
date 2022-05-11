@@ -48,7 +48,7 @@ classdef AirQuant < handle & matlab.mixin.SetGet % handle class
             % system terminal.
             % setenv('PATH', [getenv('PATH') ':/Applications/ITK-SNAP.app/Contents/bin']);
             %
-            
+
             if nargin < 2
                 segname = 'seg';
             end
@@ -94,6 +94,19 @@ classdef AirQuant < handle & matlab.mixin.SetGet % handle class
                 options.type
             end
             volout = get(obj,options.type);
+        end
+    end
+    methods(Static)
+        function list = list_property(someobject, property)
+            list = cellfun(@nanifempty, someobject, 'UniformOutput', false);
+
+            function out = nanifempty(c)
+                if isfield(c,property)
+                    out = c.(property);
+                else
+                    out = '' ;
+                end
+            end
         end
     end
 end
