@@ -2,16 +2,16 @@
 % add AirQuant library to path
 tic
 AirQuantDir = AirQuantAddPath();
-dataset = 'example';
-casename = 'github_demo';
-results_dir = fullfile(AirQuantDir,'results', dataset, casename);
+casename = 'chestct';
+dataset = AQdownload_data(casename);
+AirQuantAddPath();
 savepath = fullfile(AirQuantDir,'profile','profile_AQ.mat');
 % By Ashkan Pakzad, 2022. ashkanpakzad.github.io
 
 %% load and init
-CT_name = [casename, '_raw.nii.gz'];
-seg_name = [casename, '_seg.nii.gz'];
-skel_name = [casename, '_seg_PTKskel.nii.gz'];
+CT_name = [casename, '_source.nii.gz'];
+seg_name = [casename, '_airways.nii.gz'];
+skel_name = [casename, '_airways_PTKskel.nii.gz'];
 
 % % Load CT data as double
 meta = niftiinfo(CT_name);
