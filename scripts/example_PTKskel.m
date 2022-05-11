@@ -3,7 +3,7 @@
     % This method ensures there are no internal loops within the skeleton.
     % Dependent on PTK github
     
-segname = 'github_demo_seg.nii.gz';
+segname = 'chestct_airway.nii.gz';
 AirQuantAddPath(); % Ensure all AirQuant files are in matlab path
 
 % must be in matlab current path
