@@ -13,8 +13,8 @@ classdef Airway < Tube
     %
     
     properties
-        istrachea = false
-        carinaend = false
+        istrachea
+        carinaend
     end
     
     methods
@@ -32,8 +32,20 @@ classdef Airway < Tube
             %   y(type):
             %
             obj@Tube(varargin{:});
+            obj.istrachea = false;
+            obj.carinaend = false;
         end
         
+        function obj = SetTrachea(obj)
+            obj.istrachea = true;
+            obj.generation = 0;
+        end
+
+        function obj = SetCarinaEnd(obj)
+            obj.SetTrachea()
+            obj.carinaend = true;
+        end
+
     end
 end
 

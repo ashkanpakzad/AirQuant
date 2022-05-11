@@ -202,7 +202,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             
             % get all desendants
             for tubeii = obj.Descendants()
-                tubeii.region = setfield(tubeii.region, regiontype, value);
+                tubeii.SetRegion(regiontype, value);
             end
         end
         
@@ -231,6 +231,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
         end
         obj.region.(genname) = count;
         end
+
 
         function descendants = Descendants(obj)
             % returns children of children tubes in a breadth-first search
@@ -380,6 +381,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
                 vol (:,:,:)
                 options.type char {mustBeMember(options.type,{'source','seg'})} = 'infer'
                 options.usesegcrop logical = false
+                options.method char = 'cubic'
             end
 
             assert(~isempty(obj.spline), 'spline is empty, see method MakeSpline')
@@ -441,7 +443,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
                     obj.network.voxdim, point, normvec, ...
                     plane_sz=plane_sz, ...
                     sample_sz=obj.network.plane_sample_sz, ...
-                    offgrid_val=0);
+                    offgrid_val=0, method=options.method);
             end
 
             % Save plane images
