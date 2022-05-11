@@ -1,4 +1,4 @@
-function AQdownload_data(dataname)
+function [dataset] = AQdownload_data(dataname)
 % Get an AirQuant example dataset
 %
 % Download an AirQuant example dataset if it hasn't already been downloaded
@@ -6,6 +6,7 @@ function AQdownload_data(dataname)
 % .. todo: 
 %   * Automatically infer download size from HTTP head request of
 %       link.
+%   * Add exception to download whole file if interrupted.
 %
 % .. note: Example datasets are saved in the default AirQuant directory
 % even if specified otherwise by the user.
@@ -20,7 +21,8 @@ function AQdownload_data(dataname)
 
 % check if its already downloaded
 AQroot = AirQuantAddPath();
-datadir = fullfile(AQroot,'data', 'airquant');
+dataset = 'airquant';
+datadir = fullfile(AQroot,'data', dataset);
 if ~exist(datadir,'dir')
     mkdir(datadir)
 end
@@ -36,13 +38,12 @@ switch dataname
     case 'chestct'
         url = 'https://dl.dropboxusercontent.com/s/g94zhgyvknn512w/chestct.tar.gz?dl=0';
         size = 257;
-        notice = '';
 end
 
 disp(['Downloading AirQuant dataset, "', dataname, '" of ', num2str(size), ' MB. This may ',...
     'take a while depending on your connection.'])
 websave(filename_withext, url);
-disp(notice)
+disp('This is case is from an opensource dataset, please see AirQuant readme.md for credits.')
 
 % unzip and delete compressed
 untar(filename_withext,datadir)
