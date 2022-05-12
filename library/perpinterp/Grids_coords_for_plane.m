@@ -35,12 +35,12 @@ function list_of_coords = ...
 %% Getting interpolation points
 assert(length_of_plane > 0, 'cannot have negative or 0 plane size')
 half_length = length_of_plane/2 - sampling_interval/2;
-ceoff_array = -half_length:sampling_interval:half_length;
+ceoff_array = single(-half_length:sampling_interval:half_length);
 
 %Getting the basis
 list_of_coords = ...
     Span_plane_points_from_basis(basis_1,basis_2,ceoff_array, ceoff_array,...
-    centre_point);
+    single(centre_point));
 
 end
 

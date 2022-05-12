@@ -28,17 +28,17 @@ function out_plane = PlaneInterpVol(vol, voxdim, point, normal, options)
 
     % Construct vol grid
     arguments
-        vol {single,double}
+        vol 
         voxdim {mustBeNumeric}
         point (3,1) {mustBeNumeric}
         normal (3,1) {mustBeNumeric}
-        options.plane_sz (1,1) {mustBeNumeric} = 80
-        options.sample_sz (1,1) {mustBeNumeric} = 0.5
+        options.plane_sz (1,1) = 40
+        options.sample_sz (1,1) = 0.5
         options.method char = 'cubic'
         options.offgrid_val (1,1) {mustBeNumeric} = 0
     end
 
-    image_sz = size(vol);
+    image_sz = single(size(vol));
     [x_domain , y_domain , z_domain] = ...
         meshgrid(1:image_sz(2),1:image_sz(1),1:image_sz(3));
     x_domain = x_domain*voxdim(1);
@@ -49,14 +49,12 @@ function out_plane = PlaneInterpVol(vol, voxdim, point, normal, options)
     basis_vecs = Orthonormal_basis_with_tangent_vector(normal);
     plane_grid = Grids_coords_for_plane(basis_vecs(:,3),...
         basis_vecs(:,2), point, options.plane_sz, options.sample_sz);
-
-    % Execute cubic inperpolation on CT
-    plane_intensities = interp3(x_domain,y_domain,z_domain,...
-        vol,plane_grid.y(:),plane_grid.x(:),...
-        plane_grid.z(:),options.method);
-
+        
+    plane_intensities = AQinterp3(x_domain,y_domain,z_domain,vol, ...
+        plane_grid,options.method);
+    
     % Reshape to plane
-    plane_length = sqrt(length(plane_grid.y(:)));
+    plane_length = sqrt(length(plane_grid(2,:)));
     out_plane = reshape(plane_intensities,...
         [plane_length plane_length]);
     % Replace NaN entries in image with offgridval.

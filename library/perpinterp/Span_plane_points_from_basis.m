@@ -32,27 +32,10 @@ function spanned_points = ...
 
 %The output is the span points in 3 by n points
 
+[X,Y] = meshgrid(1:length(coeff_1),1:length(coeff_2));
+C1i = single(coeff_1(X));
+C2i = single(coeff_2(Y));
 
-%% Need to reshape the variables
-
-basis_vector_1 = basis_vector_1(:);
-basis_vector_2 = basis_vector_2(:);
-coeff_1 = coeff_1(:)';
-coeff_2 = coeff_2(:)';
-
-%% Getting the spanning points
-spanned_points = zeros(3,length(coeff_1)*2);
-
-%Need a counter
-k = 1;
-
-for i = 1:length(coeff_1)
-    for j = 1:length(coeff_2)
-
-        spanned_points(:,k) = coeff_1(i)*basis_vector_1 + ...
-            coeff_2(j)*basis_vector_2 + phyical_point;
-        k = k+1;
-    end
-end
+spanned_points = C1i(:)'.*basis_vector_1 + C2i(:)'.*basis_vector_2 + phyical_point;
 
 end
