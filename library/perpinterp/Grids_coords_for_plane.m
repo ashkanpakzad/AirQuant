@@ -1,3 +1,5 @@
+% Adapted by Ashkan Pakzad (ashkanpakzad.github.io)
+%
 % MIT License
 % 
 % Copyright (c) 2019 Kin Quan
@@ -20,7 +22,7 @@
 % OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 % SOFTWARE.
 
-function coord_stuct = ...
+function list_of_coords = ...
     Grids_coords_for_plane( basis_1 , basis_2 , centre_point ,...
     length_of_plane , sampling_interval )
 %Genrates that coorindates that we are requires to genreate the intensity
@@ -30,29 +32,15 @@ function coord_stuct = ...
 
 %The Output will be stuct that contanins the x y z corrds of the plane
 
-%% Getting the coeff
-
-%Getting the coeffienct for the linear combination
-ceoff_array = ...
-    Construct_coeff_of_spanning_basis(sampling_interval,length_of_plane);
+%% Getting interpolation points
+assert(length_of_plane > 0, 'cannot have negative or 0 plane size')
+half_length = length_of_plane/2 - sampling_interval/2;
+ceoff_array = -half_length:sampling_interval:half_length;
 
 %Getting the basis
 list_of_coords = ...
     Span_plane_points_from_basis(basis_1,basis_2,ceoff_array, ceoff_array,...
     centre_point);
-
-%% Helping with the post-processing of data
-
-x_coords = list_of_coords(1,:);
-y_coords = list_of_coords(2,:);
-z_coords = list_of_coords(3,:);
-
-%% placing it into a struct
-
-coord_stuct = struct;
-coord_stuct.x = x_coords;
-coord_stuct.y = y_coords;
-coord_stuct.z = z_coords;
 
 end
 
