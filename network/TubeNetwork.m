@@ -41,6 +41,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
         sourceinfo
         skel
         lims
+        regioncategories
         spline_sample_sz
         max_plane_sz
         plane_sample_sz
@@ -343,401 +344,56 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
         function Measure(obj, varargin)
             obj.RunAllTubes('Measure', varargin{:});
         end
+
+        % VISUALISATION - utilites
         
-        % VISUALISATION
-        % Airway Strucutral Tree
-        function h = plot(obj, options)
-            arguments
-                obj
-                options.label = 'ID'
-                options.weights = []
-                options.shownodes = false                
-            end
-
-            ge = TubesAsEdges(obj);
-
-            switch options.label                    
-                case 'ID' % default
-                    edgelabels = ge.Edges.ID;
-                case {'generation','gen'}
-                    edgelabels = [obj.tubes(edgelabels).generation];
-                otherwise
-                    edgelabels = options.label;
-            end
-
-            assert(numedges(ge) == length(edgelabels), ['inconsistent ' ...
-                'number of edge labels,' num2str(length(edgelabels)), ...
-                ' expected ', num2str(numedges(ge))]);
-            
-            if options.shownodes == true
-                nodelabels = 1:numnodes(ge);
+        function [regionkwarg,regionid] = ParseRegion(obj, regionkwarg)
+            if isempty(regionkwarg) && ~strcmp(regionkwarg,'none') && ...
+                ~isempty(fieldnames(obj.tubes(1).region))
+                regionfn = fieldnames(obj.tubes(1).region);
+                regionkwarg = regionfn{1};
             else
-                nodelabels = [''];
+                regionkwarg = [];
             end
 
-            h = plot(ge,nodelabel=nodelabels,edgelabel=edgelabels, ...
-                layout='layered');
-                        
-            h.NodeColor = 'k';
-            h.EdgeColor = 'k';
-
-            h.LineWidth = 3;
-        end
-
-        function [h, G] = SetGraphRegionColourmap(obj, h, G, regiontouse, regionid)
-                % set the colours of graph by some region.
-                % G is the graph object and h is the plot.
-                
-                % get region info
-                regionlist = AirQuant.list_property({obj.tubes.region},regiontouse);
-                % convert to graph indices
-                edgeregion = regionlist(G.Edges.ID);
-                % convert labels into numbers
-                if nargin < 5 
-                    regionid = unique(AirQuant.list_property({obj.tubes.region},regiontouse));
-                end
-
-                cdata = zeros(size(edgeregion));
-                for ii = 1:length(cdata)
-                    [~, ~, cdata(ii)] = intersect(edgeregion(ii),regionid);
-                end
-                
-                % set edge colour by index
-                G.Edges.EdgeColors = cdata';
-                h.EdgeCData = G.Edges.EdgeColors;
-                
-                % set colours map and text
-                clims = [1 max(cdata(:))];
-                colorbarstring = regiontouse;
-                colourshow = clims(1):clims(2);
-                colourlabels = regionid;
-                maptype = 'qualitative';
-                map = linspecer(max(cdata(:)), maptype);
-                colormap(map)
-                c = colorbar('Ticks', colourshow, 'TickLabels', colourlabels);
-                c.Label.String = colorbarstring;
-                caxis(clims)
-            end
-
-        function plot3(obj, gen, show_node_txt)
-            % Plot the airway tree in graph form, in 3D. nodes are in
-            % in image space. Set gen to the maximum number of
-            % generations to show.
-            % Original Function by Ashkan Pakzad on 27th July 2019.
-
-
-            if nargin < 2
-                gen = 0;
-            end
-
-            if nargin < 3
-                show_node_txt = 1;
-            end
-
-            if gen == 0
-                gen = max([obj.Glink(:).generation]);
-            end
-
-            % set up reduced link graph and skel
-            vis_Glink_logical = [obj.Glink(:).generation] <= gen;
-            vis_Glink_ind = find(vis_Glink_logical == 1);
-            vis_Glink = obj.Glink(vis_Glink_logical);
-            % set up reduced node graph
-            vis_Gnode_logical = false(length(obj.Gnode),1);
-            for i = 1:length(obj.Gnode)
-                if ~isempty(intersect(obj.Gnode(i).links, vis_Glink_ind))
-                    vis_Gnode_logical(i) = 1;
-                end
-            end
-            vis_Gnode_ind = find(vis_Gnode_logical == 1);
-            vis_Gnode = obj.Gnode(vis_Gnode_logical);
-
-            %%% e3 edges
-            % Set-up lobe colours
-            lobeid = {'B','RUL','RML','RLL','LUL','LML','LLL'};
-            colours = linspecer(length(lobeid), 'qualitative');
-            colormap(colours)
-            for i = 1:length(vis_Glink)
-                % get lobe colour index
-                cidx = strcmp(lobeid, obj.Glink(i).lobe);
-                % identify origin and sink for each link by node
-                n1 = vis_Glink(i).n1;
-                n2 = vis_Glink(i).n2;
-                % plot line for each link
-                X = [vis_Gnode(n1).comy, vis_Gnode(n2).comy];
-                Y = [vis_Gnode(n1).comx, vis_Gnode(n2).comx];
-                Z = [vis_Gnode(n1).comz, vis_Gnode(n2).comz];
-                plot3(X,Y,Z,'LineWidth',2,'Color', colours(cidx,:))
-                hold on
-                % get arrow
-                U = vis_Gnode(n2).comy - vis_Gnode(n1).comy;
-                V = vis_Gnode(n2).comx - vis_Gnode(n1).comx;
-                W = vis_Gnode(n2).comz - vis_Gnode(n1).comz;
-                q = quiver3(X(1),Y(1),Z(1),U,V,W);
-                q.Color = colours(cidx,:);
-                q.AutoScaleFactor = 0.5;
-                q.MaxHeadSize = 1.5;
-
-            end
-            % colorbar
-            clims = [1 length(lobeid)];
-            c = colorbar('Ticks', clims(1):clims(2), 'TickLabels', lobeid);
-            c.Label.String = 'Lobe';
-            caxis(clims)
-
-
-            %%% nodes
-            X_node = [vis_Gnode.comy];
-            Y_node = [vis_Gnode.comx];
-            Z_node = [vis_Gnode.comz];
-            nums_node = string(vis_Gnode_ind);
-            plot3(X_node,Y_node,Z_node, 'r.', 'MarkerSize', 18, 'Color', 'r');
-            if show_node_txt == 1
-                text(X_node+1,Y_node+1,Z_node+1, nums_node, 'Color', [0.8, 0, 0])
-            end
-            %axis([0 size(obj.CT, 1) 0 size(obj.CT, 2) 0 size(obj.CT, 3)])
-            view(80,0)
-            axis vis3d
-            % undo matlab display flip
-            ax = gca;
-            ax.XDir = 'reverse';
-
-        end
-
-        function PlotTree(obj, gen, show_seg_txt, show_node_txt)
-            % Plot the airway tree with nodes and links in image space. Set
-            % gen to the maximum number of generations to show.
-            % Original Function by Ashkan Pakzad on 27th July 2019.
-
-            % for max generations set gen to 0
-            % hide segment and node labels using show_seg_txt and
-            % show_node_txt respectively.
-
-            % does not show excluded airways
-
-            % set defaults
-            if nargin < 2
-                gen = 0;
-            end
-
-            if nargin < 3
-                show_seg_txt = 1;
-            end
-
-            if nargin < 4
-                show_node_txt = 1;
-            end
-
-            % if gen is 0, update to max gen
-            if gen == 0
-                gen = max([obj.Glink(:).generation]);
-            end
-
-            % set up reduced link graph and skel
-            vis_Glink_logical = [obj.Glink(:).generation] <= gen;
-            if isfield(obj.Glink,'exclude')
-                vis_Glink_exclude = [obj.Glink(:).exclude] ;
+            if isfield(obj.regioncategories, regionkwarg)
+                regionid = obj.regioncategories.(regionkwarg);
             else
-                vis_Glink_exclude = zeros(size(vis_Glink_logical));
+                regionid = [];
             end
-            vis_Glink_ind = find(vis_Glink_logical == 1 & vis_Glink_exclude == 0);
-            vis_Glink = obj.Glink(vis_Glink_ind);
-            % set up reduced node graph
-            vis_Gnode_logical = false(length(obj.Gnode),1);
-            for i = 1:length(obj.Gnode)
-                if ~isempty(intersect(obj.Gnode(i).links, vis_Glink_ind))
-                    vis_Gnode_logical(i) = 1;
-                end
-            end
-            vis_Gnode_ind = find(vis_Gnode_logical == 1);
-            vis_Gnode = obj.Gnode(vis_Gnode_logical);
-            % set up reduced skel
-            vis_skel = zeros(size(obj.skel));
-            vis_skel([vis_Glink.point]) = 1;
-
-            isosurface(vis_skel)
-            alpha(0.7)
-
-            hold on
-
-            % edges
-            if show_seg_txt ~= 0
-                ind = zeros(length(vis_Glink), 1);
-                for i = 1:length(vis_Glink)
-                    ind(i) = vis_Glink(i).point(ceil(end/2));
-                end
-                [Y, X, Z] = ind2sub(size(obj.skel),ind);
-                nums_link = string(vis_Glink_ind);
-                plot3(X,Y,Z, 'b.', 'MarkerFaceColor', 'none');
-
-                text(X+1,Y+1,Z+1, nums_link, 'Color', [0, 0, 0.8])
-            end
-
-            % nodes
-
-            X_node = [vis_Gnode.comy];
-            Y_node = [vis_Gnode.comx];
-            Z_node = [vis_Gnode.comz];
-            nums_node = string(vis_Gnode_ind);
-            plot3(X_node,Y_node,Z_node, 'r.', 'MarkerSize', 18, 'Color', 'r');
-            if show_node_txt ~= 0
-                text(X_node+1,Y_node+1,Z_node+1, nums_node, 'Color', [0.8, 0, 0])
-            end
-
-            view(80,0)
-            axis vis3d
-            % undo matlab display flip
-            ax = gca;
-            ax.XDir = 'reverse';
-
-        end
-        
-        % Splines
-        function PlotSplineTree(obj)
-            % loop through every branch, check spline has already been
-            % computed, compute if necessary. Skip trachea. Plot spline.
-            % .. :warning: This may not work as well when VoxelSize ~= [1,1,1]
-            for i = 1:length(obj.Glink)
-                if isempty(obj.Splines{i, 1})
-                    if ismember(i, obj.trachea_path)
-                        continue
-                    else
-                        ComputeSpline(obj, i)
-                    end
-                end
-                fnplt(obj.Splines{i, 1})
-                hold on
-            end
-            view(80,0)
-            axis vis3d
-            % undo matlab display flip
-            ax = gca;
-            ax.XDir = 'reverse';
-
         end
 
-        %%% Volumetric
-        function PlotSeg(obj)
-            % plot segmentation
-            patch(isosurface(obj.seg),'EdgeColor', 'none','FaceAlpha',0.1, 'LineStyle', 'none');
-            vol3daxes(obj)
-        end
+        function cdata = ColourIndex(obj, regiontouse, regionid)
+            % set the colours of graph by some region.
+            % G is the graph object and h is the plot.
 
-        function PlotMap3D(obj, mode)
-            % Recommend to use View3D if colour labels appear buggy.
+            % get region info
+            regionlist = AirQuant.list_property({obj.tubes.region},regiontouse);
 
-            % mode = 'TaperGradient', 'generation', 'lobes'
-            %             axis([0 size(obj.CT, 1) 0 size(obj.CT, 2) 0 size(obj.CT, 3)])
-
-            % generating the color data
-            cdata = zeros(size(obj.seg));
-            branch_seg = ClassifySegmentation(obj);
-            switch mode
-                case 'tapergradient'
-                    % .. :todo:: rewrite this bit....
-                    for i = 1:length(obj.Specs)
-                        cdata(branch_seg == i) = obj.Specs(i).FWHMl_logtaper*-1;
-                    end
-                case 'generation'
-                    for i = 1:length(obj.Glink)
-                        % add 1 to gen index to differentiate from bg 0.
-                        cdata(branch_seg == i) = obj.Glink(i).generation+1;
-                    end
-                    clims = [1 max(cdata(:))];
-                    colourshow = clims(1):clims(2);
-                    colorbarstring = 'Generation Number';
-                    % reduce colourlabels by 1 from cdata to reflect true
-                    % gen.
-                    colourlabels = 0:max(cdata(:))-1;
-                    maptype = 'sequential';
-
-                case 'lobe'
-                    % convert lobe id to number
-                    lobeid = {'B','RUL','RML','RLL','LUL','LML','LLL'};
-                    for i = 1:length(obj.Glink)
-                        cdata(branch_seg == i) = find(strcmp(lobeid, obj.Glink(i).lobe));
-                    end
-                    clims = [1 max(cdata(:))];
-                    colorbarstring = 'Lobe';
-                    colourshow = clims(1):clims(2);
-                    colourlabels = lobeid;
-                    maptype = 'qualitative';
-
-                otherwise
-                    error('Choose appropiate mode.')
+            % convert labels into numbers
+            if nargin < 3 || isempty(regionid)
+                regionid = unique(AirQuant.list_property({obj.tubes.region},regiontouse));
             end
-            % produce segmentation 3d object
-            p = patch(isosurface(cdata > 0));
 
-            %%% assign vertex face colour index by nearest point on volume.
-            % get volume points
-            cdata_pnt = find(cdata > 0);
-            % convert to list of subindices
-            [y,x,z] = ind2sub(size(cdata), cdata_pnt);
-            % search for nearest point of each vertex origin
-            near_i = dsearchn([x,y,z], p.Vertices);
-            % assign colour index to that vertex
-            p.FaceVertexCData = cdata(cdata_pnt(near_i));
-            p.FaceColor = 'flat';
-            p.EdgeColor = 'none';
+            cdata = zeros(size(regionlist));
+            for ii = 1:length(cdata)
+                [~, ~, cdata(ii)] = intersect(regionlist(ii),regionid);
+            end
 
-            % set up colourmap
+            % set colours map and text
+            clims = [1 max(cdata(:))];
+
+            colorbarstring = regiontouse;
+            colourshow = clims(1):clims(2);
+            colourlabels = regionid;
+            maptype = 'qualitative';
             map = linspecer(max(cdata(:)), maptype);
             colormap(map)
             c = colorbar('Ticks', colourshow, 'TickLabels', colourlabels);
             c.Label.String = colorbarstring;
             caxis(clims)
-            vol3daxes(obj)
-        end
-
-        function View3D(obj, mode)
-            % View segmentation volume with different labels. In MATLAB's
-            % volviewer.
-            % mode = 'TaperGradient', 'generation', 'lobes'
-
-            % generating the color data
-            labelvol = zeros(size(obj.seg));
-            branch_seg = ClassifySegmentation(obj);
-            switch mode
-                case 'generation'
-                    for i = 1:length(obj.Glink)
-                        labelvol(branch_seg == i) = obj.Glink(i).generation;
-                    end
-                case 'lobe'
-                    % convert lobe id to number
-                    lobeid = {'B','RUL','RML','RLL','LUL','LML','LLL'};
-                    for i = 1:length(obj.Glink)
-                        labelvol(branch_seg == i) = find(strcmp(lobeid, obj.Glink(i).lobe))-1;
-                    end
-                otherwise
-                    error('Choose appropiate mode. "Generation" or "Lobe".')
-            end
-
-            % undo matlabs X-axis flip for viewing.
-            labelvol = flip(labelvol,1);
-            seg_view = flip(obj.seg,1);
-
-            % Generate suitable label colours
-            map = linspecer(max(labelvol(:))+1);
-
-            % vol viewer with labels to display.
-            figure;
-            labelvolshow(labelvol, seg_view, ...
-                'ScaleFactors', obj.CTinfo.PixelDimensions, ...
-                'LabelColor', map, 'BackgroundColor', [1,1,1], ...
-                'CameraPosition', [-4.2 0.8  2], 'CameraViewAngle', 10, ...
-                'CameraTarget', [0, 0, 0.1]);
         end
         
-        function PlotSegSkel(obj)
-            % plot segmentation and skeleton within each other.
-            patch(isosurface(obj.seg),'EdgeColor', 'none','FaceAlpha',0.1);
-            hold on
-            isosurface(obj.skel,'color','c')
-            vol3daxes(obj)
-
-        end
-
         function vol3daxes(obj, ax)
             % utility function for 3D volumetric plotting. Sets the aspect
             % ratio according to voxel size and reverses the x axes for LPS
@@ -751,7 +407,162 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             % aspect ratio
             ax.DataAspectRatio = 1./obj.voxdim;
             grid on
-            light
+            
+            f = gcf;
+            lh = findobj(f,'Type','light');
+            if isempty(lh)
+                light;
+            end
+        end
+
+        % VISUALISATION
+
+        function h = Plot(obj, options)
+            arguments
+                obj
+                options.label = 'ID'
+                options.weights = []
+                options.shownodes = false
+                options.region = ''
+            end
+
+            ge = TubesAsEdges(obj);
+
+            switch options.label
+                case 'ID' % default
+                    edgelabels = ge.Edges.ID;
+                case {'generation','gen'}
+                    edgelabels = [obj.tubes(ge.Edges.ID).generation];
+                otherwise
+                    edgelabels = options.label;
+            end
+
+            assert(numedges(ge) == length(edgelabels), ['inconsistent ' ...
+                'number of edge labels,' num2str(length(edgelabels)), ...
+                ' expected ', num2str(numedges(ge))]);
+
+            if options.shownodes == true
+                nodelabels = 1:numnodes(ge);
+            else
+                nodelabels = [''];
+            end
+
+            h = plot(ge,nodelabel=nodelabels,edgelabel=edgelabels, ...
+                layout='layered');
+
+            h.NodeColor = 'k';
+            h.EdgeColor = 'k';
+
+            h.LineWidth = 3;
+            
+            % set colour to get chosen region.
+            % if region none then output none
+            % if region
+            [options.region, regionid] = obj.ParseRegion(options.region);
+            
+            if ~isempty(options.region)
+                cdata = ColourIndex(obj, options.region, regionid);
+                edgeregion = cdata(ge.Edges.ID);
+
+                % set edge colour by index
+                G.Edges.EdgeColors = edgeregion';
+                h.EdgeCData = G.Edges.EdgeColors;
+            end
+
+        end
+
+        function Plot3(obj, options)
+            % Plot the airway tree in graph form, in 3D. nodes are in
+            % in image space. Set gen to the maximum number of
+            % generations to show.
+            %
+            % .. todo: colour by region
+            arguments
+                obj
+                options.gen = max([obj.tubes.generation])
+                options.region = ''
+            end
+
+            % set up reduced graph
+            vis_Glink_logical = [obj.tubes.generation] <= options.gen;
+            vis_tubes = obj.tubes(vis_Glink_logical);
+                
+            % plot tube
+            for tubeii = vis_tubes
+                tubeii.Plot3();
+                hold on
+            end
+
+            obj.vol3daxes()
+            hold off
+        end
+
+        function Plot3D(obj, options)
+            % Plot volume
+            %
+            % .. note: plotting multiple patches (>20) significantly reduces
+            % performance. This is why this function tries to collate every
+            % patch that is designated a different colour and then plots
+            % them. 
+            %
+            % .. todo: colour by region
+            %
+            
+            arguments
+                obj
+                options.gen = max([obj.tubes.generation]);
+                options.alpha = 0.3
+                options.color = 'c'
+                options.type {mustBeMember(options.type,{'seg','skel'})} = 'seg'
+                options.region = ''
+            end
+            
+    
+            % set up reduced graph
+            vis_Glink_logical = [obj.tubes.generation] <= options.gen;
+            vis_tubes = obj.tubes(vis_Glink_logical);
+            
+            V = zeros(size(obj.(options.type)));
+
+            % gather tube vol points per color
+            for tubeii = vis_tubes
+                V(tubeii.([options.type,'points'])) = 1;
+            end
+            
+            % plot each color vol
+            patch(isosurface(V),...
+                'FaceAlpha', options.alpha,...
+                'FaceColor', options.color,...
+                'EdgeColor', 'none');
+            hold on
+
+            obj.vol3daxes()
+            hold off
+        end
+
+        function PlotSpline(obj, options)
+            % Plot the airway tree in 
+            %
+            % .. todo: colour by region
+            %
+            %
+            arguments
+                obj
+                options.gen = max([obj.tubes.generation])
+            end
+
+            % set up reduced graph
+            vis_Glink_logical = [obj.tubes.generation] <= options.gen;
+            vis_tubes = obj.tubes(vis_Glink_logical);
+
+            % plot tube
+            for tubeii = vis_tubes
+                tubeii.PlotSpline(context=false);
+                hold on
+            end
+
+            obj.vol3daxes()
+            hold off
         end
         
         function s = OrthoView(obj, type)
