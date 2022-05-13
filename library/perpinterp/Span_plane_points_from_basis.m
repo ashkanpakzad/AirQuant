@@ -1,3 +1,5 @@
+% Vectorised by Ashkan Pakzad (ashkanpakzad.github.io)
+%
 % MIT License
 %
 % Copyright (c) 2019 Kin Quan
