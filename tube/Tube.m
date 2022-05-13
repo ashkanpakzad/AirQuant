@@ -231,8 +231,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
         end
         obj.region.(genname) = count;
         end
-
-
+        
         function descendants = Descendants(obj)
             % returns children of children tubes in a breadth-first search
             % list inclusive.
@@ -379,7 +378,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             arguments
                 obj
                 vol (:,:,:)
-                options.type char {mustBeMember(options.type,{'source','seg'})} = 'infer'
+                options.type char {mustBeMember(options.type,{'source','seg','infer'})} = 'infer'
                 options.usesegcrop logical = false
                 options.method char = 'cubic'
             end
@@ -839,11 +838,49 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
         end
 
         % 3D visualisation - level 1
-        function h = View3D(obj, options)
+        function h = Plot3(obj, color)
+            % plot this tube as a line asif an edge on a 3D network graph.
+            %
+            % .. todo: consider adding more info in datatips.
+            %
+            if nargin < 2
+                color =[];
+            end
+            % get endpoints
+            [X,Y,Z] = obj.I2S([obj.skelpoints(1),obj.skelpoints(end)]);
+            h = plot3(X,Y,Z,'.');
+            h.Color = 'k';
+            hold on
+            % get midpoint point of line
+            [mx,my,mz] = midpoint(X,Y,Z);
+            X = [X(1), mx, X(2)];
+            Y = [Y(1), my, Y(2)];
+            Z = [Z(1), mz, Z(2)];
+            % plot line
+            h = plot3(X,Y,Z,'-');
+            % datatip 
+            
+            dtRows = [dataTipTextRow("tubeID",ones(1,3)*obj.ID), ...
+                dataTipTextRow("generation",ones(1,3)*obj.generation)];
+            
+            h.DataTipTemplate.DataTipRows(end+1:end+2) = dtRows;
+
+            % colour code?
+            if ~isempty(color)
+                h.Color = color;
+            end
+        end
+        
+        function h = Plot3D(obj, options)
+            %
+            %
+            % .. todo: add datatip for stats
+            %
+            
             arguments
                 obj
                 options.type {mustBeMember(options.type,{'seg','skel'})} = 'seg'
-                options.alpha = 0.1
+                options.alpha = 0.3
                 options.color = 'c'
                 options.context = true;
                 options.contextcolor = 'y'
@@ -852,28 +889,26 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
                 % get adjacent tubes
                 adjtubes = [obj.parent, obj.children, obj.parent(1).children];
                 for adjii = adjtubes
-                    adjii.View3D(type=options.type, color=options.contextcolor,...
+                    adjii.Plot3D(type=options.type, color=options.contextcolor,...
                         context=false, alpha=options.alpha)
                     hold on
                 end
             end
             V = zeros(size(obj.network.seg));
-            switch options.type
-                case 'seg'
-                    V(obj.segpoints) = 1;
-                case 'skel'
-                    V(obj.skelpoints) = 1;
-            end
+
+            V(obj.([options.type, 'points'])) = 1;
 
             h = patch(isosurface(V),...
                 'FaceAlpha', options.alpha,...
                 'FaceColor', options.color,...
                 'EdgeColor', 'none');
             obj.network.vol3daxes()
+
+
             hold off
         end
 
-        function ViewSpline(obj,options)
+        function PlotSpline(obj,options)
             arguments
                 obj
                 options.color = 'c'
@@ -897,14 +932,14 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
         end
 
         % 3D visualisation - level 2
-        function h = ViewSplineVecs(obj, options)
+        function h = PlotSplineVecs(obj, options)
             arguments
             obj
             options.subsamp = 2
             end
 
             % viewvol for adjacent tubes
-            obj.View3D()
+            obj.Plot3D()
             hold on
 
             % get spline points and their normals
