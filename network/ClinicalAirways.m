@@ -27,6 +27,7 @@ classdef ClinicalAirways < TubeNetwork
             %   y(type):
             obj@TubeNetwork(varargin{:})
             
+            obj.regioncategories.lobe = {'B','RUL','RML','RLL','LUL','LML','LLL','T'};
             obj.IdentifyCarinaAndTrachea()
 
 %             obj.ClassifyLungLobes()
@@ -184,23 +185,6 @@ classdef ClinicalAirways < TubeNetwork
 %             obj.RunAllTubes('SetRegionGeneration', 'lobe')
         end
     
-        function h = plot(obj, options)
-            arguments
-                obj
-                options.label = 'ID'
-                options.weights = []
-                options.shownodes = false
-            end
-            h = plot@TubeNetwork(obj, label=options.label, ...
-                weights=options.weights, shownodes=options.shownodes);
-            
-            % default set colour region to lobe
-            G = obj.TubesAsEdges;
-            regiontouse = 'lobe';
-            regionid = ClinicalAirways.LobeLabels();
-            [h, ~] = SetGraphRegionColourmap(obj, h, G, regiontouse, regionid);
-        end
-
     end
 
     methods(Static)
@@ -209,10 +193,6 @@ classdef ClinicalAirways < TubeNetwork
                 {airwaylist.skelpoints}, 'UniformOutput', false));
         end
 
-        function labels = LobeLabels()
-                % returns cell of lobe lables used in AirQuant
-                labels = {'B','RUL','RML','RLL','LUL','LML','LLL','T'};
-            end
     end
 end
 
