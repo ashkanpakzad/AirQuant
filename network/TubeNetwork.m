@@ -158,10 +158,10 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
                 obj
                 options.type = 'both'
                 options.usesegcrop logical = false
-                options.method char = 'cubic'
+                options.method char = 'linear'
             end
-
-            for ii = 1:length(obj.tubes)
+                
+            for ii = progress(1:length(obj.tubes), 'Title', 'Making tube patches')
 
                 if strcmp(options.type,'source') || strcmp(options.type,'both')
                     MakePatchSlices(obj.tubes(ii), obj.source, ...
@@ -351,26 +351,24 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
                 obj
                 options.label = 'ID'
                 options.weights = []
-                options.shownodes = false
+                options.shownodes = false                
             end
-            % Default plot is a graph network representation.
 
             ge = TubesAsEdges(obj);
 
-            edgelabels = ge.Edges.ID;
-            
-            switch options.label
-                case isnumeric(options.label)
-                    edgelabels = options.label;
+            switch options.label                    
                 case 'ID' % default
-
+                    edgelabels = ge.Edges.ID;
                 case {'generation','gen'}
                     edgelabels = [obj.tubes(edgelabels).generation];
                 otherwise
-                    warning(['Unexpected options.label type. ' ...
-                        'Resorting to default type.'])
+                    edgelabels = options.label;
             end
 
+            assert(numedges(ge) == length(edgelabels), ['inconsistent ' ...
+                'number of edge labels,' num2str(length(edgelabels)), ...
+                ' expected ', num2str(numedges(ge))]);
+            
             if options.shownodes == true
                 nodelabels = 1:numnodes(ge);
             else
@@ -379,25 +377,29 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
 
             h = plot(ge,nodelabel=nodelabels,edgelabel=edgelabels, ...
                 layout='layered');
-
-            h.NodeColor = 'r';
+                        
+            h.NodeColor = 'k';
             h.EdgeColor = 'k';
+
             h.LineWidth = 3;
         end
 
-        function [h, G] = SetGraphRegionColourmap(obj, h, G, regiontouse)
+        function [h, G] = SetGraphRegionColourmap(obj, h, G, regiontouse, regionid)
                 % set the colours of graph by some region.
                 % G is the graph object and h is the plot.
                 
                 % get region info
-                regionlist = AirQuant.list_property({obj.tubes.region},'lobe');
+                regionlist = AirQuant.list_property({obj.tubes.region},regiontouse);
                 % convert to graph indices
                 edgeregion = regionlist(G.Edges.ID);
                 % convert labels into numbers
-                lobeid = unique(AirQuant.list_property({obj.tubes.region},'lobe'));
+                if nargin < 5 
+                    regionid = unique(AirQuant.list_property({obj.tubes.region},regiontouse));
+                end
+
                 cdata = zeros(size(edgeregion));
                 for ii = 1:length(cdata)
-                    [~, ~, cdata(ii)] = intersect(edgeregion(ii),lobeid);
+                    [~, ~, cdata(ii)] = intersect(edgeregion(ii),regionid);
                 end
                 
                 % set edge colour by index
@@ -406,9 +408,9 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
                 
                 % set colours map and text
                 clims = [1 max(cdata(:))];
-                colorbarstring = 'Lobe';
+                colorbarstring = regiontouse;
                 colourshow = clims(1):clims(2);
-                colourlabels = lobeid;
+                colourlabels = regionid;
                 maptype = 'qualitative';
                 map = linspecer(max(cdata(:)), maptype);
                 colormap(map)

@@ -142,7 +142,6 @@ classdef ClinicalAirways < TubeNetwork
             % subgraph remaining and get endtubes
             [~,MRMLRLLi] = min(MRz);
             subtubes = MRlung(MRMLRLLi).Descendants;
-%             nchildren = {subtubes.children};
             endtubes = subtubes(cellfun(@isempty, {subtubes.children}));
             % compare endpoints of endtubes
             endtubes_ep = ClinicalAirways.SkelEnds(endtubes);
@@ -163,7 +162,7 @@ classdef ClinicalAirways < TubeNetwork
             obj.tubes(RML_RLLNid).SetRegion('name','RightIntermedius')
 
             % assign RML
-            RML_id = RML_endpath(min(intersections))-1;
+            RML_id = RML_endpath(min(intersections)-1);
             obj.tubes(RML_id).SetRegionDescendants('lobe','RML')
 
             % assign remaining labels to RLL
@@ -195,9 +194,11 @@ classdef ClinicalAirways < TubeNetwork
             h = plot@TubeNetwork(obj, label=options.label, ...
                 weights=options.weights, shownodes=options.shownodes);
             
+            % default set colour region to lobe
             G = obj.TubesAsEdges;
             regiontouse = 'lobe';
-            [h, G] = SetGraphRegionColourmap(obj, h, G, regiontouse);
+            regionid = ClinicalAirways.LobeLabels();
+            [h, ~] = SetGraphRegionColourmap(obj, h, G, regiontouse, regionid);
         end
 
     end
@@ -207,6 +208,11 @@ classdef ClinicalAirways < TubeNetwork
             skelends = cell2mat(cellfun(@(c) [c(end)], ...
                 {airwaylist.skelpoints}, 'UniformOutput', false));
         end
+
+        function labels = LobeLabels()
+                % returns cell of lobe lables used in AirQuant
+                labels = {'B','RUL','RML','RLL','LUL','LML','LLL','T'};
+            end
     end
 end
 
