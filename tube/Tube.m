@@ -298,7 +298,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             % get linear indexed points of previous branch if available.
             if options.useparent == true && isfield(obj.relatives,'parent')
                 parent_points = obj.relatives.parent.skelpoints;
-                [x_p1, y_p1, z_p1] = ind2sub(size(obj.network.source), parent_points);
+                [x_p1, y_p1, z_p1] = I2S(size(obj.network.source), parent_points);
             else
                 x_p1 = []; y_p1 = []; z_p1 = [];
             end
@@ -926,21 +926,14 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
                 end
             end
 
-            % This is a hack to get around the fact that fnplt doesn't
-            % accept rgb input to set the lines colour nor does it
-            % explicity store a graphics handle when called.
-            % identify all graphics before and after to find the handle.
-            % then set color property.
-            before = findall(gca);
-
-            % Plot your function
-            fnplt(obj.spline);  
-
-            % Figure out all of the graphics that were added to the axes by fnplt
-            added = setdiff(findall(gca), before);
-
-            % Alter their appearance.
-            set(added, 'Color', options.color)
+            rawpoints = fnplt(obj.spline);
+            points = rawpoints./obj.network.voxdim';
+            h = plot3(points(2,:),points(1,:),points(3,:),'Color',options.color);
+            
+            dtRows = [dataTipTextRow("tubeID",ones(size(points,2))*obj.ID), ...
+                dataTipTextRow("generation",ones(size(points,2))*obj.generation)];
+            
+            h.DataTipTemplate.DataTipRows(end+1:end+2) = dtRows;
 
             obj.network.vol3daxes();
             hold off
