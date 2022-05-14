@@ -17,6 +17,8 @@ classdef AirwayFWHMesl < SuperMeasure
             %   y(type):
             %
             obj@SuperMeasure(varargin{:});
+            assert(~isempty(obj.tube.seg), ['Tube segmentation required for ' ...
+                'this measurement method to work'])
         end
 
         function Measure(obj, num_rays, ray_interval, outlierremoval)
@@ -36,7 +38,7 @@ classdef AirwayFWHMesl < SuperMeasure
             if nargin < 4
                 outlierremoval = true;
             end
-            
+
             slices_sz = length(obj.tube.source);
             ellipse_inner = cell(slices_sz, 1);
             ellipse_peak = cell(slices_sz, 1);
@@ -67,10 +69,10 @@ classdef AirwayFWHMesl < SuperMeasure
                 catch
                     % segmentation exceeds interpolated slice therefore no
                     % measurement recorded.
-                    ellipse_inner{k,1} = [];
-                    ellipse_peak{k,1} = [];
-                    ellipse_right{k,1} = [];
-                    ellipse_center{k,1} = [];
+                    ellipse_inner{k,1} = nan;
+                    ellipse_peak{k,1} = nan;
+                    ellipse_right{k,1} = nan;
+                    ellipse_center{k,1} = nan;
                 end
             end
             obj.measures = cell(3, length(ellipse_inner));

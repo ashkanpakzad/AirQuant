@@ -12,15 +12,15 @@ classdef SuperMeasure < handle
         end
         
         function Measure(obj)
-            error('Measure method not set for subclass')
+            error('Measure method not set for subclass of SuperMeasure')
         end
         
         function OutputArea(obj)
-            error('OutputArea method not set for subclass')
+            error('OutputArea method not set for subclass of SuperMeasure')
         end
 
         function OutputDiameter(obj)
-            error('OutputDiameter method not set for subclass')
+            error('OutputDiameter method not set for subclass of SuperMeasure')
         end
         
     end
