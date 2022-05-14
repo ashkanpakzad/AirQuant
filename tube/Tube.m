@@ -920,13 +920,28 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
                 % get adjacent tubes
                 adjtubes = [obj.parent, obj.children, obj.parent(1).children];
                 for adjii = adjtubes
-                    adjii.ViewSpline(color=options.contextcolor,...
+                    adjii.PlotSpline(color=options.contextcolor,...
                         context=false)
                     hold on
                 end
             end
 
-            fnplt(obj.spline,options.color);
+            % This is a hack to get around the fact that fnplt doesn't
+            % accept rgb input to set the lines colour nor does it
+            % explicity store a graphics handle when called.
+            % identify all graphics before and after to find the handle.
+            % then set color property.
+            before = findall(gca);
+
+            % Plot your function
+            fnplt(obj.spline);  
+
+            % Figure out all of the graphics that were added to the axes by fnplt
+            added = setdiff(findall(gca), before);
+
+            % Alter their appearance.
+            set(added, 'Color', options.color)
+
             obj.network.vol3daxes();
             hold off
         end

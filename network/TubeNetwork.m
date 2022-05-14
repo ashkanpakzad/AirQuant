@@ -45,7 +45,6 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
         spline_sample_sz
         max_plane_sz
         plane_sample_sz
-        min_plane_sz
         plane_scaling_sz = 5;
         savename
     end
@@ -120,7 +119,6 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             obj.plane_sample_sz = measure_limit;
             obj.spline_sample_sz = measure_limit;
             obj.max_plane_sz = 40;
-            obj.min_plane_sz = 3*max(obj.voxdim);
 
             % Convert skel into digraph
             [~, glink, ~] = Skel2Digraph(obj);
@@ -348,6 +346,13 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
         % VISUALISATION - utilites
         
         function [regionkwarg,regionid] = ParseRegion(obj, regionkwarg)
+            % visualisation utility method to interpret the `region`
+            % keyword argument
+            %
+            % looks for a default region that already exists in tubes in
+            % order for the user to effortlessy colour figures without the
+            % need to be explicit.
+            %
             if isempty(regionkwarg) && ~strcmp(regionkwarg,'none') && ...
                 ~isempty(fieldnames(obj.tubes(1).region))
                 regionfn = fieldnames(obj.tubes(1).region);
@@ -363,10 +368,26 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             end
         end
 
-        function cdata = ColourIndex(obj, regiontouse, regionid)
-            % set the colours of graph by some region.
-            % G is the graph object and h is the plot.
-
+        function [cdata, rgb] = ColourIndex(obj, regiontouse, regionid, options)
+            % visualisation utility method to set colours by `region`.
+            %
+            % Args:
+            %   maptype(char): default = qua. accepts either 'qua' or 'seq'
+            %       to specify the maptype.
+            % 
+            % 
+            % 
+            % 
+            % 
+            % 
+            % 
+            %
+            arguments
+                obj
+                regiontouse
+                regionid
+                options.maptype char {mustBeMember(options.maptype,{'qua','seq'})} = 'qua'
+            end
             % get region info
             regionlist = AirQuant.list_property({obj.tubes.region},regiontouse);
 
@@ -386,9 +407,8 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             colorbarstring = regiontouse;
             colourshow = clims(1):clims(2);
             colourlabels = regionid;
-            maptype = 'qualitative';
-            map = linspecer(max(cdata(:)), maptype);
-            colormap(map)
+            rgb = linspecer(max(cdata(:)), options.maptype);
+            colormap(rgb)
             c = colorbar('Ticks', colourshow, 'TickLabels', colourlabels);
             c.Label.String = colorbarstring;
             caxis(clims)
@@ -476,7 +496,8 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             % in image space. Set gen to the maximum number of
             % generations to show.
             %
-            % .. todo: colour by region
+            % .. todo: add arrows.
+            %
             arguments
                 obj
                 options.gen = max([obj.tubes.generation])
@@ -486,10 +507,23 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             % set up reduced graph
             vis_Glink_logical = [obj.tubes.generation] <= options.gen;
             vis_tubes = obj.tubes(vis_Glink_logical);
+
+            % set colour to get chosen region.
+            [options.region, regionid] = obj.ParseRegion(options.region);
+            
+            if ~isempty(options.region)
+                [cdata, rgb] = ColourIndex(obj, options.region, regionid);
+            else
+                rgb = [];
+            end
                 
             % plot tube
             for tubeii = vis_tubes
-                tubeii.Plot3();
+                if ~isempty(rgb)
+                    tubeii.Plot3(rgb(cdata(tubeii.ID),:));
+                else 
+                    tubeii.Plot3();
+                end
                 hold on
             end
 
@@ -524,17 +558,43 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             
             V = zeros(size(obj.(options.type)));
 
+            % set colour to get chosen region.
+            [options.region, regionid] = obj.ParseRegion(options.region);
+
+            if ~isempty(options.region)
+                [cdata, rgb] = ColourIndex(obj, options.region, regionid);
+            else
+                rgb = [];
+            end    
+
             % gather tube vol points per color
             for tubeii = vis_tubes
-                V(tubeii.([options.type,'points'])) = 1;
+                if ~isempty(rgb)
+                    V(tubeii.([options.type,'points'])) = cdata(tubeii.ID);
+                else
+                    V(tubeii.([options.type,'points'])) = 1;
+                end
             end
             
             % plot each color vol
-            patch(isosurface(V),...
+            
+            if ~isempty(rgb)
+                for ii = 1:max(cdata)
+                U = zeros(size(V));
+                U(V==ii) = 1;
+                patch(isosurface(U),...
+                'FaceAlpha', options.alpha,...
+                'FaceColor', rgb(ii,:),...
+                'EdgeColor', 'none');
+                hold on
+                end
+            else
+                patch(isosurface(V),...
                 'FaceAlpha', options.alpha,...
                 'FaceColor', options.color,...
                 'EdgeColor', 'none');
-            hold on
+
+            end
 
             obj.vol3daxes()
             hold off
@@ -543,21 +603,34 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
         function PlotSpline(obj, options)
             % Plot the airway tree in 
             %
-            % .. todo: colour by region
             %
             %
             arguments
                 obj
                 options.gen = max([obj.tubes.generation])
+                options.region = ''
             end
 
             % set up reduced graph
             vis_Glink_logical = [obj.tubes.generation] <= options.gen;
             vis_tubes = obj.tubes(vis_Glink_logical);
 
+            % set colour to get chosen region.
+            [options.region, regionid] = obj.ParseRegion(options.region);
+
+            if ~isempty(options.region)
+                [cdata, rgb] = ColourIndex(obj, options.region, regionid);
+            else
+                rgb = [];
+            end
+
             % plot tube
             for tubeii = vis_tubes
-                tubeii.PlotSpline(context=false);
+                if ~isempty(rgb)
+                    tubeii.PlotSpline(context=false,color=rgb(cdata(tubeii.ID),:));
+                else 
+                    tubeii.PlotSpline(context=false);
+                end
                 hold on
             end
 
