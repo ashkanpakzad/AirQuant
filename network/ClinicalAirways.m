@@ -25,10 +25,10 @@ classdef ClinicalAirways < TubeNetwork
             %
             % Return:
             %   y(type):
-            obj@TubeNetwork(varargin{:})
+            obj@TubeNetwork(varargin{:});
             
             obj.regioncategories.lobe = {'B','RUL','RML','RLL','LUL','LML','LLL','T'};
-            obj.IdentifyCarinaAndTrachea()
+            obj.IdentifyCarinaAndTrachea();
 
 %             obj.ClassifyLungLobes()
 
@@ -72,7 +72,7 @@ classdef ClinicalAirways < TubeNetwork
             end
 
             % reclass all tube generations by n decendants from 0 gen.
-            obj.RunAllTubes('SetGeneration')
+            obj.RunAllTubes('SetGeneration');
         end
 
         function obj = ClassifyLungLobes(obj)
@@ -86,8 +86,8 @@ classdef ClinicalAirways < TubeNetwork
             tubegens = [obj.tubes(:).generation];
             tracheaID = find(tubegens == 0);
             for ii = tracheaID
-                obj.tubes(ii).SetRegion('lobe','T')
-                obj.tubes(ii).SetRegion('name','Trachea')
+                obj.tubes(ii).SetRegion('lobe','T');
+                obj.tubes(ii).SetRegion('name','Trachea');
             end
 
             % find carina-end tube and init algorithm
@@ -102,27 +102,27 @@ classdef ClinicalAirways < TubeNetwork
             [mX, ~, ~] = obj.I2S(ClinicalAirways.SkelEnds(MB));
             [~,leftMBI] = max(mX);
             [~,rightMBI] = min(mX);
-            MB(leftMBI).SetRegion('lobe','B')
-            MB(leftMBI).SetRegion('name','LeftMajor')
-            MB(rightMBI).SetRegion('lobe','B')
-            MB(rightMBI).SetRegion('name','RightMajor')
+            MB(leftMBI).SetRegion('lobe','B');
+            MB(leftMBI).SetRegion('name','LeftMajor');
+            MB(rightMBI).SetRegion('lobe','B');
+            MB(rightMBI).SetRegion('name','RightMajor');
 
             % Identify upper/lingular and lower left lobe 'LLL'
             MLlung = MB(leftMBI).children;
             [~, ~, MLlz] = obj.I2S(ClinicalAirways.SkelEnds(MLlung));
             [~,MLULLML] = max(MLlz);
             [~,MLLL] = min(MLlz);
-            MLlung(MLULLML).SetRegion('lobe','B')
-            MLlung(MLULLML).SetRegion('name','LeftIntermedius')
-            MLlung(MLLL).SetRegionDescendants('lobe','LLL')
+            MLlung(MLULLML).SetRegion('lobe','B');
+            MLlung(MLULLML).SetRegion('name','LeftIntermedius');
+            MLlung(MLLL).SetRegionDescendants('lobe','LLL');
 
             % identify upper lobe and lingular
             MLULLML2 = MLlung(MLULLML).children;
             [~, ~, MLl2z] = obj.I2S(ClinicalAirways.SkelEnds(MLULLML2));
             [~,MLUL] = max(MLl2z);
             [~,MLML] = min(MLl2z);
-            MLULLML2(MLUL).SetRegionDescendants('lobe','LUL')
-            MLULLML2(MLML).SetRegionDescendants('lobe','LML')
+            MLULLML2(MLUL).SetRegionDescendants('lobe','LUL');
+            MLULLML2(MLML).SetRegionDescendants('lobe','LML');
 
             % % Identify right upper lobe
             MRlung = MB(rightMBI).children;
@@ -159,17 +159,17 @@ classdef ClinicalAirways < TubeNetwork
             RML_RLLNid = RML_endpath(min(intersections));
 
             % assign right bronchus intermedius
-            obj.tubes(RML_RLLNid).SetRegion('lobe','B')
-            obj.tubes(RML_RLLNid).SetRegion('name','RightIntermedius')
+            obj.tubes(RML_RLLNid).SetRegion('lobe','B');
+            obj.tubes(RML_RLLNid).SetRegion('name','RightIntermedius');
 
             % assign RML
             RML_id = RML_endpath(min(intersections)-1);
-            obj.tubes(RML_id).SetRegionDescendants('lobe','RML')
+            obj.tubes(RML_id).SetRegionDescendants('lobe','RML');
 
             % assign remaining labels to RLL
             for ii = 1:length(subtubes)
                 if ~isfield(subtubes(ii).region,'lobe')
-                    subtubes(ii).SetRegion('lobe','RLL')
+                    subtubes(ii).SetRegion('lobe','RLL');
                 end
             end
 

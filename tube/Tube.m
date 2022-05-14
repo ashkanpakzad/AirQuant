@@ -115,7 +115,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             %
 
             obj.children = [obj.children tube];
-            tube.SetParent(obj)
+            tube.SetParent(obj);
         end
 
         function obj = SetParent(obj, tube)

@@ -42,7 +42,7 @@ classdef Airway < Tube
         end
 
         function obj = SetCarinaEnd(obj)
-            obj.SetTrachea()
+            obj.SetTrachea();
             obj.carinaend = true;
         end
 

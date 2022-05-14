@@ -124,7 +124,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             [~, glink, ~] = Skel2Digraph(obj);
 
             % make tube objects
-            obj.MakeTubes(glink)
+            obj.MakeTubes(glink);
 
             % set tube relationships
             for ii = 1:length(glink)
@@ -294,7 +294,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             assert(isa(tubefunc,"char") || isa(tubefunc,"string"), ...
                 'tubefunction must be provided as char/string.')
             for ii = 1:length(obj.tubes)
-                obj.tubes(ii).(tubefunc)(varargin{:})
+                obj.tubes(ii).(tubefunc)(varargin{:});
             end
         end
 
@@ -676,53 +676,6 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
 
         end
         
-        function [h, G] = GraphPlotDiameter(obj, showlabels, XData, YData)
-            if nargin < 2
-                showlabels = 1;
-            end
-            if nargin < 4
-                XData = [];
-                YData = [];
-            end
-            % graph plot any variable for each airway as desired. i.e.
-            % provide var which is a vector the same length as the number
-            % of airways.
-
-            G = obj.Gdigraph;
-
-            if ~exist('obj.Specs.SegmentTaperResults', 'var')
-                tapertable = SegmentTaperAll(obj, [0 0]);
-            else
-                tapertable = obj.Specs.SegmentTaperResults;
-            end
-
-            % generate corresponding edgelabels
-            if showlabels == 1
-                edgelabels = [obj.Glink(G.Edges.Label).generation];
-            else
-                edgelabels = [];
-            end
-            edgevar = real(tapertable.inner_avg(G.Edges.Label));
-
-            title('Average Inner lumen Diameter')
-            if ~isempty(XData) && ~isempty(YData)
-                h = plot(G,'EdgeLabel',edgelabels,'XData',XData,'YData',YData);
-            else
-                h = plot(G,'EdgeLabel',edgelabels, 'Layout', 'layered');
-            end
-            h.NodeColor = 'r';
-            h.EdgeColor = 'k';
-
-            % set linewidth
-            edgevar(isnan(edgevar)) = 0.001;
-            h.LineWidth = edgevar;
-
-            % highlight by lobe colour if available
-            if isfield(obj.Glink, 'lobe')
-                [h, G] = SetGraphRegionColourmap(obj, h, G);
-            end
-        end
-
         % Data IO
 
         % function obj = savetube(obj, tube)
