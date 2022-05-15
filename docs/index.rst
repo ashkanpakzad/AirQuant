@@ -3,8 +3,16 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-AirQuant documentation
-======================
+AirQuant
+========
+
+AirQuant is an open source MATLAB software library for analysing macro tubular networks
+in medical imaging such as airways.
+
+Given segmentation/centreline of the tube anatomy it can interpret the structure,
+extracting length measurements and interpolate the original image at perpendicular
+planes to extract diameter measurements. Facilitating detailed quantitative
+clinical analysis.
 
 .. toctree::
    :maxdepth: 2
@@ -15,7 +23,6 @@ AirQuant documentation
    network
    tube
    library
-   contributing
 
 
 Indices and tables

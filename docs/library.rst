@@ -1,6 +1,13 @@
 Library
 =======
-AirQuant's library consists of the base functions called by its classes.
+AirQuant's library consists of base functions called by AirQuant classes.
+
+AirQuant
+--------
+
+.. autoclass:: AirQuant
+  :show-inheritance:
+  :members:
 
 graph
 -----

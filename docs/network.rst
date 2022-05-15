@@ -13,3 +13,10 @@ Base class of all networks
 .. autoclass:: TubeNetwork
   :show-inheritance:
   :members:
+
+ClinicalAirways
+-----------
+
+.. autoclass:: ClinicalAirways
+  :show-inheritance:
+  :members:
