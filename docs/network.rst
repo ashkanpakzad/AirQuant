@@ -15,7 +15,7 @@ Base class of all networks
   :members:
 
 ClinicalAirways
------------
+---------------
 
 .. autoclass:: ClinicalAirways
   :show-inheritance:

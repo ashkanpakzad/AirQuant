@@ -1,7 +1,7 @@
 % Lead Author: Ashkan Pakzad 2022. ashkanpakzad.github.io.
 % See https://github.com/ashkanpakzad/AirQuant for more information.
 
-classdef TubeNetwork < AirQuant & matlab.mixin.SetGet 
+classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
     % TubeNetwork for managing analysis of a set of tubes in AirQuant.
     %
     % TubeNetwork creates and manages objects inherited from
@@ -133,13 +133,13 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
                     obj.tubes(ii).SetChildren(obj.tubes(iii));
                 end
             end
-            
+
             obj.RunAllTubes('SetGeneration');
-            
+
             % classify segmentation to tubes
             obj.ClassifySegmentationTubes();
         end
-        
+
         function obj = MakeTubes(obj, glink)
             for ii = 1:length(glink)
                 obj.tubes = [obj.tubes, Tube(obj, glink(ii).point, ii)];
@@ -159,7 +159,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
                 options.usesegcrop logical = false
                 options.method char = 'linear'
             end
-                
+
             for ii = progress(1:length(obj.tubes), 'Title', 'Making tube patches')
 
                 if strcmp(options.type,'source') || strcmp(options.type,'both')
@@ -176,14 +176,14 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             end
 
         end
-        
+
         function obj = ClassifySegmentationTubes(obj)
             % create classified skeleton
             classedskel = zeros(size(obj.skel));
             for ii = 1:length(obj.tubes)
                 classedskel(obj.tubes(ii).skelpoints) = obj.tubes(ii).ID;
             end
-                
+
             % get list of everypoint on segmentation
             [XPQ, YPQ, ZPQ] = obj.I2S(find(obj.seg == 1));
             PQ = [XPQ,YPQ,ZPQ];
@@ -210,10 +210,10 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             end
 
         end
-        
+
         % GRAPH NETWORK
         function [g, glink, gnode] = Skel2Digraph(obj, method)
-            
+
             if nargin < 2
                 method = 'topnode';
             end
@@ -344,7 +344,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
         end
 
         % VISUALISATION - utilites
-        
+
         function [regionkwarg,regionid] = ParseRegion(obj, regionkwarg)
             % visualisation utility method to interpret the `region`
             % keyword argument
@@ -374,13 +374,13 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             % Args:
             %   maptype(char): default = qua. accepts either 'qua' or 'seq'
             %       to specify the maptype.
-            % 
-            % 
-            % 
-            % 
-            % 
-            % 
-            % 
+            %
+            %
+            %
+            %
+            %
+            %
+            %
             %
             arguments
                 obj
@@ -413,7 +413,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             c.Label.String = colorbarstring;
             caxis(clims)
         end
-        
+
         function vol3daxes(obj, ax)
             % utility function for 3D volumetric plotting. Sets the aspect
             % ratio according to voxel size and reverses the x axes for LPS
@@ -427,7 +427,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             % aspect ratio
             ax.DataAspectRatio = 1./obj.voxdim;
             grid on
-            
+
             f = gcf;
             lh = findobj(f,'Type','light');
             if isempty(lh)
@@ -474,12 +474,12 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             h.EdgeColor = 'k';
 
             h.LineWidth = 3;
-            
+
             % set colour to get chosen region.
             % if region none then output none
             % if region
             [options.region, regionid] = obj.ParseRegion(options.region);
-            
+
             if ~isempty(options.region)
                 cdata = ColourIndex(obj, options.region, regionid);
                 edgeregion = cdata(ge.Edges.ID);
@@ -510,18 +510,18 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
 
             % set colour to get chosen region.
             [options.region, regionid] = obj.ParseRegion(options.region);
-            
+
             if ~isempty(options.region)
                 [cdata, rgb] = ColourIndex(obj, options.region, regionid);
             else
                 rgb = [];
             end
-                
+
             % plot tube
             for tubeii = vis_tubes
                 if ~isempty(rgb)
                     tubeii.Plot3(rgb(cdata(tubeii.ID),:));
-                else 
+                else
                     tubeii.Plot3();
                 end
                 hold on
@@ -534,14 +534,15 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
         function Plot3D(obj, options)
             % Plot volume
             %
-            % .. note: plotting multiple patches (>20) significantly reduces
-            % performance. This is why this function tries to collate every
-            % patch that is designated a different colour and then plots
-            % them. 
+            % .. note:
+            %   plotting multiple patches (>20) significantly reduces
+            %   performance. This is why this function tries to collate every
+            %   patch that is designated a different colour and then plots
+            %   them.
             %
-            % .. todo: colour by region
             %
-            
+            %
+
             arguments
                 obj
                 options.gen = max([obj.tubes.generation]);
@@ -550,12 +551,12 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
                 options.type {mustBeMember(options.type,{'seg','skel'})} = 'seg'
                 options.region = ''
             end
-            
-    
+
+
             % set up reduced graph
             vis_Glink_logical = [obj.tubes.generation] <= options.gen;
             vis_tubes = obj.tubes(vis_Glink_logical);
-            
+
             V = zeros(size(obj.(options.type)));
 
             % set colour to get chosen region.
@@ -565,7 +566,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
                 [cdata, rgb] = ColourIndex(obj, options.region, regionid);
             else
                 rgb = [];
-            end    
+            end
 
             % gather tube vol points per color
             for tubeii = vis_tubes
@@ -575,9 +576,9 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
                     V(tubeii.([options.type,'points'])) = 1;
                 end
             end
-            
+
             % plot each color vol
-            
+
             if ~isempty(rgb)
                 for ii = 1:max(cdata)
                 U = zeros(size(V));
@@ -601,7 +602,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
         end
 
         function PlotSpline(obj, options)
-            % Plot the airway tree in 
+            % Plot the airway tree in
             %
             %
             %
@@ -628,7 +629,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             for tubeii = vis_tubes
                 if ~isempty(rgb)
                     tubeii.PlotSpline(context=false,color=rgb(cdata(tubeii.ID),:));
-                else 
+                else
                     tubeii.PlotSpline(context=false);
                 end
                 hold on
@@ -637,7 +638,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             obj.vol3daxes()
             hold off
         end
-        
+
         function s = OrthoView(obj, type)
             % View volume using MATLAB's inbuilt othogonal viewer.
             %
@@ -675,7 +676,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
                 'ScaleFactors',obj.voxdim, 'CrosshairLineWidth', 0.3);
 
         end
-        
+
         % Data IO
 
         % function obj = savetube(obj, tube)

@@ -13,3 +13,10 @@ Base class of tubes
 .. autoclass:: Tube
    :show-inheritance:
    :members:
+
+Airway
+------
+
+.. autoclass:: tube.Airway
+  :show-inheritance:
+  :members:

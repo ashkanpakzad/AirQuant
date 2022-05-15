@@ -2,10 +2,31 @@ Library
 =======
 AirQuant's library consists of base functions called by AirQuant classes.
 
-AirQuant
---------
+AirQuant superclass
+-------------------
 
-.. autoclass:: AirQuant
+.. autoclass:: library.AirQuant
+  :show-inheritance:
+  :members:
+
+dataio
+------
+
+.. automodule:: library.dataio
+  :show-inheritance:
+  :members:
+
+PTKskel
+-------
+
+.. automodule:: library.PTKskel
+  :show-inheritance:
+  :members:
+
+SimplePTKSkel
+-------------
+
+.. automodule:: library.SimplePTKSkel
   :show-inheritance:
   :members:
 
@@ -23,19 +44,6 @@ perpinterp
   :show-inheritance:
   :members:
 
-PTKskel
--------
-
-.. automodule:: library.PTKskel
-  :show-inheritance:
-  :members:
-
-SimplePTKSkel
--------------
-
-.. automodule:: library.SimplePTKSkel
-  :show-inheritance:
-  :members:
 
 util
 ----

@@ -3,14 +3,15 @@ function [dataset] = AQdownload_data(dataname)
 %
 % Download an AirQuant example dataset if it hasn't already been downloaded
 %
-% .. todo: 
+% .. todo:
 %   * Automatically infer download size from HTTP head request of
 %       link.
 %   * Add exception to download whole file if interrupted.
 %
-% .. note: Example datasets are saved in the default AirQuant directory
-% even if specified otherwise by the user.
-% 
+% .. note:
+%   Example datasets are saved in the default AirQuant directory
+%     even if specified otherwise by the user.
+%
 %
 % Args:
 %   dataname('char'): name of dataset to download.

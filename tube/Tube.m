@@ -1,7 +1,7 @@
 % Lead Author: Ashkan Pakzad 2022. ashkanpakzad.github.io.
 % See https://github.com/ashkanpakzad/AirQuant for more information.
 
-classdef Tube < AirQuant & matlab.mixin.SetGet 
+classdef Tube < AirQuant & matlab.mixin.SetGet
     % Initialise the Tube class object.
     %
     % description
@@ -185,7 +185,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             %
             obj.region = setfield(obj.region, regiontype, value);
         end
-        
+
         function obj = SetRegionDescendants(obj, regiontype, value)
             % Set region classifcation of tube for current and all
             % children.
@@ -199,13 +199,13 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             %       "parent" or "child".
             %
             %
-            
+
             % get all desendants
             for tubeii = obj.Descendants()
                 tubeii.SetRegion(regiontype, value);
             end
         end
-        
+
         function obj = SetRegionGeneration(obj, regiontype)
         % set generation by give region to region property
         %
@@ -231,13 +231,14 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
         end
         obj.region.(genname) = count;
         end
-        
+
         function descendants = Descendants(obj)
             % returns children of children tubes in a breadth-first search
             % list inclusive.
             %
-            % .. note: if tubes can have multiple parents there may be
-            % duplicates.
+            % .. note:
+            %   if tubes can have multiple parents there may be
+            %   duplicates.
             %
             descendants = obj;
             tubes = obj;
@@ -252,8 +253,9 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
         function ancestors = Ancestors(obj)
             % returns parents of parent tubes inclusive.
             %
-            % .. note: if tubes can have multiple parents there may be
-            % duplicates.
+            % .. note:
+            %   if tubes can have multiple parents there may be
+            %   duplicates.
             %
             ancestors = obj;
             tubes = obj;
@@ -858,11 +860,11 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             Z = [Z(1), mz, Z(2)];
             % plot line
             h = plot3(X,Y,Z,'-');
-            % datatip 
-            
+            % datatip
+
             dtRows = [dataTipTextRow("tubeID",ones(1,3)*obj.ID), ...
                 dataTipTextRow("generation",ones(1,3)*obj.generation)];
-            
+
             h.DataTipTemplate.DataTipRows(end+1:end+2) = dtRows;
 
             % colour code?
@@ -870,13 +872,13 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
                 h.Color = color;
             end
         end
-        
+
         function h = Plot3D(obj, options)
             %
             %
             % .. todo: add datatip for stats
             %
-            
+
             arguments
                 obj
                 options.type {mustBeMember(options.type,{'seg','skel'})} = 'seg'
@@ -929,10 +931,10 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             rawpoints = fnplt(obj.spline);
             points = rawpoints./obj.network.voxdim';
             h = plot3(points(2,:),points(1,:),points(3,:),'Color',options.color);
-            
+
             dtRows = [dataTipTextRow("tubeID",ones(size(points,2))*obj.ID), ...
                 dataTipTextRow("generation",ones(size(points,2))*obj.generation)];
-            
+
             h.DataTipTemplate.DataTipRows(end+1:end+2) = dtRows;
 
             obj.network.vol3daxes();
@@ -1085,7 +1087,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
 
             set(s,'CrosshairEnable','off');
             sliceNums = 1:length(obj.source);
-            
+
             for idx = sliceNums
                 % Update z slice number and annotation to get XY Slice.
                 s.SliceNumbers(3) = idx;

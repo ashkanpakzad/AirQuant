@@ -1,20 +1,21 @@
 function [output, outvoxdim] = ReorientVolume(source, meta)
     % Reorients input volume from niftiinfo/niftiread into forced LPS
-    % orientation by applying necessary axes permutations and flips based 
+    % orientation by applying necessary axes permutations and flips based
     % on the metadata affine.
     %
-    % TODO
-    % ----
-    % * make independent of loading mechanism
+    % .. todo :
+    %   * make independent of loading mechanism
     %
     % Args:
     %   img: volume from `niftiread`
     %   meta (struct): output from `niftiinfo` for same volume,
     %       containing header information
     % Returns:
-    %   output: reoriented volume in LPS configuration
-    %   outvoxdim: `OPTIONAL` output voxel dimensions for LPS
-    %       reorientation.
+    %   [output, outvoxdim]
+    %
+    %   * output: reoriented volume in LPS configuration
+    %   * outvoxdim: `OPTIONAL` output voxel dimensions for LPS reorientation.
+    %
 
     % get affine matrix
     aff_raw_RAS = meta.Transform.T;
