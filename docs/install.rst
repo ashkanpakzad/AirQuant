@@ -21,3 +21,15 @@ Optional Dependencies
 * For recommended skeletonisation algorithm:
 
   * `Pulmonary Toolkit <https://github.com/tomdoel/pulmonarytoolkit>`__
+
+Packaged Dependencies
+---------------------
+
+Please note that each package has its own licenses.
+
+## Packaged Dependencies
+
+* skel2graph3d-matlab (https://github.com/phi-max/skel2graph3d-matlab)
+* ellipse (https://uk.mathworks.com/matlabcentral/fileexchange/289-ellipse-m)
+* linspecer (https://www.mathworks.com/matlabcentral/fileexchange/42673-beautiful-and-distinguishable-line-colors-colormap)
+* MatlabProgressBar (https://uk.mathworks.com/help/matlab/ref/waitbar.html)

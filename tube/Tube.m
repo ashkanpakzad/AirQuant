@@ -747,6 +747,16 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             %  relation (string): relation name. common
             %   "parent" or "child".
             %
+            %
+            % Example:
+            %   >>> run CA_base.m;
+            %   >>> figure;
+            %   >>> AQnet.tubes(98).plot();
+            %
+            % .. |tube_Tube_plot| image:: figs/tube_plot.png
+            %    :width: 400
+            %    :alt: figure plot - Tube plot
+            %
 
             X = parsearg(X);
             Y = parsearg(Y);
@@ -789,6 +799,18 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             %
             % Return:
             %   y(type):
+            %
+            %
+            % Example:
+            %   >>> run CA_base.m;
+            %   >>> figure;
+            %   >>> AQnet.tubes(98).OrthoView();
+            %
+            % .. |tube_Tube_OrthoView| image:: figs/tube_orthoview.png
+            %    :width: 400
+            %    :alt: figure plot - Tube Orthoview
+            %
+            % |tube_Tube_OrthoView|
             %
 
             arguments
@@ -845,11 +867,22 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             %
             % .. todo: consider adding more info in datatips.
             %
+            % Example:
+            %   >>> run CA_base.m;
+            %   >>> figure;
+            %   >>> AQnet.tubes(98).Plot3();
+            %
+            % .. |tube_Tube_Plot3| image:: figs/tube_plot3.png
+            %    :width: 400
+            %    :alt: figure plot - Tube Plot3
+            %
+            % |tube_Tube_Plot3|
+            %
             if nargin < 2
                 color =[];
             end
             % get endpoints
-            [X,Y,Z] = obj.I2S([obj.skelpoints(1),obj.skelpoints(end)]);
+            [Y,X,Z] = obj.I2S([obj.skelpoints(1),obj.skelpoints(end)]);
             h = plot3(X,Y,Z,'.');
             h.Color = 'k';
             hold on
@@ -878,14 +911,25 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             %
             % .. todo: add datatip for stats
             %
+            % Example:
+            %   >>> run CA_base.m;
+            %   >>> figure;
+            %   >>> AQnet.tubes(98).Plot3D();
+            %
+            % .. |tube_Tube_Plot3D| image:: figs/tube_plot3d.png
+            %    :width: 400
+            %    :alt: figure plot - Tube Plot3D
+            %
+            % |tube_Tube_Plot3D|
+            %
 
             arguments
                 obj
                 options.type {mustBeMember(options.type,{'seg','skel'})} = 'seg'
                 options.alpha = 0.3
-                options.color = 'c'
+                options.color = 'k'
                 options.context = true;
-                options.contextcolor = 'y'
+                options.contextcolor = 'r'
             end
             if options.context == true
                 % get adjacent tubes
@@ -911,11 +955,24 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
         end
 
         function PlotSpline(obj,options)
+            %
+            %
+            % Example:
+            %   >>> run CA_base.m;
+            %   >>> figure;
+            %   >>> AQnet.tubes(98).PlotSpline();
+            %
+            % .. |tube_Tube_PlotSpline| image:: figs/tube_plotspline.png
+            %    :width: 400
+            %    :alt: figure plot - Tube PlotSpline
+            %
+            % |tube_Tube_PlotSpline|
+            %
             arguments
                 obj
-                options.color = 'c'
+                options.color = 'k'
                 options.context = true;
-                options.contextcolor = 'y'
+                options.contextcolor = 'r'
             end
 
             if options.context == true
@@ -943,6 +1000,19 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
 
         % 3D visualisation - level 2
         function h = PlotSplineVecs(obj, options)
+            %
+            %
+            % Example:
+            %   >>> run CA_base.m;
+            %   >>> figure;
+            %   >>> AQnet.tubes(98).PlotSplineVecs();
+            %
+            % .. |tube_Tube_PlotSplineVecs| image:: figs/tube_plotsplinevecs.png
+            %    :width: 400
+            %    :alt: figure plot - Tube PlotSplineVecs
+            %
+            % |tube_Tube_PlotSplineVecs|
+            %
             arguments
             obj
             options.subsamp = 2

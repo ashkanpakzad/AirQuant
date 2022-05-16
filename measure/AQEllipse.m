@@ -77,7 +77,8 @@ classdef AQEllipse < handle
             if showellipse == true
                 he = ellipse(obj.Rx,obj.Ry,obj.rotation,obj.center(1)+min_centre,...
                         obj.center(2)+min_centre, [], 300, ax);
-                        else
+                he.Color = 'r';
+            else
                 he = [];
             end
 

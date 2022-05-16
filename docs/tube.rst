@@ -1,21 +1,23 @@
 Tube
 ====
-Base class of Airquant
+Handles the tubular objects created in AirQuant.
 
-.. automodule:: tube
+.. mermaid:: class-inheritance.mmd
 
-:mod:`Tube` is a really cool module.
+.. contents:: Contents
+   :depth: 1
+   :local:
+   :backlinks: none
 
-Tube
-----
-Base class of tubes
+tube.Tube
+---------
 
-.. autoclass:: Tube
+.. autoclass:: tube.Tube
    :show-inheritance:
    :members:
 
-Airway
-------
+tube.Airway
+-----------
 
 .. autoclass:: tube.Airway
   :show-inheritance:

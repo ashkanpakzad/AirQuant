@@ -29,7 +29,8 @@ copyright = f'{date.today().year}, {author}'
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = ['sphinxcontrib.matlab', 'sphinx.ext.autodoc',
-'sphinx.ext.napoleon', 'sphinx.ext.todo', 'sphinx.ext.viewcode', 'sphinx_copybutton']
+'sphinx.ext.napoleon', 'sphinx.ext.todo', 'sphinx.ext.viewcode', 'sphinx_copybutton',
+'sphinxcontrib.mermaid']
 
 this_dir = os.path.dirname(os.path.abspath(__file__))
 matlab_src_dir = os.path.abspath(os.path.join(this_dir, '..'))

@@ -1,22 +1,25 @@
 Network
 =======
-Base class of all functions
+Handles the *network* of :mod:`tube` objects created in AirQuant.
 
-.. automodule:: network
+.. mermaid:: class-inheritance.mmd
 
-:mod:`Tube` is a really cool module.
 
-TubeNetwork
------------
-Base class of all networks
+.. contents:: Contents
+   :depth: 1
+   :local:
+   :backlinks: none
 
-.. autoclass:: TubeNetwork
+network.TubeNetwork
+-------------------
+
+.. autoclass:: network.TubeNetwork
   :show-inheritance:
   :members:
 
-ClinicalAirways
----------------
+network.ClinicalAirways
+-----------------------
 
-.. autoclass:: ClinicalAirways
+.. autoclass:: network.ClinicalAirways
   :show-inheritance:
   :members:

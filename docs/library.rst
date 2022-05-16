@@ -1,6 +1,14 @@
 Library
 =======
-AirQuant's library consists of base functions called by AirQuant classes.
+Base functions called by AirQuant's classes.
+
+.. mermaid:: class-inheritance.mmd
+
+.. contents:: Contents
+   :depth: 1
+   :local:
+   :backlinks: none
+
 
 AirQuant superclass
 -------------------

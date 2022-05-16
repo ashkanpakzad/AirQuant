@@ -379,9 +379,6 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             %
             %
             %
-            %
-            %
-            %
             arguments
                 obj
                 regiontouse
@@ -418,12 +415,14 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             % utility function for 3D volumetric plotting. Sets the aspect
             % ratio according to voxel size and reverses the x axes for LPS
             % viewing.
-
+            %
+            %
+            %
             if nargin < 2 % current axes if not specified
                 ax = gca;
             end
             axis vis3d
-            view(-110, 20)
+            view(80, 20)
             % aspect ratio
             ax.DataAspectRatio = 1./obj.voxdim;
             grid on
@@ -438,6 +437,19 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
         % VISUALISATION
 
         function h = Plot(obj, options)
+            %
+            %
+            % Example:
+            %   >>> run CA_base.m;
+            %   >>> figure;
+            %   >>> AQnet.Plot();
+            %
+            % .. |network_Network_Plot| image:: figs/network_plot.png
+            %    :width: 400
+            %    :alt: figure plot - Network Plot
+            %
+            % |network_Network_Plot|
+            %
             arguments
                 obj
                 options.label = 'ID'
@@ -498,6 +510,19 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             %
             % .. todo: add arrows.
             %
+            %
+            %
+            % Example:
+            %   >>> run CA_base.m;
+            %   >>> figure;
+            %   >>> AQnet.Plot3();
+            %
+            % .. |network_Network_Plot3| image:: figs/network_plot3.png
+            %    :width: 400
+            %    :alt: figure plot - Network Plot3
+            %
+            % |network_Network_Plot3|
+            %
             arguments
                 obj
                 options.gen = max([obj.tubes.generation])
@@ -541,6 +566,17 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             %   them.
             %
             %
+            %
+            % Example:
+            %   >>> run CA_base.m;
+            %   >>> figure;
+            %   >>> AQnet.Plot3D();
+            %
+            % .. |network_Network_Plot3D| image:: figs/network_plot3d.png
+            %    :width: 400
+            %    :alt: figure plot - Network Plot3D
+            %
+            % |network_Network_Plot3D|
             %
 
             arguments
@@ -606,6 +642,17 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             %
             %
             %
+            % Example:
+            %   >>> run CA_base.m;
+            %   >>> figure;
+            %   >>> AQnet.PlotSpline();
+            %
+            % .. |network_Network_PlotSpline| image:: figs/network_plotspline.png
+            %    :width: 400
+            %    :alt: figure plot - Network PlotSpline
+            %
+            % |network_Network_PlotSpline|
+            %
             arguments
                 obj
                 options.gen = max([obj.tubes.generation])
@@ -639,7 +686,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             hold off
         end
 
-        function s = OrthoView(obj, type)
+        function s = OrthoView(obj, type, options)
             % View volume using MATLAB's inbuilt othogonal viewer.
             %
             % Call MATLAB's orthosliceViewer for a property that is a 3D
@@ -660,10 +707,23 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             %   - **s** (:attr:`orthosliceViewer`): see ___ for more
             %       details.
             %
+            %
+            % Example:
+            %   >>> run CA_base.m;
+            %   >>> figure;
+            %   >>> AQnet.OrthoView();
+            %
+            % .. |network_Network_OrthoView| image:: figs/network_orthoview.png
+            %    :width: 400
+            %    :alt: figure plot - Network OrthoView
+            %
+            % |network_Network_OrthoView|
+            %
 
             arguments
                 obj
                 type {mustBeMember(type,{'source','seg'})} = 'source'
+                options.displayrange = [-inf inf]
             end
 
             % get volume
@@ -671,31 +731,31 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             volout = permute(volout, [2,1,3]);
             volout = flip(volout, 3);
 
+            automin = min(volout(:));
+            automax = max(volout(:));
+
+            % display range
+            switch type
+                case 'source'
+                    if options.displayrange(1) == -inf
+                        options.displayrange(1) = automin;
+                    end
+                    if options.displayrange(2) == inf
+                        options.displayrange(2) = automax;
+                    end
+                case 'seg'
+                    options.displayrange = [automin, automax];
+            end
+
+
             % display with orthoview
-            s = orthosliceViewer(volout, 'DisplayRangeInteraction','off', ...
+            s = orthosliceViewer(volout, 'DisplayRange', options.displayrange,...
+                'DisplayRangeInteraction','off', ...
                 'ScaleFactors',obj.voxdim, 'CrosshairLineWidth', 0.3);
 
         end
 
         % Data IO
-
-        % function obj = savetube(obj, tube)
-        %             % update specific tube object only in matfile
-        %             %
-        %             % firstrun
-        %             if isempty(obj.tubepath)
-        %               % init matfile
-        %               obj.tubemat = matfile(fileparts(obj.objpath,'tubes.mat'),'Writable',true);
-        %               % save each tube to new variable in mat by ID
-        %               for ii = 1:length(obj.tubes)
-        %                 currenttube = obj.tubes(ii);
-        %                 currentID = ['tube_',num2str(currenttube.ID)];
-        %                 assignin('base',currentID, currenttube)
-        %                 obj.tubemat
-        %               end
-        %             end
-        %
-        %         end
 
         function obj = SaveAllAwy(obj, mingen, maxgen, prunelength)
 
@@ -764,55 +824,6 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             end
         end
 
-        function save(obj, path)
-            % save class object to disk
-            %
-            % long desc
-            %
-            % .. todo:: add documentation to this function
-            %   * consider copying object and removing tubes property.
-            %
-            % Args:
-            %   x(type):
-            %
-            % Return:
-            %   y(type):
-            %
-            tubes = obj.tubes;
-            obj.tubes = [];
-            save(path, 'obj', '-v7.3')
-            disp(['Saved to ',path])
-            % tubes save seperately
-            obj.tubepath = replace(path,'.m','_tubes.m');
-            save(obj.tubepath, 'tubes');
-            obj.tubemat = matfile(obj.tubepath,'Writable',true);
-            disp(['Tubes cache saved to ',obj.tubepath]);
-            obj.tubes = tubes;
-        end
-
-        function savetube(obj,tubetosave)
-            % change only tube on disk.
-            %
-            % long desc
-            %
-            % .. todo:: add documentation to this function
-            %   * Needs attention.: make tubes individual files to save.
-            %
-            %
-            %
-            % Args:
-            %   x(type):
-            %
-            % Return:
-            %   y(type):
-            %
-
-            assert(~isempty(obj.tubemat), 'Need to first run save methods, see documentation.')
-            objid = find([obj.tubes(:).ID] == tubetosave.ID);
-            assert(~isempty(objid), 'tube ID not found in network object.')
-            obj.tubemat.tubes(1,objid) = tubetosave;
-
-        end
     end
 
     methods(Static)
