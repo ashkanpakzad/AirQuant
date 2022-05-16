@@ -18,18 +18,24 @@ Required Dependencies
 Optional Dependencies
 ---------------------
 
-* For recommended skeletonisation algorithm:
+* `Pulmonary Toolkit <https://github.com/ashkanpakzad/pulmonarytoolkit/releases/tag/ForAirQuant1.0>`__ - For in-built airway skeletonisation.
 
-  * `Pulmonary Toolkit <https://github.com/tomdoel/pulmonarytoolkit>`__
 
 Packaged Dependencies
 ---------------------
 
 Please note that each package has its own licenses.
 
-## Packaged Dependencies
+* `skel2graph3d-matlab`_ - convert binary skeleton images into graphs.
 
-* skel2graph3d-matlab (https://github.com/phi-max/skel2graph3d-matlab)
-* ellipse (https://uk.mathworks.com/matlabcentral/fileexchange/289-ellipse-m)
-* linspecer (https://www.mathworks.com/matlabcentral/fileexchange/42673-beautiful-and-distinguishable-line-colors-colormap)
-* MatlabProgressBar (https://uk.mathworks.com/help/matlab/ref/waitbar.html)
+* `ellipse`_ - robustly fit ellipses to points.
+
+* `linspecer`_ - beautiful contrasting colours.
+
+* `MatlabProgressBar`_ - tqdm progress style feedback.
+
+
+.. _skel2graph3d-matlab: https://github.com/phi-max/skel2graph3d-matlab/releases/tag/v1.2
+.. _ellipse: https://www.mathworks.com/matlabcentral/fileexchange/289-ellipse-m
+.. _linspecer: https://www.mathworks.com/matlabcentral/fileexchange/42673-beautiful-and-distinguishable-line-colors-colormap
+.. _MatlabProgressBar: https://www.mathworks.com/help/matlab/ref/waitbar.html
