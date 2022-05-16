@@ -2,31 +2,54 @@
 % See https://github.com/ashkanpakzad/AirQuant for more information.
 
 classdef Tube < AirQuant & matlab.mixin.SetGet
-    % Initialise the Tube class object.
+    % A tubular structure in a connected tree-like structure.
     %
-    % description
+    % Represents a tube based on some source image for analysis.
+    % Where quantitative metrics can be extracted.
     %
-    % .. todo:: add documentation to this function
+    %
     %
     % Args:
-    %   network (:class:`AirQuant.network`): tube network object that this
-    %     tube is a subset
-    %   relatives (struct): related tube objects e.g. `parent` to  tube
-    %     objects
-    %   skelpoints (int, vector): list of linear indexed points that make
+    %   source (float): *INHERITED* array of interpolated perpendicular slice patches of source
+    %     along the :attr:`tube.Tube.spline`.
+    %   seg (float): *INHERITED* array of interpolated perpendicular slice patches of seg
+    %     along the :attr:`tube.Tube.spline`.
+    %   voxdim (float): *INHERITED* triplet that specifies the dimensions of the
+    %     tube source where the third dimension represents the :attr:`tube.Tube.spline` interval.
+    %   parent (:class:`tube.Tube`): vector of parent tubes to this tube.
+    %   children (:class:`tube.Tube`): vector of child tubes to this tube.
+    %   generation (int): scalar, number of ancestor tubes.
+    %   network (:class:`network.TubeNetwork`): tube network object that this
+    %     tube is a subset.
+    %   skelpoints (int): vector of linear indexed points that make
     %     up the tube's centreline
-    %   spline (struct): polynomial that describes the spline
-    %   source (float, array): tube patches of source image along
-    %   spline at interval specifed by
-    %     :attr:`patchprop.arclength`
-    %   seg (float, array): tube patches of seg image along spline
-    %     at interval specifed by :attr:`patchprop.arclength`
+    %   spline (struct): polynomial spline that is created using `cscvn`_.
     %   patchprop (struct): property per tube patch slice given as list
-    %     e.g :attr:`patchprop.arclength`
-    %   stats (struct): stats property for current tube
+    %     e.g `patchprop.arcpoints`
+    %   prunelength (float): two element vector that represents in units of
+    %     `patchprop.arclength` how much of the tube to prune at either end.
+    %     This is set by :meth:`tube.Tube.SetPruneLength`
+    %   stats (struct): stats property for current tube e.g `stats.arclength`
+    %   region (struct): region that this tube belongs to e.g. `region.lobe`
+    %   ID (int): *PROTECTED* scalar index assigned to tube.
+    %   method (char): *PROTECTED* method used to make in-slice measurements e.g. :attr:`tube.Tube.diameters`
+    %   diameters (float): *PROTECTED* `m x n` array of diameter measurements made in plane.
+    %     where `m` is the number of interpolated slices and `n` is the number of in-plane measurements.
+    %   areas (float): *PROTECTED* `m x n` array of area measurements made in plane.
+    %     where `m` is the number of interpolated slices and `n` is the number of in-plane measurements.
+    %   volumes (float): *PROTECTED* vector of volume measurements, where length is the number of in-plane measurements.
     %
+    % .. warning::
+    %     Though it is possible to set multiple parents, some functionality will be lost.
+    %     e.g. it is not possible to use :meth:`tube.Tube.SetGeneration`
     %
-    % see also
+    % .. todo::
+    %   * make tubes saveable and loadable and that these operations
+    %     can be done independently of the network object.
+    %   * decouple from network. i.e. remove network as property, and convert skelpoints to sub index.
+    %
+    % .. _cscvn: https://uk.mathworks.com/help/curvefit/cscvn.html
+    %
 
     properties
         parent = []
@@ -41,7 +64,6 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
         prunelength = []
         stats
         region
-        savename
     end
     properties (SetAccess = protected)
         ID
@@ -54,28 +76,19 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
 
     methods
         function obj = Tube(network, skelpoints, ID)
-            % tube representing anatomical structure
+            % Init Tube see :class:`tube.Tube`.
             %
-            % .. todo::
-            %   * make tubes saveable and loadable and that these operations
-            %     can be done independently of the network object.
-            %   * to make independent, it may be necessary to remove the
-            %     network as a property. it will be nessesary to save the
-            %     keep the source size.
-            %
+            % Makes the Tube object by defining the skelpoints along the centreline of the tube.
+            % This init method automatically interpolates the tube and fits a spline.
+            % The network object is required as it specifies certain configuration properties.
+            % This function is not intended to be invoked directrly. Only by
+            % :meth:`network.TubeNetwork.MakeTubes`.
             %
             % Args:
-            %   network : network object to which this tube belongs.
-            %   skelpoints : list of points that make up the tube's
-            %   skeleton to the network's source image.
-            %   localsegpoints : list of points that make up the tube's
-            %   segmentation to the network's source image.
-            %   parent(cell): `OPTIONAL` parent tube(s) that directs to this tube
-            %       object.
-            %   child(cell): `OPTIONAL` child tube(s) that directs from this
-            %       tube object.
+            %   network : see :attr:`tube.Tube.network`
+            %   skelpoints : see :attr:`tube.Tube.skelpoints`
+            %   ID : see :attr:`tube.Tube.ID`
             %
-
             arguments
                 network
                 skelpoints (1,:)
@@ -101,17 +114,13 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
         end
 
         function obj = SetChildren(obj, tube)
-            % Set relative to current tube object.
+            % Set children of tube.
             %
-            % desc
-            %
-            % .. todo::: add documentation to this function
+            % This method automatically invokes :meth:`tube.Tube.SetParent`
+            % in the children tube specified.
             %
             % Args:
-            %   relativetube (:class:`tube`): the tube to set
-            %       relation to.
-            %   relation (string): relation name. common
-            %       "parent" or "child".
+            %   tube (:class:`tube.Tube`): list to set as children.
             %
 
             obj.children = [obj.children tube];
@@ -119,36 +128,26 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
         end
 
         function obj = SetParent(obj, tube)
-            % Set relative to current tube object.
-            %
-            % desc
+            % Set parent of tube.
             %
             % .. todo::
-            %   * add documentation to this function
             %   * set children tube of parent without being stuck in loop.
             %
             % Args:
-            %   relativetube (:class:`tube`): the tube to set
-            %       relation to.
-            %   relation (string): relation name. common
-            %       "parent" or "child".
+            %   tube (:class:`tube.Tube`): list to set as parent.
             %
 
             obj.parent = [obj.parent tube];
         end
 
         function obj = SetGeneration(obj)
-            % Set relative to current tube object.
+            % Identify and set the generation of this tube.
             %
+            % Counts the number tube anscestors i.e. parents of parents up to
+            % parent of generation 0.
             %
-            %
-            % .. todo::: add documentation to this function
-            %
-            % Args:
-            %   relativetube (:class:`tube`): the tube to set
-            %       relation to.
-            %   relation (string): relation name. common
-            %       "parent" or "child".
+            % .. warning::
+            %   This will fail if there are more than two parent tubes.
             %
             %
             currentbranch = obj;
@@ -174,13 +173,15 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
         function obj = SetRegion(obj, regiontype, value)
             % Set region classifcation of tube.
             %
-            % .. todo::: add documentation to this function
+            % modifies :attr:`tube.Tube.region` such that
+            % tube.Tube.region.regiontype = value.
+            %
             %
             % Args:
-            %   relativetube (:class:`tube`): the tube to set
-            %       relation to.
-            %   relation (string): relation name. common
-            %       "parent" or "child".
+            %   regiontype (`char`): name of the category to set this region.
+            %     e.g. `lobe`
+            %   value (): value that this tube should be set for the given
+            %     regiontype. e.g. `LLL` for Left lower Lobe.
             %
             %
             obj.region = setfield(obj.region, regiontype, value);
