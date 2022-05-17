@@ -191,14 +191,11 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             % Set region classifcation of tube for current and all
             % children.
             %
-            % .. todo::: add documentation to this function
+            %
             %
             % Args:
-            %   relativetube (:class:`tube`): the tube to set
-            %       relation to.
-            %   relation (string): relation name. common
-            %       "parent" or "child".
-            %
+            %   regiontype : See :meth:`tube.Tube.SetRegion`
+            %   value : See :meth:`tube.Tube.SetRegion`
             %
 
             % get all desendants
@@ -208,13 +205,17 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
         end
 
         function obj = SetRegionGeneration(obj, regiontype)
-        % set generation by give region to region property
+        % set generation by given region to region property
         %
         % Example:
         %   >>> AQnet.tubes(1).SetRegionGeneration('lobe')
-        %   >>> AQnet.tubes(1).region.lobegen
+        %   >>> AQnet.tubes(1).region.lobe_gen
         %
+        % todo:
+        %   * needs attention
         %
+        % Args:
+        %   regiontype : See :meth:`tube.Tube.SetRegion`
         %
         genname = [regiontype, '_gen'];
         currentube = obj;
@@ -255,7 +256,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             % returns parents of parent tubes inclusive.
             %
             % .. note:
-            %   if tubes can have multiple parents there may be
+            %   if tubes have multiple parents there may be
             %   duplicates.
             %
             ancestors = obj;
@@ -272,26 +273,21 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
         function obj = MakeSpline(obj, options)
             % fits a spline to the centreline of the tube.
             %
-            % Using the object property :attr:`skelpoints`, a polynomial
+            % Using the object property :attr:`tube.Tube.skelpoints`, a polynomial
             % spline is fit to this list of points. A moving average is
             % used to smooth the skeletal points, it can also use the
             % parent tube to initialise this moving average. For a better
-            % understanding of the spline output see `cscvn`.
-            % Based on original function by Kin Quan 2018
+            % understanding of the spline output see `cscvn`_.
             %
-            % .. warning:
+            % .. note:
             %   the order of skeletal points affects outcome e.g. reversing
             %   the order of the skeleton points would reverse the spline
             %   direction.
             %
             % Args:
-            %   useparent(bool): `optional` uses the parent tube skel
+            %   useparent(bool): *OPTIONAL* `default = true` uses the parent tube skel
             %       points if available to initialise the moving average.
-            %       True by default.
             %
-            % Return:
-            %   obj: object :attr:`spline` property updated. A `cscvn`
-            %       struct object.
             %
             arguments
                 obj
@@ -331,17 +327,22 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
         end
 
         function obj = FindSplinePoints(obj, options)
-            % short desc
+            % find equidistant points at some given interval along the length of
+            % the spline.
             %
-            % long desc
+            % Integrates along the discontinuous portions of the spline at the
+            % chosen interval to save equidistant parametrized points. This is
+            % necessary for a continous sampling along the spline otherwise
+            % there is no spatial understanding of how often we are resampling
+            % a tube. e.g. curved parts could end up being sampled more.
+            % Also calls :meth:`tube.Tube.ComputeTortuosity`.
             %
-            % .. todo::: add documentation to this function
             %
             % Args:
-            %   x(type):
+            %   options.sample_interval(float): *OPTIONAL*
+            %       `default = `:attr:`network.TubeNetwork.spline_sample_sz`.
+            %        The interval size along which to interpolate the spline.
             %
-            % Return:
-            %   y(type):
             %
             arguments
                 obj
@@ -360,23 +361,32 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
 
         % perpendicular slice interpolation
         function obj = MakePatchSlices(obj, vol, options)
-            % Constructs perpendicular images as if travelling along an
-            % airway segment in CT image and Segmentation.
-            % short desc
+            % Interpolates perpendicular slices as if travelling along the tube
+            % spline.
             %
-            % long desc
+            % Interpolates perpendicular slices along the spline at :attr:`tube.Tube.patchprop`.arcpoints.
+            % i.e. the spline interval as found by :meth:`tube.Tube.FindSplinePoints` and saves them to :attr:`tube.Tube.source`.
+            %
+            % .. note::
+            %   This function will use the GPU if available only when
+            %   :param:`options.method` = 'linear' and the `parallel copmputing toolbox`_
+            %   is installed.
             %
             % .. todo::
-            %   * add documentation to this function
             %   * Heavily reliant on the network class structure.
             %       Consider decoupling network in this function.
             %   * Consider incorporating matlabs obliqueslice function.
             %
             % Args:
-            %   x(type):
+            %   vol(float): must be three dimensional image
+            %   options.type(char): *OPTIONAL* `default = 'infer'`, must be either {'source','seg','infer'}. What type is :param:`vol`.
+            %   options.usesegcrop(logical): *OPTIONAL* `default = false` use dynamic slicing, vary the size of the plane dependant on
+            %       :attr:`tube.Tube.network.seg` size at that point.
+            %   options.method(char): *OPTIONAL* `default = 'cubic'` see `interp3`_ for details.
             %
-            % Return:
-            %   y(type):
+            %
+            % .. _parallel copmputing toolbox: https://www.mathworks.com/products/parallel-computing.html
+            % .. _interp3: https://www.mathworks.com/help/matlab/ref/interp3.html
             %
             arguments
                 obj
@@ -457,18 +467,20 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
         end
 
         function segdiameter = ApproxSegDiameter(obj, sourcepoint)
-            % short desc
+            % Gets the approximate diameter of the segmentation at a given point.
             %
-            % long desc
+            % Uses the distance transform of :attr:`tube.Tube.network.seg`
+            %   to get the approximate diameter of the segmentation at a given point.
             %
             % .. todo:: * add documentation to this function
             %   * consider diameter conversion to mm
             %
             % Args:
-            %   x(type):
+            %   sourcepoint(int): triplet coordinate of the point to sample.
             %
             % Return:
-            %   y(type):
+            %   1 variable
+            %   * segdiameter(float): segmentation diameter at that point.
             %
 
             % Convert CT_point mm back to voxel ind
@@ -487,18 +499,13 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
 
         % stats
         function obj = ComputeEucLength(obj)
-            % short desc
+            % Computes euclidean length of the tube.
             %
-            % long desc
+            % Computes euclidean length of the tube by considering the skeleton
+            % endpoints and saves to :attr:`tube.Tube.stats`.euclength
             %
-            % .. todo:: add documentation to this function
             %
-            % Args:
-            %   x(type):
-            %
-            % Return:
-            %   y(type):
-            %
+
             assert(isfield(obj.patchprop,'parapoints'), 'no parapoints computed, see method ComputeSplinePoints')
             [~, point_1] = spline_normal(obj.spline, ...
                 obj.patchprop.parapoints(1));
@@ -508,34 +515,25 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
         end
 
         function obj = ComputeArcLength(obj)
-            % short desc
+            % Computes arclength of the tube.
             %
-            % long desc
+            % Computes arc length of the tube by considering the total length
+            % of the tube spline and saves to :attr:`tube.Tube.stats`.arclength.
             %
-            % .. todo:: add documentation to this function
             %
-            % Args:
-            %   x(type):
-            %
-            % Return:
-            %   y(type):
-            %
+
             obj.stats.arclength = Compute_Spline_Points(obj.spline);
         end
 
         function obj = ComputeTortuosity(obj)
-            % short desc
+            % Computes tortuosity of the tube.
             %
-            % long desc
+            % Computes tortuosity of the tube by considering the ratio of the
+            % arc:euclidean length and saves to :attr:`tube.Tube.stats`.tortuosity.
             %
-            % .. todo:: add documentation to this function
             %
-            % Args:
-            %   x(type):
             %
-            % Return:
-            %   y(type):
-            %
+
             if ~isfield(obj.stats,'arclength')
                 obj = ComputeArcLength(obj);
             end
@@ -546,18 +544,20 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
         end
 
         function meanDval = ComputeMeanDiameter(obj, trim)
-            % short desc
+            % Computes the trim mean diameter of each measurement type in
+            % :attr:`tube.Tube.diameters`.
             %
-            % long desc
+            % Where :attr:`tube.Tube.diameters` is a `m x n` matrix, the trimmean
+            % is calculated for each m row returning an n length vector. result is saved
+            % in `tube.Tube.stats`.trimmean and  `tube.Tube.stats`.trimmean_trim.
             %
-            % .. todo:: add documentation to this function
             %
             % Args:
-            %   x(type):
+            %   trim(float): *OPTIONAL* `default = 0` trim as % of extremes of d
+            %       ata to discard in trimmean calculation.
             %
-            % Return:
-            %   y(type):
             %
+
             if nargin < 2
                 trim = 0;
             end
@@ -570,21 +570,20 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             % compute average
             meanDval = trimmean(pruned', trim);
             obj.stats.trimmean = meanDval;
-            obj.stats.TRIM = trim;
+            obj.stats.trimmean_trim = trim;
         end
 
         function meanAval = ComputeMeanArea(obj, trim)
-            % short desc
+            % Computes the mean area of each measurement type in
+            % :attr:`tube.Tube.areas`.
             %
-            % long desc
-            %
-            % .. todo:: add documentation to this function
+            % Where :attr:`tube.Tube.areas` is a `m x n` matrix, the mean
+            % is calculated for each m row returning an n length vector. result is saved
+            % in `tube.Tube.stats`.meanarea and `tube.Tube.stats`.meanarea_trim`.
             %
             % Args:
-            %   x(type):
-            %
-            % Return:
-            %   y(type):
+            %   trim(float): *OPTIONAL* `default = 0` trim as % of extremes of
+            %       data to discard in trimmean calculation.
             %
             if nargin < 2
                 trim = 0;
@@ -597,22 +596,18 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
 
             % compute average
             meanAval = trimmean(pruned', trim);
-            obj.stats.trimmeanarea = meanAval;
-            obj.stats.TRIM = trim;
+            obj.stats.meanarea = meanAval;
+            obj.stats.meanarea_trim = trim;
         end
 
         function intrataperval = ComputeIntrataper(obj)
-            % short desc
+            % Computes the intrataper value of the tube.
             %
-            % long desc
+            % the intrataper is the % of tapering in diameter along the length
+            % of the tube. It is calculated by using a bisquare linear fitting
+            % and then taking the ratio of the coefficients of the result.
             %
-            % .. todo:: add documentation to this function
-            %
-            % Args:
-            %   x(type):
-            %
-            % Return:
-            %   y(type):
+            % The result is saved in `tube.Tube.stats`/intrataper.
             %
             assert(~isempty(obj.diameters), 'No diameters property. Need measurements.')
             % prune the two variables
@@ -630,17 +625,13 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
         end
 
         function gradientval = ComputeGradient(obj)
-            % short desc
+            % Computes the gradient value of the tube.
             %
-            % long desc
+            % the gradient is the % gradient of tapering in diameter along the length
+            % of the tube. It is calculated by using a bisquare linear fitting
+            % and then taking gradient coefficient of the result.
             %
-            % .. todo:: add documentation to this function
-            %
-            % Args:
-            %   x(type):
-            %
-            % Return:
-            %   y(type):
+            % The result is saved in `tube.Tube.stats`.gradient.
             %
             assert(~isempty(obj.diameters), 'No diameters property. Need measurements.')
             % prune the two variables
@@ -658,17 +649,12 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
         end
 
         function intertaperval = ComputeIntertaper(obj, trim)
-            % short desc
+            % Computes the intertaper value of the tube.
             %
-            % long desc
+            % the intertaper value is the % change in mean diameter
+            % of the tube relative to the parent tube's mean diameter.
             %
-            % .. todo:: add documentation to this function
-            %
-            % Args:
-            %   x(type):
-            %
-            % Return:
-            %   y(type):
+            % The result is saved in `tube.Tube.stats`.intertaper.
             %
             assert(~isempty(obj.diameters), 'No diameters property. Need measurements.')
             assert(length(obj.parent) < 2, ['Must only have max one ' ...
@@ -680,10 +666,17 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
 
             % compute interbranch tapering as percentage
             intertaperval = (parentmean - currentmean)./(parentmean) * 100;
-            obj.stats.intertaperval = intertaperval;
+            obj.stats.intertaper = intertaperval;
         end
 
         function volumeval = ComputeVolume(obj)
+            % Computes the volume of the tube.
+            %
+            % the volume is calculated as an integration of the diameters against
+            % its arclength.
+            %
+            % The result is saved in `tube.Tube.stats`.volume.
+            %
             assert(~isempty(obj.diameters), 'No diameters property. Need measurements.')
             % prune the two variables
             al = obj.PruneMeasure(obj.patchprop.arcpoints);
@@ -700,17 +693,17 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
 
         % measures
         function obj = Measure(obj, classmethod, varargin)
-            % Call desired method to make measurement on tube patch slices.
+            % Call desired method to make measurement on the interpolated tube slices.
             %
-            % long desc
+            % This calls a subclass of the superclass, :class:`measure.SuperMeasure`
+            % to make measurement on the interpolated slices of the tube.
             %
             % .. todo:: add documentation to this function
             %
             % Args:
-            %   x(type):
+            %   classmethod(char):
+            %   varargin
             %
-            % Return:
-            %   y(type):
             %
 
             % reset measures property
