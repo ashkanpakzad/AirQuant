@@ -16,11 +16,11 @@ skel_name = [casename, '_airway_PTKskel.nii.gz'];
 
 % % Load CT data as double
 meta = niftiinfo(CT_name);
-CT = double(niftiread(meta));
+source = double(niftiread(meta));
 
 % Load Airway segmentation and its skeleton as logicals
-S = logical(niftiread(seg_name));
+seg = logical(niftiread(seg_name));
 skel = logical(niftiread(skel_name));
 
-AQnet = ClinicalAirways(CT, meta, S, skel, fillholes=1, largestCC=1);
+AQnet = ClinicalAirways(source, meta, seg, skel, fillholes=1, largestCC=1);
 toc
