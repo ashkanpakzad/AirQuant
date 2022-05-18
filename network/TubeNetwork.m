@@ -224,19 +224,20 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             % makes the digraph based on tube relationships
 
             % init edgetable
-
             gn = TubesAsNodes(obj);
-
-            % add incomming edge to nodes have no incoming edges
-            nin = find(indegree(gn) == 0);
-
             asedges = gn.Edges;
+
+            % add incomming edge to nodes that have no incoming edges
+            nin = find(indegree(gn) == 0);
+            
             for nini = nin
                 asedges.EndNodes(height(asedges)+1,:) = [max(asedges.EndNodes(:))+1 nini];
             end
+            
             asedges.ID = asedges.EndNodes(:,2);
 
             g = digraph(asedges);
+
         end
 
         function g = TubesAsNodes(obj)
@@ -252,28 +253,26 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             zerogentubes = find([obj.tubes(:).generation] == 0);
 
             % set up initial nodes with zero gen tubes
-            s = [];
-            t = [];
-
+            g = digraph();
+            
             % DFS from each zero gen tube, creating edgetable.
             for ii = 1:length(zerogentubes)
                 edgestosearch = obj.tubes(zerogentubes(ii));
+                if isempty(edgestosearch.parent) && isempty(edgestosearch.children)
+                    g = addnode(g,1);
+                end
                 while ~isempty(edgestosearch)
                     current_tube = edgestosearch(1);
-                    s_parent = current_tube.ID;
+                    parent = current_tube.ID;
                     if ~isempty(current_tube.children)
                         for childtube = current_tube.children
-                            s = [s, s_parent];
-                            t = [t, childtube.ID];
+                            g = addedge(g, parent, childtube.ID);
                             edgestosearch = [edgestosearch, childtube];
                         end
                     end
                     edgestosearch(1) = [];
                 end
             end
-
-            g = digraph(s,t);
-
         end
 
         % UTILITIES
