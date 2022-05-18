@@ -50,22 +50,6 @@ function [digraphout, glink, gnode] = skel_2_digraph(skel, method)
     % Create digraph with edges in both directions, loop through
     % branches and remove opposing direction to originating node.
     G = digraph(gadj);
-    % BF search from carina node to distal.
-    node_discovery = bfsearch(G,originnode);
-    %%% reorder nodes by bfs
-    G = reordernodes(G, node_discovery);
-    % reorder in gnodes and glinks
-    gnode = gnode(node_discovery);
-    for iinode = 1:length(gnode)
-        conns = gnode(iinode).conn;
-        for iiconn = 1:length(conns)
-            gnode(iinode).conn(iiconn) = find(node_discovery == conns(iiconn));
-        end
-    end
-    for iilink = 1:length(glink)
-        glink(iilink).n1 = find(node_discovery == glink(iilink).n1);
-        glink(iilink).n2 = find(node_discovery == glink(iilink).n2);
-    end
 
     % organise into outward facing digraph
     % half of the edges will be removed
