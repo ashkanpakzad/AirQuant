@@ -121,7 +121,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             obj.max_plane_sz = 40;
 
             % Convert skel into digraph
-            [~, glink, ~] = Skel2Digraph(obj);
+            [g, glink, ~] = Skel2Digraph(obj);
 
             % make tube objects
             obj.MakeTubes(glink);
@@ -220,7 +220,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             [g, glink, gnode] = skel_2_digraph(obj.skel, method);
         end
 
-        function g = TubesAsEdges(obj)
+        function ge = TubesAsEdges(obj)
             % makes the digraph based on tube relationships
 
             % init edgetable
@@ -230,13 +230,17 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             % add incomming edge to nodes that have no incoming edges
             nin = find(indegree(gn) == 0);
             
-            for nini = nin
-                asedges.EndNodes(height(asedges)+1,:) = [max(asedges.EndNodes(:))+1 nini];
+            for ii = 1:length(nin)
+                % make new node
+                gn = addnode(gn,1);
+                % make edge into node
+                gn = addedge(gn,numnodes(gn),nin(ii));
+%                 asedges.EndNodes(height(asedges)+1,:) = [max(asedges.EndNodes(:))+1 nini];
             end
             
-            asedges.ID = asedges.EndNodes(:,2);
+            gn.Edges.ID = gn.Edges.EndNodes(:,2);
 
-            g = digraph(asedges);
+            ge = gn;
 
         end
 
