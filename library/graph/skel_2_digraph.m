@@ -39,20 +39,36 @@ function [digraphout, glink, gnode] = skel_2_digraph(skel, method)
 
     [gadj,gnode,glink] = Skel2Graph3D(skel,0);
     % choose originating node using chosen method
-    switch method
-        case {'topnode','top','superior'}
-            % use most superiour node as origin
-            [~, originnode] = max([gnode.comz]);
-        otherwise
-            error('Invalid method')
-    end
+
 
     % Create digraph with edges in both directions, loop through
     % branches and remove opposing direction to originating node.
     G = digraph(gadj);
+    bins = conncomp(G);
 
-    % BF search from carina node to distal.
-    node_discovery = bfsearch(G,originnode);
+    switch method
+        case {'topnode','top','superior'}
+            % use most superiour node as origin for each subgraph
+            originnode = zeros(max(bins),1);
+            for ii = 1:max(bins)
+                binbool = (bins==ii);
+                nodelist = 1:numnodes(G);
+                binidx = nodelist(binbool);
+                gnodeii = gnode(binidx);
+                [~, binorigin] = max([gnodeii.comz]);
+                originnode(ii) = binidx(binorigin);
+            end
+        otherwise
+            error('Invalid method')
+    end
+
+
+    % BF search from carina node to distal for each disconnected graph.
+    allnode_discovery = cell(max(bins),1);
+    for ii = 1:max(bins)
+        allnode_discovery{ii} = bfsearch(G,originnode(ii));
+    end
+    node_discovery = cell2mat(allnode_discovery);
     %%% reorder nodes by bfs
     G = reordernodes(G, node_discovery);
     % reorder in gnodes and glinks
