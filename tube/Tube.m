@@ -160,7 +160,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
                     break
                 end
                 currentbranch = currentbranch.parent;
-                if length(currentbranch.parent) > 1
+                if length(currentbranch) > 1
                     obj.generation = NaN;
                     warning('Multiple parents, not possible to set generation')
                     return
