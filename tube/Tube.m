@@ -383,6 +383,8 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             %   options.usesegcrop(logical): *OPTIONAL* `default = false` use dynamic slicing, vary the size of the plane dependant on
             %       :attr:`tube.Tube.network.seg` size at that point.
             %   options.method(char): *OPTIONAL* `default = 'cubic'` see `interp3`_ for details.
+            %   options.sample_sz = *OPTIOPNAL* `default =
+            %       obj.network.plane_sample_sz`. interpolation pixel size. 
             %
             %
             % .. _parallel copmputing toolbox: https://www.mathworks.com/products/parallel-computing.html
@@ -394,6 +396,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
                 options.type char {mustBeMember(options.type,{'source','seg','infer'})} = 'infer'
                 options.usesegcrop logical = false
                 options.method char = 'cubic'
+                options.sample_sz = obj.network.plane_sample_sz
             end
 
             assert(~isempty(obj.spline), 'spline is empty, see method MakeSpline')
@@ -1041,76 +1044,55 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
 
         % Data IO
 
-        function obj = SaveAwyPatches(obj, prunelength)
-            % short desc
+        function obj = ExportPerpPathces(obj,path)
+            % export perpendicular slice patches of this tube.
             %
-            % long desc
+            % export the perpendicular slice patches of this tube stored in
+            % source as int16 tiff files.
             %
-            % .. todo::
-            %   * add documentation to this function
-            %   * Needs attention
             %
             % Args:
-            %   x(type):
+            %   path(str): path to directory to save the exported patches.
+            %       The directory will be created if it doesn't already 
+            %       exist.
             %
-            % Return:
-            %   y(type):
             %
 
-            if nargin < 2
-                prunelength = [0 0];
-            end
             % make directory
-            [fPath, saveid, ~] = fileparts(casedir);
-            dirname = fullfile(fPath,'airway_patches');
+            dirname = fullfile(path,'airway_patches');
             if ~exist(dirname, 'dir')
                 mkdir(dirname)
             end
 
-            % loop through each airway seg
-            for ii = 1:size(obj.TraversedImage,1)
-                seggen = obj.Glink(ii).generation;
-                if  seggen <= mingen || seggen >= maxgen
-                    continue
-                end
+            % choose which slices to save
+            chosenslices = PruneMeasure(obj, 1:length(obj.source));
+            % loop through slices
+            for k = chosenslices
+                img = int16(obj.source(:,:,k));
 
-                % choose which slices to save
-                al = obj.arclength{ii, 1};
-                prune = (al >= prunelength(1) & al <= al(end) - prunelength(2));
-                allslices = 1:length(obj.TraversedImage{ii, 1});
-                chosenslices = allslices(prune);
-                % loop through slices
-                for k = chosenslices
-                    img = int16(obj.TraversedImage{ii,1}{k,1});
+                % save as int16 TIF
+                imgsavename = fullfile(dirname, [ ...
+                    saveid, '_', ...
+                    'id_',num2str(obj.id), ...
+                    '_gen_', num2str(obj.generation), ...
+                    '_slice_',num2str(k), ...
+                    '.tif']);
 
-                    % save as int16 TIF
-                    imgsavename = fullfile(dirname, [ ...
-                        saveid, '_', ...
-                        'seg_',num2str(ii), ...
-                        '_lobe_', char(obj.Glink(ii).lobe), ...
-                        '_gen_', num2str(obj.Glink(ii).generation), ...
-                        '_slice_',num2str(k), ...
-                        '.tif']);
+                imgdata = img;
 
-                    imgdata = img;
-
-                    t = Tiff(imgsavename,'w');
-                    tagstruct.Compression = Tiff.Compression.None;
-                    tagstruct.ImageLength = size(imgdata,1);
-                    tagstruct.ImageWidth = size(imgdata,2);
-                    tagstruct.Photometric = Tiff.Photometric.MinIsBlack;
-                    tagstruct.SampleFormat = Tiff.SampleFormat.Int; % int
-                    tagstruct.BitsPerSample = 16;
-                    tagstruct.SamplesPerPixel = 1;
-                    tagstruct.PlanarConfiguration = Tiff.PlanarConfiguration.Chunky;
-                    tagstruct.Software = 'AirQuant';
-                    setTag(t,tagstruct)
-                    write(t,imgdata)
-                    close(t);
-                    if k == 1
-                        disp(imgsavename)
-                    end
-                end
+                t = Tiff(imgsavename,'w');
+                tagstruct.Compression = Tiff.Compression.None;
+                tagstruct.ImageLength = size(imgdata,1);
+                tagstruct.ImageWidth = size(imgdata,2);
+                tagstruct.Photometric = Tiff.Photometric.MinIsBlack;
+                tagstruct.SampleFormat = Tiff.SampleFormat.Int; % int
+                tagstruct.BitsPerSample = 16;
+                tagstruct.SamplesPerPixel = 1;
+                tagstruct.PlanarConfiguration = Tiff.PlanarConfiguration.Chunky;
+                tagstruct.Software = 'AirQuant';
+                setTag(t,tagstruct)
+                write(t,imgdata)
+                close(t);
             end
         end
 
