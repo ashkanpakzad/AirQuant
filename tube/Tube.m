@@ -75,6 +75,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
     end
 
     methods
+        % Core
         function obj = Tube(network, skelpoints, ID)
             % Init Tube see :class:`tube.Tube`.
             %
@@ -1044,7 +1045,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
 
         % Data IO
 
-        function obj = ExportPerpPathces(obj,path)
+        function ExportOrthoPatches(obj,path)
             % export perpendicular slice patches of this tube.
             %
             % export the perpendicular slice patches of this tube stored in
@@ -1059,21 +1060,18 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             %
 
             % make directory
-            dirname = fullfile(path,'airway_patches');
-            if ~exist(dirname, 'dir')
-                mkdir(dirname)
+            if ~exist(path, 'dir')
+                mkdir(path)
             end
 
-            % choose which slices to save
-            chosenslices = PruneMeasure(obj, 1:length(obj.source));
             % loop through slices
-            for k = chosenslices
-                img = int16(obj.source(:,:,k));
+            for k = 1:length(obj.source)
+                float = obj.source{k,1};
+                img = int16(float);
 
                 % save as int16 TIF
-                imgsavename = fullfile(dirname, [ ...
-                    saveid, '_', ...
-                    'id_',num2str(obj.id), ...
+                imgsavename = fullfile(path, [ ...
+                    'id_',num2str(obj.ID), ...
                     '_gen_', num2str(obj.generation), ...
                     '_slice_',num2str(k), ...
                     '.tif']);
