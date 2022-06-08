@@ -1,7 +1,7 @@
 function plane_intensities = AQinterp3(x_domain,y_domain,z_domain,vol,plane_grid,method)
 
 
-if gpuDeviceCount("available") && strcmp(method,'linear')
+if strcmp(method,'linear') && gpuDeviceCount("available")
     % use gpu
 
     x_domain = gpuArray(x_domain);
