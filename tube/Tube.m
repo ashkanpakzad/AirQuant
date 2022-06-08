@@ -458,7 +458,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
                 reformedimages{i,1} = PlaneInterpVol(vol, ...
                     obj.network.voxdim, point, normvec, ...
                     plane_sz=plane_sz, ...
-                    sample_sz=obj.network.plane_sample_sz, ...
+                    sample_sz=options.sample_sz, ...
                     offgrid_val=0, method=options.method);
             end
 
@@ -725,11 +725,13 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
         end
 
         % 2D visualisation
-        function h = plot(obj, X, Y)
+        function h = plot(obj, options)
             arguments
             obj
-            X = obj.patchprop.arcpoints
-            Y = obj.diameters
+            options.X = obj.patchprop.arcpoints
+            options.Y = obj.diameters
+            options.smoothing = 1e-64
+            options.linespec = '-'
             end
             % plot patchprop measure
             %
@@ -751,22 +753,37 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             %   >>> figure;
             %   >>> AQnet.tubes(98).plot();
             %
-            % .. |tube_Tube_plot| image:: figs/tube_plot.png
-            %    :width: 400
-            %    :alt: figure plot - Tube plot
             %
-
-            X = parsearg(X);
-            Y = parsearg(Y);
-
+            
+            % parse inputs, if string, finds matching property
+            X = parsearg(options.X);
+            Y = parsearg(options.Y);
+        
             assert(all(size(X,2) == size(Y,2)), ['X and Y needs have same n cols' ...
                 '. Got X [', num2str(size(X,2)), ['] and Y [' ...
                 ''], num2str(size(Y,2)),']'])
-
+            
+            % matches x to number of y
             X = repmat(X, size(Y,1), 1);
-
-            h = plot(X', Y', '.');
-            legend(arrayfun(@(mode) sprintf('Ring %d', mode), 1:size(Y, 2), 'UniformOutput', false))
+            
+            % smooth Y rows individually
+            for ii= 1:size(Y,1)
+                Y(ii,:) = smooth(Y(ii,:), options.smoothing);
+            end
+            
+            % plot datapoints
+            h = plot(X', Y', options.linespec);
+            legend(arrayfun(@(mode) sprintf('Measurement %d', mode), 1:size(Y, 2), 'UniformOutput', false))
+            
+            % linear bestfit line
+            for ii= 1:size(Y,1)
+                coefficients = polyfit(X(ii,:), Y(ii,:), 1);
+                yFit = polyval(coefficients , X(ii,:));
+                % Plot everything.
+                hold on; 
+                plot(X(ii,:), yFit, 'r-'); % Plot fitted line.
+                hold off
+            end
 
             % default color order
             colororder(linspecer(12))
