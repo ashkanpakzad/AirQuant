@@ -41,8 +41,7 @@ classdef AirwayFWHMesl < SuperMeasure
 
             slices_sz = length(obj.tube.source);
             ellipse_inner = cell(slices_sz, 1);
-            ellipse_peak = cell(slices_sz, 1);
-            ellipse_right = cell(slices_sz, 1);
+            ellipse_outer = cell(slices_sz, 1);
             ellipse_center = cell(slices_sz, 1);
             
             for k = 1:slices_sz
@@ -58,62 +57,28 @@ classdef AirwayFWHMesl < SuperMeasure
                         num_rays, ray_interval);
 
                     % compute FWHM points of ray
-                    [innerraypoints, peakraypoints, outerraypoints] = compute_airway_fwhm(...
+                    [innerraypoints, ~, outerraypoints] = compute_airway_fwhm(...
                         source_rays, seg_rays, coords, outlierremoval);
 
                     % compute ellipses
                     ellipse_inner{k,1} = AQEllipse(obj.pixsize, innerraypoints);
-                    ellipse_peak{k,1} = AQEllipse(obj.pixsize, peakraypoints);
-                    ellipse_right{k,1} = AQEllipse(obj.pixsize, outerraypoints);
+                    ellipse_outer{k,1} = AQEllipse(obj.pixsize, outerraypoints);
                     ellipse_center{k,1} = center;
                 catch
                     % segmentation exceeds interpolated slice therefore no
                     % measurement recorded.
                     ellipse_inner{k,1} = nan;
-                    ellipse_peak{k,1} = nan;
-                    ellipse_right{k,1} = nan;
+                    ellipse_outer{k,1} = nan;
                     ellipse_center{k,1} = nan;
                 end
             end
-            obj.measures = cell(3, length(ellipse_inner));
+            obj.measures = cell(2, length(ellipse_inner));
             obj.measures(1,:) = ellipse_inner;
-            obj.measures(2,:) = ellipse_peak;
-            obj.measures(3,:) = ellipse_right;
+            obj.measures(2,:) = ellipse_outer;
             obj.center = ellipse_center;
             
         end
 
-        function area = OutputArea(obj)
-            % short desc
-            %
-            % long desc
-            %
-            % .. todo: add documentation to this function
-            %
-            % Args:
-            %   x(type):
-            %
-            % Return:
-            %   y(type):
-            %
-            area = cell2mat(cellfun(@(c) [c.area], obj.measures, 'UniformOutput', false));
-        end
-
-        function diameter = OutputDiameter(obj)
-            % short desc
-            %
-            % long desc
-            %
-            % .. todo: add documentation to this function
-            %
-            % Args:
-            %   x(type):
-            %
-            % Return:
-            %   y(type):
-            %
-            diameter = cell2mat(cellfun(@(c) [c.diameter], obj.measures, 'UniformOutput', false));
-        end
         
     end
 end
