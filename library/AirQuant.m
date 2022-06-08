@@ -2060,7 +2060,7 @@ classdef AirQuant < handle % handle class
                 peak_volinter = vol_intertaper(:, 2);
                 outer_volinter = vol_intertaper(:, 3);
                 
-                if ~empty(obj.lungvol)
+                if ~isempty(obj.lungvol)
                     inner_vol_lung_ratio = inner_vol./obj.lungvol;
                 else
                     inner_vol_lung_ratio = NaN(size(inner_vol));
