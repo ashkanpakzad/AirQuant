@@ -15,12 +15,36 @@ classdef SuperMeasure < handle
             error('Measure method not set for subclass of SuperMeasure')
         end
         
-        function OutputArea(obj)
-            error('OutputArea method not set for subclass of SuperMeasure')
+        function area = OutputArea(obj)
+            % short desc
+            %
+            % long desc
+            %
+            % .. todo: add documentation to this function
+            %
+            % Args:
+            %   x(type):
+            %
+            % Return:
+            %   y(type):
+            %
+            area = cell2mat(cellfun(@(c) [c.area], obj.measures, 'UniformOutput', false));
         end
 
-        function OutputDiameter(obj)
-            error('OutputDiameter method not set for subclass of SuperMeasure')
+        function diameter = OutputDiameter(obj)
+            % short desc
+            %
+            % long desc
+            %
+            % .. todo: add documentation to this function
+            %
+            % Args:
+            %   x(type):
+            %
+            % Return:
+            %   y(type):
+            %
+            diameter = cell2mat(cellfun(@(c) [c.diameter], obj.measures, 'UniformOutput', false));
         end
         
     end
