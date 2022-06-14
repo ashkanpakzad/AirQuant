@@ -29,17 +29,21 @@ classdef AirwayawyGAN < SuperMeasure
             %
             %
             
+
             % save patches to temp dir
+            obj.pixsize = 0.5;
             temp_dir = tempname;
-            obj.tube.ExportOrthoPatches(temp_dir)
+            obj.tube.ExportOrthoPatches(temp_dir, 'temp')
 
             % compute image stats
             M = cell2mat(obj.tube.source);
             meanval = mean(M(:));
             varval = std(M(:));
-
+            
             % add module path to python paths and import
+            GANCNNpath = fullfile(modulepath,'GANCNN');
             pyrun(['import sys; sys.path.append("', modulepath,'");']);
+            pyrun(['import sys; sys.path.append("', GANCNNpath,'");']);
             mod = py.importlib.import_module('AQ_CNR');
             py.importlib.reload(mod);
 
