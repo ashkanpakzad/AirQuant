@@ -344,6 +344,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
 
         function Measure(obj, varargin)
             obj.RunAllTubes('Measure', varargin{:});
+            obj.RunAllTubes('ComputeIntertaper');
         end
 
         % VISUALISATION - utilites
@@ -734,6 +735,10 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             volout = permute(volout, [2,1,3]);
             volout = flip(volout, 3);
 
+            if islogical(volout)
+                volout = single(volout);
+            end
+
             automin = min(volout(:));
             automax = max(volout(:));
 
@@ -752,6 +757,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
 
 
             % display with orthoview
+
             s = orthosliceViewer(volout, 'DisplayRange', options.displayrange,...
                 'DisplayRangeInteraction','off', ...
                 'ScaleFactors',obj.voxdim, 'CrosshairLineWidth', 0.3);
@@ -759,74 +765,54 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
         end
 
         % Data IO
+        
+        function obj = ExportCSV(obj, path)
+            % Export characteristics and properties of each tube into a csv
+            % file.
+            %
+            % A list of properties including "ID", "parent", "children", 
+            % "generation", "method" and sub properties including 
+            % "stats", "region". Are saved into a single csv file which
+            % each tube is represented by a row.
+            %
 
-        function obj = SaveAllAwy(obj, mingen, maxgen, prunelength)
+            % parse path to end in csv
+            path = parse_filename_extension(path, '.csv');
 
-            if nargin < 2
-                mingen = 0;
-            end
+            % properties to add
+            tubeprops = ["ID", "parent", "children", "generation", "method"];
+            
+            % stuct properties to add
+            structprops = ["stats", "region"];
+            
+            % make new struct per tube and add to table
+            exporttable = table;
 
-            if nargin < 3 || isnan(maxgen)
-                maxgen = max([obj.Glink(:).generation]);
-            end
-
-            if nargin < 4
-                prunelength = [0 0];
-            end
-            % make directory
-            [fPath, saveid, ~] = fileparts(obj.savename);
-            dirname = fullfile(fPath,'airway_patches');
-            if ~exist(dirname, 'dir')
-                mkdir(dirname)
-            end
-
-            % loop through each airway seg
-            for ii = 1:size(obj.TraversedImage,1)
-                seggen = obj.Glink(ii).generation;
-                if  seggen <= mingen || seggen >= maxgen
-                    continue
+            for ii = 1:length(obj.tubes)
+                atube = obj.tubes(ii);
+                % add named tube properties
+                rowstruct = struct;
+                for prop = tubeprops
+                    rowstruct.(prop) = atube.(prop);
                 end
 
-                % choose which slices to save
-                al = obj.arclength{ii, 1};
-                prune = (al >= prunelength(1) & al <= al(end) - prunelength(2));
-                allslices = 1:length(obj.TraversedImage{ii, 1});
-                chosenslices = allslices(prune);
-                % loop through slices
-                for k = chosenslices
-                    img = int16(obj.TraversedImage{ii,1}{k,1});
-
-                    % save as int16 TIF
-                    imgsavename = fullfile(dirname, [ ...
-                        saveid, '_', ...
-                        'seg_',num2str(ii), ...
-                        '_lobe_', char(obj.Glink(ii).lobe), ...
-                        '_gen_', num2str(obj.Glink(ii).generation), ...
-                        '_slice_',num2str(k), ...
-                        '.tif']);
-
-                    imgdata = img;
-
-                    t = Tiff(imgsavename,'w');
-                    tagstruct.Compression = Tiff.Compression.None;
-                    tagstruct.ImageLength = size(imgdata,1);
-                    tagstruct.ImageWidth = size(imgdata,2);
-                    tagstruct.Photometric = Tiff.Photometric.MinIsBlack;
-                    tagstruct.SampleFormat = Tiff.SampleFormat.Int; % int
-                    tagstruct.BitsPerSample = 16;
-                    tagstruct.SamplesPerPixel = 1;
-                    tagstruct.PlanarConfiguration = Tiff.PlanarConfiguration.Chunky;
-                    tagstruct.Software = 'AirQuant';
-                    setTag(t,tagstruct)
-                    write(t,imgdata)
-                    close(t);
-                    if k == 1
-                        disp(imgsavename)
+                % add tube subproperties
+                for prop = structprops
+                    subprops = fieldnames(atube.(prop));
+                    for sprop = string(subprops)'
+                        rowstruct.(strcat(prop,'_',sprop)) = atube.(prop).(sprop);
                     end
                 end
+                
+                % add new row
+                row = struct2table(rowstruct, 'AsArray',true);
+                exporttable = [exporttable; row];
             end
-        end
 
+            % write to csv
+            writetable(exporttable, path)
+
+        end
     end
 
     methods(Static)
