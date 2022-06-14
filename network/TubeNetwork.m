@@ -82,6 +82,8 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             skel (:,:,:) logical
             options.fillholes logical = 1
             options.largestCC logical = 0
+            options.spline_sample_sz = nan
+            options.plane_sample_sz = nan
             end
 
             assert(ndims(seg) == 3, 'seg must be a 3D array.')
@@ -116,8 +118,18 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
 
             % Set dynamic resampling parameters and limits
             measure_limit = floor((min(obj.voxdim)/2)*10)/10;
-            obj.plane_sample_sz = measure_limit;
-            obj.spline_sample_sz = measure_limit;
+            if ~isnan(options.plane_sample_sz)
+                obj.plane_sample_sz = options.plane_sample_sz;
+            else
+                obj.plane_sample_sz = measure_limit;
+            end
+
+            if ~isnan(options.spline_sample_sz)
+                obj.spline_sample_sz = options.spline_sample_sz;
+            else
+                obj.spline_sample_sz = measure_limit;
+            end
+
             obj.max_plane_sz = 40;
 
             % Convert skel into digraph
@@ -296,7 +308,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
 
             assert(isa(tubefunc,"char") || isa(tubefunc,"string"), ...
                 'tubefunction must be provided as char/string.')
-            for ii = 1:length(obj.tubes)
+            for ii = progress(1:length(obj.tubes), 'Title', strcat('RunAllTubes: ', tubefunc))
                 obj.tubes(ii).(tubefunc)(varargin{:});
             end
         end
@@ -793,7 +805,12 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
                 % add named tube properties
                 rowstruct = struct;
                 for prop = tubeprops
-                    rowstruct.(prop) = atube.(prop);
+                    theprop = atube.(prop);
+                    if isa(theprop,'Tube')
+                        rowstruct.(prop) = [theprop.ID];
+                    else
+                        rowstruct.(prop) = theprop;
+                    end
                 end
 
                 % add tube subproperties
