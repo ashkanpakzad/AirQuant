@@ -37,7 +37,7 @@ function [digraphout, glink, gnode] = skel_2_digraph(skel, method)
         method = 'topnode';
     end
 
-    [gadj,gnode,glink] = Skel2Graph3D(skel,0);
+    [gadj,gnode,glink] = Skel2Graph3D(skel,1);
     % choose originating node using chosen method
 
 
