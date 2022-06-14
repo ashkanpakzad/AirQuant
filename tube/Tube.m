@@ -652,7 +652,13 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             obj.stats.gradient = gradientval;
         end
 
-        function intertaperval = ComputeIntertaper(obj, trim)
+        function intertaperval = ComputeIntertaper(obj, trim, parentfail)
+            if nargin < 2
+                trim = 0;
+            end
+            if nargin < 3
+                parentfail = false;
+            end
             % Computes the intertaper value of the tube.
             %
             % the intertaper value is the % change in mean diameter
@@ -661,16 +667,24 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             % The result is saved in `tube.Tube.stats`.intertaper.
             %
             assert(~isempty(obj.diameters), 'No diameters property. Need measurements.')
-            assert(length(obj.parent) < 2, ['Must only have max one ' ...
-                'parent tube. Got ',num2str(length(obj.parent))])
-
-            % compute means
-            parentmean = obj.parent.ComputeMeanDiameter(trim);
-            currentmean = obj.ComputeMeanDiameter(trim);
-
-            % compute interbranch tapering as percentage
-            intertaperval = (parentmean - currentmean)./(parentmean) * 100;
+            
+            if parentfail % fail if not one parent
+                assert(length(obj.parent) == 1, ['Must only have only one ' ...
+                    'parent tube. Got ',num2str(length(obj.parent))])
+            end
+            
+            try
+                % compute means
+                parentmean = obj.parent.ComputeMeanDiameter(trim);
+                currentmean = obj.ComputeMeanDiameter(trim);
+    
+                % compute interbranch tapering as percentage
+                intertaperval = (parentmean - currentmean)./(parentmean) * 100;
+            catch
+                intertaperval = NaN;
+            end
             obj.stats.intertaper = intertaperval;
+
         end
 
         function volumeval = ComputeVolume(obj)
@@ -719,9 +733,16 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             % call measure method
             varargin = {obj.network.plane_sample_sz, obj, varargin{:}};
             classmeasures = feval(classmethod, varargin{:});
+            % set raw measures to tube properties
             obj.measures = classmeasures.measures;
             obj.diameters = classmeasures.OutputDiameter();
             obj.areas = classmeasures.OutputArea();
+            % derive stats of measurements
+            obj.ComputeMeanDiameter();
+            obj.ComputeMeanArea();
+            obj.ComputeIntrataper();
+            obj.ComputeGradient();
+            obj.ComputeVolume();
         end
 
         % 2D visualisation
@@ -1062,7 +1083,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
 
         % Data IO
 
-        function ExportOrthoPatches(obj,path)
+        function ExportOrthoPatches(obj,path,casename)
             % export perpendicular slice patches of this tube.
             %
             % export the perpendicular slice patches of this tube stored in
@@ -1076,21 +1097,28 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             %
             %
 
+
             % make directory
             if ~exist(path, 'dir')
                 mkdir(path)
             end
+        
+            % ensure char
+            casename = char(casename);
 
             % loop through slices
             for k = 1:length(obj.source)
                 float = obj.source{k,1};
                 img = int16(float);
+                
+                paddedk = sprintf('%08d', k); 
 
                 % save as int16 TIF
                 imgsavename = fullfile(path, [ ...
-                    'id_',num2str(obj.ID), ...
+                    casename, ...
+                    '_id_',num2str(obj.ID), ...
                     '_gen_', num2str(obj.generation), ...
-                    '_slice_',num2str(k), ...
+                    '_slice_',paddedk, ...
                     '.tif']);
 
                 imgdata = img;
@@ -1169,7 +1197,47 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
                 end
             end
         end
+        
+        function obj = ExportCSV(obj, path)
+            % Export orthoslice measurements to csv file
+            %
+            % A list of properties and measurements saved into a single csv 
+            % file which each slice is represented by a row.
+            %
 
+            % parse path to end in csv
+            path = parse_filename_extension(path, '.csv');
+
+            % properties to add - multiple measurements per slice
+            tubeprops = ["diameters", "areas"];
+            
+            % struct properties to add - one measurement per slice
+            structprops = ["patchprop"];
+            
+            tablestruct = struct;
+
+            % add tube properties
+            for prop = structprops
+                subprops = fieldnames(obj.(prop));
+                for sprop = string(subprops)'
+                    tablestruct.(strcat(prop,'_',sprop)) = obj.(prop).(sprop)';
+                end
+            end
+            
+            % add tube measurements
+            for prop = tubeprops
+                for jj = 1:size(obj.(prop),1)
+                    tablestruct.(strcat(prop,'_',string(jj))) = obj.(prop)(jj,:)';
+                end
+            end
+
+            % add new row
+            exporttable = struct2table(tablestruct);
+
+            % write to csv
+            writetable(exporttable, path)
+
+        end
         % utilities
         function I = S2I(obj,I1,I2,I3)
             % short desc
@@ -1217,7 +1285,6 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             % var is of dimensions nrings x nslices
             if isempty(obj.prunelength)
                 obj.prunelength = [0 0];
-                warning('Object prunelength not set, using zero pruning.')
             end
             nrings = size(var,1);
             pl = obj.prunelength;
