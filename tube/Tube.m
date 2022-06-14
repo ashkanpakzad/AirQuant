@@ -544,7 +544,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             obj = ComputeEucLength(obj);
             % arclength / euclidean length
             obj.stats.tortuosity = obj.stats.arclength./obj.stats.euclength;
-            assert(obj.stats.tortuosity >= 1, 'Impossible to get a tortuosity > 1')
+            assert(obj.stats.tortuosity >= 1, 'Impossible to get a tortuosity < 1')
         end
 
         function meanDval = ComputeMeanDiameter(obj, trim)
@@ -620,11 +620,16 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             % fit bisquare method
             nrings = size(obj.diameters,1);
             coeff = NaN(nrings,2);
-            for ii = 1:nrings
-                coeff(ii,:) = robustfit(al, var(ii,:),'bisquare');
+            intrataperval = NaN(nrings, 1);
+            try % incase no branch left after pruning/too few points
+                for ii = 1:nrings
+                    coeff(ii,:) = robustfit(al, var(ii,:),'bisquare');
+                    intrataperval(ii) = -coeff(ii,2)./coeff(ii,1) * 100;
+                end
+            catch
+                % leave as nan
             end
             % compute intra-branch tapering as percentage
-            intrataperval = -coeff(:,2)./coeff(:,1) * 100;
             obj.stats.intrataper = intrataperval;
         end
 
