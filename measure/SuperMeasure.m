@@ -28,7 +28,20 @@ classdef SuperMeasure < handle
             % Return:
             %   y(type):
             %
-            area = cell2mat(cellfun(@(c) [c.area], obj.measures, 'UniformOutput', false));
+            try
+                area = cell2mat(cellfun(@(c) [c.area], obj.measures, 'UniformOutput', false));
+            catch % if nan in measures use for loop
+                area = zeros(size(obj.measures));
+                for ii = 1:size(obj.measures,2)
+                    for jj = 1:size(obj.measures,1)
+                        if isa(obj.measures{jj,ii},'AQEllipse')
+                            area(jj,ii) = obj.measures{jj,ii}.area;
+                        else
+                            area(jj,ii) = NaN;
+                        end
+                    end
+                end
+            end
         end
 
         function diameter = OutputDiameter(obj)
@@ -44,7 +57,20 @@ classdef SuperMeasure < handle
             % Return:
             %   y(type):
             %
-            diameter = cell2mat(cellfun(@(c) [c.diameter], obj.measures, 'UniformOutput', false));
+            try
+                diameter = cell2mat(cellfun(@(c) [c.diameter], obj.measures, 'UniformOutput', false));
+            catch % if nan in measures use for loop
+                diameter = zeros(size(obj.measures));
+                for ii = 1:size(obj.measures,2)
+                    for jj = 1:size(obj.measures,1)
+                        if isa(obj.measures{jj,ii},'AQEllipse')
+                            diameter(jj,ii) = obj.measures{jj,ii}.diameter;
+                        else
+                            diameter(jj,ii) = NaN;
+                        end
+                    end
+                end
+            end
         end
         
     end
