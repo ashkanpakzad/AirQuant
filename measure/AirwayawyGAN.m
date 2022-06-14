@@ -66,7 +66,7 @@ classdef AirwayawyGAN < SuperMeasure
             ellipse_outer = cell(slices_sz, 1);
             
             for k = 1:slices_sz
-                imcc = size(obj.tube.source{k}) / 2 - obj.pixsize;
+                imcc = size(obj.tube.source{k}) / 2;
                 center = imcc + measures(k,3:4) / obj.pixsize;
 
                 % process inner ellipses
