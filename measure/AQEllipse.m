@@ -57,7 +57,8 @@ classdef AQEllipse < handle
         end
 
         function nominaldiameter = NominalDiameter(obj)
-            nominaldiameter = norm([obj.Rx, obj.Ry])*2;
+            nominalradius = sqrt(obj.Rx*obj.Ry)*obj.pixsize(1);
+            nominaldiameter = nominalradius*2;
             obj.diameter = nominaldiameter;
         end
 
