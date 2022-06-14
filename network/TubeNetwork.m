@@ -811,6 +811,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
                     else
                         rowstruct.(prop) = theprop;
                     end
+
                 end
 
                 % add tube subproperties
@@ -823,7 +824,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
                 
                 % add new row
                 row = struct2table(rowstruct, 'AsArray',true);
-                exporttable = [exporttable; row];
+                exporttable = AQ_vertcat(exporttable, row);
             end
 
             % write to csv
