@@ -1097,7 +1097,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
 
         % Data IO
 
-        function ExportOrthoPatches(obj,path,casename)
+        function ExportOrthoPatches(obj, path, casename)
             % export perpendicular slice patches of this tube.
             %
             % export the perpendicular slice patches of this tube stored in

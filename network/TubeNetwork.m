@@ -301,7 +301,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             %
             %
             % Args:
-            %   tubefunc (char): CT loaded from nifti using niftiread.
+            %   tubefunc (char): Any method name of tubes class.
             %   varargin : `OPTIONAL` arguments of method :attr:`tubefunc`.
             %
             %
@@ -778,6 +778,31 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
 
         % Data IO
         
+        function ExportOrthoPatches(obj, path, casename, options)
+            arguments
+                obj
+                path
+                casename
+                options.genrange = [0 inf]
+            end
+                
+            assert(all(size(options.genrange) == [1 2]), ['genrange ' ...
+                'must be of size [1,2]'])
+            % set upper level to max possible if set to inf
+            if options.genrange(2) == inf
+                options.genrange(2) = max([obj.tubes.generation]);
+            end
+            
+            % get list of tubes that meet criteria
+            tubelistidx = [obj.tubes.generation] >= options.genrange(1) & ...
+                [obj.tubes.generation] <= options.genrange(2);
+            tubelist = obj.tubes(tubelistidx);
+
+            for ii = progress(1:length(tubelist), 'Title', 'ExportOrthoPatches')
+                tubelist(ii).ExportOrthoPatches(path, casename);
+            end
+        end
+
         function obj = ExportCSV(obj, path)
             % Export characteristics and properties of each tube into a csv
             % file.
