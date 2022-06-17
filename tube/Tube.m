@@ -544,7 +544,16 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             obj = ComputeEucLength(obj);
             % arclength / euclidean length
             obj.stats.tortuosity = obj.stats.arclength./obj.stats.euclength;
-            assert(obj.stats.tortuosity >= 1, 'Impossible to get a tortuosity < 1')
+            % note that we evaluate with a tolerance for the rare case that
+            % arclength is very close to 1 due to the precision of
+            % numerical methods.
+            precision = 1e-6;
+            if obj.stats.tortuosity < 1-precision
+                warning(strcat("Tortuosity shouldn't be less than 1 " + ...
+                    "by definition. Got ", ...
+                num2str(obj.stats.tortuosity),". This could be " + ...
+                    "due to numerical imprecision."))
+            end
         end
 
         function meanDval = ComputeMeanDiameter(obj, trim)
