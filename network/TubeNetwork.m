@@ -509,12 +509,17 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             [options.region, regionid] = obj.ParseRegion(options.region);
 
             if ~isempty(options.region)
-                cdata = ColourIndex(obj, options.region, regionid);
-                edgeregion = cdata(ge.Edges.ID);
-
-                % set edge colour by index
-                G.Edges.EdgeColors = edgeregion';
-                h.EdgeCData = G.Edges.EdgeColors;
+                try
+                    cdata = ColourIndex(obj, options.region, regionid);
+                    edgeregion = cdata(ge.Edges.ID);
+    
+                    % set edge colour by index
+                    G.Edges.EdgeColors = edgeregion';
+                    h.EdgeCData = G.Edges.EdgeColors;
+                catch
+                    warning(['Attempted to colour image. Failed ' ...
+                        'due to incomplete region definition for all tubes.'])
+                end
             end
 
         end
@@ -553,7 +558,13 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             [options.region, regionid] = obj.ParseRegion(options.region);
 
             if ~isempty(options.region)
+                try
                 [cdata, rgb] = ColourIndex(obj, options.region, regionid);
+                catch
+                    warning(['Attempted to colour image. Failed ' ...
+                        'due to incomplete region definition for all tubes.'])
+                    rgb = [];
+                end
             else
                 rgb = [];
             end
@@ -580,7 +591,6 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             %   performance. This is why this function tries to collate every
             %   patch that is designated a different colour and then plots
             %   them.
-            %
             %
             %
             % Example:
@@ -615,7 +625,14 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             [options.region, regionid] = obj.ParseRegion(options.region);
 
             if ~isempty(options.region)
-                [cdata, rgb] = ColourIndex(obj, options.region, regionid);
+                try
+                    [cdata, rgb] = ColourIndex(obj, options.region, regionid);
+                catch
+                    warning(['Attempted to colour image. Failed ' ...
+                        'due to incomplete region definition for all tubes.'])
+                    rgb = [];
+
+                end
             else
                 rgb = [];
             end
@@ -683,7 +700,12 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             [options.region, regionid] = obj.ParseRegion(options.region);
 
             if ~isempty(options.region)
-                [cdata, rgb] = ColourIndex(obj, options.region, regionid);
+                try
+                    [cdata, rgb] = ColourIndex(obj, options.region, regionid);
+                catch
+                    warning(['Attempted to colour image. Failed ' ...
+                        'due to incomplete region definition for all tubes.'])
+                end
             else
                 rgb = [];
             end
