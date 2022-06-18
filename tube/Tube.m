@@ -659,7 +659,11 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             nrings = size(obj.diameters,1);
             coeff = NaN(nrings,2);
             for ii = 1:nrings
-                coeff(ii,:) = robustfit(al, var(ii,:),'bisquare');
+                try
+                    coeff(ii,:) = robustfit(al, var(ii,:),'bisquare');
+                catch % incase robust fit fails
+                    coeff(ii,:) = NaN;
+                end
             end
             % compute intra-branch tapering as percentage
             gradientval = -coeff(:,2) * 100;
