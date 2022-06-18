@@ -68,7 +68,9 @@ classdef ClinicalAirways < TubeNetwork
             for nid = tracheanodes
                 eid = outedges(g, nid);
                 tubeid = g.Edges.ID(eid);
-                obj.tubes(tubeid).SetTrachea();
+                for tid = tubeid'
+                    obj.tubes(tid).SetTrachea();
+                end
             end
 
             % reclass all tube generations by n decendants from 0 gen.
