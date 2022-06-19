@@ -515,7 +515,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
                 obj.patchprop.parapoints(1));
             [~, point_end] = spline_normal(obj.spline, ...
                 obj.patchprop.parapoints(end));
-            obj.stats.euclength = norm(point_end - point_1);
+            obj.stats.euclength = real(norm(point_end - point_1));
         end
 
         function obj = ComputeArcLength(obj)
@@ -526,7 +526,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             %
             %
 
-            obj.stats.arclength = Compute_Spline_Points(obj.spline);
+            obj.stats.arclength = real(Compute_Spline_Points(obj.spline));
         end
 
         function obj = ComputeTortuosity(obj)
@@ -543,7 +543,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             end
             obj = ComputeEucLength(obj);
             % arclength / euclidean length
-            obj.stats.tortuosity = obj.stats.arclength./obj.stats.euclength;
+            obj.stats.tortuosity = real(obj.stats.arclength./obj.stats.euclength);
             % note that we evaluate with a tolerance for the rare case that
             % arclength is very close to 1 due to the precision of
             % numerical methods.
@@ -581,7 +581,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             pruned = obj.PruneMeasure(obj.diameters);
 
             % compute average
-            meanDval = trimmean(pruned', trim);
+            meanDval = real(trimmean(pruned', trim));
             obj.stats.trimmean = meanDval;
             obj.stats.trimmean_trim = trim;
         end
@@ -608,7 +608,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             pruned = obj.PruneMeasure(obj.areas);
 
             % compute average
-            meanAval = trimmean(pruned', trim);
+            meanAval = real(trimmean(pruned', trim));
             obj.stats.meanarea = meanAval;
             obj.stats.meanarea_trim = trim;
         end
@@ -633,7 +633,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             try % incase no branch left after pruning/too few points
                 for ii = 1:nrings
                     coeff(ii,:) = robustfit(al, var(ii,:),'bisquare');
-                    intrataperval(ii) = -coeff(ii,2)./coeff(ii,1) * 100;
+                    intrataperval(ii) = real(-coeff(ii,2)./coeff(ii,1) * 100);
                 end
             catch
                 % leave as nan
@@ -666,7 +666,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
                 end
             end
             % compute intra-branch tapering as percentage
-            gradientval = -coeff(:,2) * 100;
+            gradientval = real(-coeff(:,2) * 100);
             obj.stats.gradient = gradientval;
         end
 
@@ -697,7 +697,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
                 currentmean = obj.ComputeMeanDiameter(trim);
     
                 % compute interbranch tapering as percentage
-                intertaperval = (parentmean - currentmean)./(parentmean) * 100;
+                intertaperval = real((parentmean - currentmean)./(parentmean) * 100);
             catch
                 intertaperval = NaN;
             end
@@ -723,9 +723,9 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             for ii = 1:nrings
                 vals = var(ii,:);
                 if length(vals) == 1 % incase only one point in tube
-                    volumeval(ii) = al * vals;
+                    volumeval(ii) = real(al * vals);
                 else
-                    volumeval(ii) = trapz(al, vals);
+                    volumeval(ii) = real(trapz(al, vals));
                 end
             end
                 % compute intra-branch tapering as percentage
