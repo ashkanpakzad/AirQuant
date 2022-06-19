@@ -1123,9 +1123,13 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
         
             % ensure char
             casename = char(casename);
+            
+            % choose which slices to save
+            allslices = 1:length(obj.source);
+            chosenslices = obj.PruneMeasure(allslices);
 
             % loop through slices
-            for k = 1:length(obj.source)
+            for k = chosenslices
                 float = obj.source{k,1};
                 img = int16(float);
                 
@@ -1294,7 +1298,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
         function obj = SetPruneLength(obj, prunelength)
             arguments
                 obj
-                prunelength (2,1) mustBeNumeric
+                prunelength (2,1) {mustBeNumeric}
             end
             obj.prunelength = prunelength;
         end
