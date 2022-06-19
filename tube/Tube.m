@@ -713,17 +713,22 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             %
             % The result is saved in `tube.Tube.stats`.volume.
             %
-            assert(~isempty(obj.diameters), 'No diameters property. Need measurements.')
+            assert(~isempty(obj.areas), 'No areas property. Need measurements.')
             % prune the two variables
             al = obj.PruneMeasure(obj.patchprop.arcpoints);
-            var = obj.PruneMeasure(obj.diameters);
+            var = obj.PruneMeasure(obj.areas);
             % fit bisquare method
-            nrings = size(obj.diameters,1);
+            nrings = size(obj.areas,1);
             volumeval = NaN(nrings,1);
             for ii = 1:nrings
-                volumeval(ii) = trapz(al, var(ii,:));
+                vals = var(ii,:);
+                if length(vals) == 1 % incase only one point in tube
+                    volumeval(ii) = al * vals;
+                else
+                    volumeval(ii) = trapz(al, vals);
+                end
             end
-            % compute intra-branch tapering as percentage
+                % compute intra-branch tapering as percentage
             obj.stats.volume = volumeval;
         end
 
