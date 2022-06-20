@@ -1,7 +1,7 @@
 % Lead Author: Ashkan Pakzad 2021. ashkanpakzad.github.io.
 % See https://github.com/ashkanpakzad/AirQuant for more information.
 
-classdef AirQuant < handle & matlab.mixin.SetGet % handle class
+classdef AirQuant < handle & matlab.mixin.SetGet & matlab.mixin.Copyable
     properties
         source
         seg
