@@ -86,7 +86,7 @@ classdef AirwayCNN < SuperMeasure
 
             for k = 1:size(measures,1)
                 imcc = size(obj.tube.source{k}) / 2;
-                center = imcc + 1 + measures(k,3:4) / obj.pixsize;
+                center = imcc + obj.pixsize + measures(k,3:4) / obj.pixsize;
 
                 % process inner ellipses
                 innerstruct = struct;
