@@ -42,11 +42,28 @@ classdef AirQuant < handle & matlab.mixin.SetGet & matlab.mixin.Copyable
         end
 
         function status = toITKsnap(obj, segname)
-            % view in itksnap
+            % View images in `ITK-snap <http://www.itksnap.org>`_ medical image viewer.
             %
-            % May need to set up enviroments on matlab search path for
-            % system terminal.
-            % setenv('PATH', [getenv('PATH') ':/Applications/ITK-SNAP.app/Contents/bin']);
+            % Open source image and segmentation overlay in 
+            % `ITK-snap (www.itksnap.org) <http://www.itksnap.org>`_.
+            % Images are saved as temporary files and then called using
+            % system commands to open in ITK-snap.
+            %
+            % .. note:
+            %   `ITK-snap (www.itksnap.org) <http://www.itksnap.org>`_
+            %   needs to be installed on the system and on both the system
+            %   and matlab search path. e.g. ``` setenv('PATH',
+            %   [getenv('PATH')
+            %   ':/Applications/ITK-SNAP.app/Contents/bin']);```
+            %
+            % Args:
+            %   type(char): *OPTIONAL* `default = 'seg'`. object
+            %       property name of a segmentation.
+            %
+            %
+            % Example:
+            %   >>> run CA_base.m;
+            %   >>> AQnet.toITKsnap();
             %
 
             if nargin < 2
@@ -74,30 +91,53 @@ classdef AirQuant < handle & matlab.mixin.SetGet & matlab.mixin.Copyable
         end
 
         function volout = ParseVolOut(obj,options)
-            % short desc
+            % Parse volume of a given property name
             %
-            % long desc
+            % Parses the volume of a given property name as output.
             %
-            % .. todo::
-            %   * add documentation to this function
-            %   * add version that makes tubestack back to parent
             %
             % Args:
-            %   x(type):
+            %   type(char): *OPTIONAL* `default = 'source'`. Object
+            %       property name.
             %
             % Return:
-            %   y(type):
+            %   1 variable
+            %   * volout(`3D array`): output volume.
+            %
+            % .. todo:
+            %   Needs example.
+            %
+            % Example:
+            %   >>> run CA_base.m;
             %
 
             arguments
                 obj
-                options.type
+                options.type = 'source'
             end
             volout = get(obj,options.type);
         end
     end
     methods(Static)
         function list = list_property(someobject, property)
+            % Get the same property for all objects in a list.
+            %
+            % Make an array of an object's property given an array of that
+            % object.
+            %
+            %
+            % Args:
+            %   someobject(object array): Object cell array.
+            %
+            % Return:
+            %   1 variable
+            %   * list(`array`): output object property array, where '' is
+            %       used if that property for a particular object does not exist.
+            %
+            %
+            % Example:
+            %   >>> run CA_base.m;
+            %   >>> sourcevol = AQnet.ParseVolOut(type='source');
             list = cellfun(@nanifempty, someobject, 'UniformOutput', false);
 
             function out = nanifempty(c)
