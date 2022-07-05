@@ -762,7 +762,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             %
             % Returns:
             %   1 variable
-            %   * volumeval (array) volume value of each ring.
+            %   * volumeval (`array`) volume value of each ring.
             %
             assert(~isempty(obj.areas), 'No areas property. Need measurements.')
             % prune the two variables
@@ -787,15 +787,18 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             %
             % This calls a subclass of :class:`measure.SuperMeasure`
             % to make measurement on the interpolated patch slices of the tube. 
-            % Note that 
+            % The measure type called must be specific to the tube type.
+            % e.g. airway for airway images. Also recomputes all
+            % measurements.
             %
             % .. todo:: 
             %   * add documentation to this function.
-            %   * make measurements specific page.
+            %   * make measurements specific page to link to.
+            %   * initiate by deleting all calculations.
             %
             % Args:
             %   classmethod(char): Name of class method to make
-            %   measurement.
+            %       measurement.
             %   varargin
             %
 
@@ -822,27 +825,28 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
 
         % 2D visualisation
         function h = plot(obj, options)
-            arguments
-            obj
-            options.X = obj.patchprop.arcpoints
-            options.Y = obj.diameters
-            options.smoothing = 1e-64
-            options.linespec = '-'
-            end
-            % plot patchprop measure
+            % Line plot two object properties with linear regression
+            % line.
             %
-            % desc
+            % A versatile method for plotting two object properties or array with a
+            % linear regressed line 'line of best fit'. With smoothing if
+            % desired.
             %
             % .. todo::
-            %   * add documentation to this function
-            %   * Needs attention
+            %   * add visualisation
+            %   * link to plot
             %
             % Args:
-            %  relativetube (:class:`tube`): the tube to set
-            %   relation to.
-            %  relation (string): relation name. common
-            %   "parent" or "child".
-            %
+            %  X (:class:`tube.Tube` property or array): *OPTIONAL* `default =
+            %   :attr:`patchprop`.arcpoints` Horizontal X axis property
+            %   name.
+            %  Y (:class:`tube.Tube` property or array): *OPTIONAL* `default =
+            %   :attr:`diameters`` Vertical Y axis property
+            %   name.
+            %  smoothing (float): *OPTIONAL* `default = 1e-64` degree of
+            %   smoothing of the line plot.
+            %  linespec (char): *OPTIONAL* `default = -` linespec to 
+            %   specify style. see MATLAB's plot function.
             %
             % Example:
             %   >>> run CA_base.m;
@@ -851,6 +855,14 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             %
             %
             
+            arguments
+            obj
+            options.X = obj.patchprop.arcpoints
+            options.Y = obj.diameters
+            options.smoothing = 1e-64
+            options.linespec = '-'
+            end
+
             % parse inputs, if string, finds matching property
             X = parsearg(options.X);
             Y = parsearg(options.Y);
@@ -896,21 +908,28 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
         function s = OrthoView(obj, options)
             % View a series of an airway segment's slices as a volume image
             % stack using MATLAB's inbuilt othogonal 3d viewer.
-            % short desc
             %
-            % long desc
             %
             % .. todo::
-            %   * add documentation to this function
             %   * add 4th panel to show plot
             %   * make scrollable by mousewheel
+            %   * link to orthosliceviewer
             %
             % Args:
-            %   x(type):
+            %   type(char): *OPTIONAL* `default = 'source' object property
+            %       that is a 3D array to view.
+            %   rings(bool array): *OPTIONAL* `default = 
+            %       ones(1,size(:attr:`measures`,1))` same length as number
+            %       of measures per patch, i.e. number of rings. For each
+            %       ring to visualise. All rings by default.
+            %   ellipses(bool): *OPTIONAL* `default = true` to view 
+            %       ellipses of measure if available.
+            %   points(bool): *OPTIONAL* `default = true` to view 
+            %       points of measure if available.
             %
             % Return:
-            %   y(type):
-            %
+            %   1 variable
+            %   * s(`orthosliceViewer`): handle to created graphics
             %
             % Example:
             %   >>> run CA_base.m;
@@ -974,9 +993,15 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
 
         % 3D visualisation - level 1
         function h = Plot3(obj, color)
-            % plot this tube as a line asif an edge on a 3D network graph.
+            % plot this tube as a line as if an edge on a 3D network graph.
+            % 
+            % Note that datatips in plot contains specific information.
             %
             % .. todo: consider adding more info in datatips.
+            %
+            % Args:
+            %  color: *OPTIONAL* `default = 'k'` color of line. Can be any
+            %   MATLAB accepted color format, e.g. RGB.
             %
             % Example:
             %   >>> run CA_base.m;
@@ -1018,9 +1043,22 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
         end
 
         function h = Plot3D(obj, options)
+            % Plot segmentation surface of tube.
+            % 
             %
+            % .. todo: consider adding more info in datatips.
             %
-            % .. todo: add datatip for stats
+            % Args:
+            %  color: *OPTIONAL* `default = 'k'` color of surface. Can be any
+            %   MATLAB accepted color format, e.g. RGB.
+            %  alpha (float): *OPTIONAL* `default = 0.3` opacity of surface
+            %   plot.
+            %  context (bool): *OPTIONAL* `default = true` also plot
+            %   adjacent tubes.
+            %  contextcolor: *OPTIONAL* `default = 'r'` color of adjacent 
+            %   tubes. Can be any MATLAB accepted color format, e.g. RGB.
+            %
+            % .. todo: consider adding datatip for stats
             %
             % Example:
             %   >>> run CA_base.m;
@@ -1066,6 +1104,15 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
         end
 
         function PlotSpline(obj,options)
+            % Plot the tube spline.
+            %
+            % Args:
+            %  color: *OPTIONAL* `default = 'k'` color of line. Can be any
+            %   MATLAB accepted color format, e.g. RGB.
+            %  context (bool): *OPTIONAL* `default = true` also plot
+            %   adjacent tubes.
+            %  contextcolor: *OPTIONAL* `default = 'r'` color of adjacent 
+            %   tubes. Can be any MATLAB accepted color format, e.g. RGB.
             %
             %
             % Example:
@@ -1111,7 +1158,13 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
 
         % 3D visualisation - level 2
         function h = PlotSplineVecs(obj, options)
+            % Plot the tangental vectors of the spline at arcpoints
+            % interval.
             %
+            % Args:
+            %  subsamp: *OPTIONAL* `default = '2'` divisive factor to
+            %  subsample the arcpoints. e.g. 2 = every 2nd arcpoint tangent
+            %  vector.
             %
             % Example:
             %   >>> run CA_base.m;
@@ -1169,9 +1222,13 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             %   path(str): path to directory to save the exported patches.
             %       The directory will be created if it doesn't already 
             %       exist.
+            %   casename(char): casename to use as prefix to each patch
+            %       slice name.
+            % 
+            % Example:
+            %   >>> run CA_base.m;
+            %   >>> AQnet.tubes(98).ExportOrthoPatches('patches','example')
             %
-            %
-
 
             % make directory
             if ~exist(path, 'dir')
@@ -1219,19 +1276,36 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
         end
 
         function toGif(obj, filename, options)
-            % View a series of an airway segment's slices as a volume image
-            % stack using MATLAB's inbuilt othogonal 3d viewer.
-            % short desc
+            % Save tube patches as an animated series gif image.
             %
-            % long desc
-            %
-            % .. todo:: add documentation to this function
+            % .. todo::
+            %   * showcase example
             %
             % Args:
-            %   x(type):
+            %   filename(char): filename to save as.
+            %   type(char): *OPTIONAL* `default = 'source' object property
+            %       that is a 3D array to view.
+            %   rings(bool array): *OPTIONAL* `default = 
+            %       ones(1,size(:attr:`measures`,1))` same length as number
+            %       of measures per patch, i.e. number of rings. For each
+            %       ring to visualise. All rings by default.
+            %   ellipses(bool): *OPTIONAL* `default = true` to view 
+            %       ellipses of measure if available.
+            %   points(bool): *OPTIONAL* `default = true` to view 
+            %       points of measure if available.
+            %   framerate(int): *OPTIONAL* `default = 20` framerate to save
+            %       gif.
             %
             % Return:
-            %   y(type):
+            %   1 variable
+            %   * s(`orthosliceViewer`): handle to created graphics
+            %
+            % Example:
+            %   >>> run CA_base.m;
+            %   >>> figure;
+            %   >>> AQnet.tubes(98).toGif();
+            %
+            %
             %
 
             arguments
