@@ -58,9 +58,16 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
     methods
         % init
         function obj = TubeNetwork(source, sourceinfo, seg, skel, options)
-            % Initialise the TubeNetwork class object.
+            % Initialise the TubeNetwork class object. 
+            % 
+            % Optional arguments for initialising relating to segmentation
+            % processing and then analysis for methods called later. The
+            % :attr:`spline_sample_sz` and :attr:`plane_sample_sz`
+            % variables are by default set to half the shortest dimension
+            % of the source voxel size.
             %
-            % The network digraph is constructed using the default method.
+            % .. note::
+            %   The network digraph is constructed using the default method.
             %
             % .. todo::
             %   * Expose digraph method to user at initialisation.
@@ -73,6 +80,17 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             %       same grid space as CT. Dimensions must match with CT.
             %   skel (3darray): Binary airway centreline in the
             %       same grid space as CT. Dimensions must match with CT
+            %   fillholes (bool): *OPTIONAL* `default = true` whether to
+            %       fill any holes found in a 2.5D (any 2D orthogonal plane) 
+            %       search.
+            %   largestCC (bool): *OPTIONAL* `default = false` Only keep
+            %       the largest connected component in the segmentation.
+            %   spline_sample_sz (float): *OPTIONAL* `default =
+            %   floor((min(obj.voxdim)/2)*10)/10` spline interval to
+            %       use for all tubes.
+            %   plane_sample_sz (float): *OPTIONAL* `default =
+            %   floor((min(obj.voxdim)/2)*10)/10` patch interpolation size
+            %       to use for all tubes.
             %
             %
             arguments
@@ -153,6 +171,11 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
         end
 
         function obj = MakeTubes(obj, glink)
+            % Internal method for making tubes.
+            %
+            % This method should be changed for new anatomies to call
+            % different types of children of :class:`Tube.tube`.
+            %
             for ii = 1:length(glink)
                 obj.tubes = [obj.tubes, Tube(obj, glink(ii).point, ii)];
             end
@@ -160,11 +183,25 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
 
         function obj = MakeDistanceTransform(obj)
             % Compute distance transform of segmentation and save as
-            % property.
+            % property :attr:`Dmap`.
+            %
             obj.Dmap = bwdist(~obj.seg);
         end
 
         function obj = MakeTubePatches(obj, options)
+            % Calls :meth:`tube.Tube.MakePatchSlices` on all objects in the 
+            % :attr:`tubes`.
+            %
+            % Args:
+            %   type(char): *OPTIONAL* `default = 'both'` either `'both'`, 
+            %       `'source'` or `'seg'`.
+            %   usesegcrop(logical): *OPTIONAL* `default = false` use 
+            %       dynamic slicing, vary the size of the plane dependant 
+            %       on :attr:`tube.Tube.network.seg` size at that point.
+            %   method(char): *OPTIONAL* `default = 'cubic'` see `interp3`_ for details.
+            %
+            % .. _interp3: https://www.mathworks.com/help/matlab/ref/interp3.html
+            %
             arguments
                 obj
                 options.type = 'both'
@@ -190,6 +227,13 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
         end
 
         function obj = ClassifySegmentationTubes(obj)
+            % Classify :attr:`seg` into its tube components.
+            %
+            % Classifies every foreground point of :attr:`seg` to the
+            % nearest point in :attr:`skel`. Assigning it to the respective
+            % :class:`tube.Tube` object in :attr:`tubes`.
+            %
+
             % create classified skeleton
             classedskel = zeros(size(obj.skel));
             for ii = 1:length(obj.tubes)
@@ -294,16 +338,15 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
         % UTILITIES
 
         function obj = RunAllTubes(obj, tubefunc, varargin)
-            % Call a `Tube` method to run on all `obj.tubes`.
+            % Call a :class:`tube.Tube` method to run on all :attr:`tubes`.
             %
-            % Useful method for calling a :class:`Tube` method to run on
-            % all tubes of a :class:`TubeNetwork` object.
-            %
+            % Provides progress of for-loop running the method.
             %
             % Args:
-            %   tubefunc (char): Any method name of tubes class.
-            %   varargin : `OPTIONAL` arguments of method :attr:`tubefunc`.
+            %   tubefunc (char): Any method name of :attr:`tubes` object.
+            %   varargin: arguments of called method in `tubefunc`.
             %
+            % .. todo: add example.
             %
 
             assert(isa(tubefunc,"char") || isa(tubefunc,"string"), ...
@@ -314,34 +357,16 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
         end
 
         function I = S2I(obj,I1,I2,I3)
-            % short desc
-            %
-            % long desc
-            %
-            % .. todo:: add docs
-            %
-            % Args:
-            %   x():
-            %
-            % Return:
-            %   y():
+            % Fast specific implementation of MATLAB's `sub2ind
+            % <https://uk.mathworks.com/help/matlab/ref/sub2ind.html>`_.
             %
 
             I = S2I3(size(obj.source),I1,I2,I3);
         end
 
         function [I1,I2,I3] = I2S(obj,I)
-            % short desc
-            %
-            % long desc
-            %
-            % .. todo:: add docs
-            %
-            % Args:
-            %   x():
-            %
-            % Return:
-            %   y():
+            % Fast specific implementation of MATLAB's `ind2sub
+            % <https://uk.mathworks.com/help/matlab/ref/ind2sub.html>`_.
             %
 
             [I1, I2, I3] = I2S3(size(obj.source),I);
@@ -350,11 +375,13 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             end
         end
 
-        % HIGH LEVEL - group run lower level methods
-        % * spline
-        % * perpinterp
-
         function Measure(obj, varargin)
+            % run chosen measure class on all :attr:`tubes`. See method
+            % :meth:`tubes.Tube.Measure`.
+            %
+            % Also calls measurement methods that require all tube
+            % measurement methods to be completed to run.
+            %
             obj.RunAllTubes('Measure', varargin{:});
             obj.RunAllTubes('ComputeIntertaper');
         end
@@ -387,13 +414,13 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
         function [cdata, rgb] = ColourIndex(obj, regiontouse, regionid, options)
             % visualisation utility method to set colours by `region`.
             %
+            % .. todo: documentation is a stub
+            %
             % Args:
-            %   maptype(char): default = qua. accepts either 'qua' or 'seq'
-            %       to specify the maptype.
-            %
-            %
-            %
-            %
+            %   regiontouse 
+            %   regionid
+            %   maptype(char): *OPTIONAL* `default = 'qua'` accepts either
+            %   `'qua'` or `'seq'` to specify the maptype.
             %
             arguments
                 obj
@@ -432,7 +459,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             % ratio according to voxel size and reverses the x axes for LPS
             % viewing.
             %
-            %
+            % .. todo: documentation is a stub
             %
             if nargin < 2 % current axes if not specified
                 ax = gca;
@@ -453,7 +480,9 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
         % VISUALISATION
 
         function h = Plot(obj, options)
+            % plot the graph of tubes in :attr:`tubes`.
             %
+            % .. todo: documentation is a stub
             %
             % Example:
             %   >>> run CA_base.m;
@@ -529,9 +558,15 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             % in image space. Set gen to the maximum number of
             % generations to show.
             %
-            % .. todo: add arrows.
+            % .. todo: 
+            %   * add arrows.
+            %   * stub
             %
-            %
+            % Args:
+            %   gen(int): *OPTIONAL* `default =
+            %       max([obj.tubes.generation])` plot up to which generation.
+            %       All by default.
+            %   region(char)
             %
             % Example:
             %   >>> run CA_base.m;
@@ -584,7 +619,20 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
         end
 
         function Plot3D(obj, options)
-            % Plot volume
+            % Plot segmentation surface of all :attr:`tubes`.
+            %
+            %
+            % Args:
+            %  gen(int): *OPTIONAL* `default =
+            %       max([obj.tubes.generation])` plot up to which generation.
+            %       All by default.
+            %  alpha (float): *OPTIONAL* `default = 0.3` opacity of surface
+            %   plot.
+            %  color: *OPTIONAL* `default = 'c'` color of surface. Can be any
+            %   MATLAB accepted color format, e.g. RGB.
+            %  type(char): *OPTIONAL* `default = 'seg'` can be either
+            %  `'seg'` or `'skel'`. which to plot surface.
+            %  region
             %
             % .. note:
             %   plotting multiple patches (>20) significantly reduces
@@ -671,8 +719,16 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
         end
 
         function PlotSpline(obj, options)
-            % Plot the airway tree in
+            % Plot the splines of all :attr:`tubes` objects.
             %
+            % .. todo: 
+            %   * stub
+            %
+            % Args:
+            %   gen(int): *OPTIONAL* `default =
+            %       max([obj.tubes.generation])` plot up to which generation.
+            %       All by default.
+            %   region(char)
             %
             %
             % Example:
@@ -732,7 +788,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             % properties.
             %
             % .. todo::
-            %   * add documentation to this function
+            %   * look at exposing display range to user.
             %   * make scrollable by mousewheel
             %   * refactor to :class:`AirQuant` superclass
             %   * investigate saggital view
@@ -744,7 +800,6 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             % Return:
             %   - **s** (:attr:`orthosliceViewer`): see ___ for more
             %       details.
-            %
             %
             % Example:
             %   >>> run CA_base.m;
@@ -801,6 +856,25 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
         % Data IO
         
         function ExportOrthoPatches(obj, path, casename, options)
+            % export perpendicular slice patches of all :attr:`tubes`.
+            %
+            % See :meth:`tube.Tube.ExportOrthoPatches` for more detailed
+            % information.
+            %
+            % Args:
+            %   path(str): path to directory to save the exported patches.
+            %       The directory will be created if it doesn't already 
+            %       exist.
+            %   casename(char): casename to use as prefix to each patch
+            %       slice name.
+            %   genrange(int): *OPTIONAL* `default = [0 inf]` interval
+            %   range of generations that should be considered.
+            % 
+            % Example:
+            %   >>> run CA_base.m;
+            %   >>> AQnet.ExportOrthoPatches('patches','example')
+            %
+
             arguments
                 obj
                 path
@@ -826,13 +900,25 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
         end
 
         function obj = ExportCSV(obj, path)
-            % Export characteristics and properties of each tube into a csv
-            % file.
+            % Export all tubes and their holistic properties and measurements to csv file.
             %
-            % A list of properties including "ID", "parent", "children", 
-            % "generation", "method" and sub properties including 
-            % "stats", "region". Are saved into a single csv file which
-            % each tube is represented by a row.
+            % A list of properties from each tube :attr:`ID`, :attr:`parent`, 
+            % :attr:`children` and :attr:`generation` and :attr:`method`. 
+            % Stats based on measurements from :attr:stats and :attr:region saved into a single 
+            % csv file where each tube is represented by a row. 
+            %
+            % .. todo::
+            %   * showcase example
+            %
+            % Args:
+            %   path(char): filename to save as.
+            %
+            %
+            % Example:
+            %   >>> run CA_base.m;
+            %   >>> figure;
+            %   >>> AQnet.ExportCSV(example_tubenetwork);
+            %
             %
 
             % parse path to end in csv
@@ -882,6 +968,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
 
     methods(Static)
         function obj = load(path)
+            % internal method called when tubenetwork .mat file is loaded.
             s = load(path);
             obj = s.obj;
             disp(['Network loaded from ', path]);
