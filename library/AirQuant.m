@@ -11,6 +11,20 @@ classdef AirQuant < handle & matlab.mixin.SetGet & matlab.mixin.Copyable
         function obj = AirQuant()
         end
         function toNii(obj, filename, options)
+            % Save 3D array object property as nifti image.
+            %
+            % Args:
+            %   filename(`char`): name to save as.
+            %   type(char): *OPTIONAL* `default = 'source'` object
+            %       property that is a 3D array.
+            %   gz(bool): *OPTIONAL* `default = true` whether to save gzip
+            %       compress the output.
+            %
+            % Example:
+            %   >>> run CA_base.m;
+            %   >>> AQnet.toNii('example');
+            %
+
             arguments
                 obj
                 filename char
