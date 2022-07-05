@@ -1351,15 +1351,29 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             end
         end
         
-        function obj = ExportCSV(obj, path)
-            % Export orthoslice measurements to csv file
+        function obj = ExportCSV(obj, filename)
+            % Export tube properties and measurements to csv file.
             %
-            % A list of properties and measurements saved into a single csv 
-            % file which each slice is represented by a row.
+            % A list of properties from :attr:`patchprop` and measurements 
+            % from :attr:`diameters` and :attr:`areas` saved into a single 
+            % csv file where each slice is represented by a row. 
+            %
+            % .. todo::
+            %   * showcase example
+            %
+            % Args:
+            %   path(char): filename to save as.
+            %
+            %
+            % Example:
+            %   >>> run CA_base.m;
+            %   >>> figure;
+            %   >>> AQnet.tubes(98).ExportCSV();
+            %
             %
 
             % parse path to end in csv
-            path = parse_filename_extension(path, '.csv');
+            filename = parse_filename_extension(filename, '.csv');
 
             % properties to add - multiple measurements per slice
             tubeprops = ["diameters", "areas"];
@@ -1388,39 +1402,22 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             exporttable = struct2table(tablestruct);
 
             % write to csv
-            writetable(exporttable, path)
+            writetable(exporttable, filename)
 
         end
+        
         % utilities
         function I = S2I(obj,I1,I2,I3)
-            % short desc
-            %
-            % long desc
-            %
-            % .. todo:: add docs
-            %
-            % Args:
-            %   x():
-            %
-            % Return:
-            %   y():
+            % Fast specific implementation of MATLAB's `sub2ind
+            % <https://uk.mathworks.com/help/matlab/ref/sub2ind.html>`_.
             %
 
             I = S2I3(size(obj.network.source),I1,I2,I3);
         end
 
         function [I1,I2,I3] = I2S(obj,I)
-            % short desc
-            %
-            % long desc
-            %
-            % .. todo:: add docs
-            %
-            % Args:
-            %   x():
-            %
-            % Return:
-            %   y():
+            % Fast specific implementation of MATLAB's `ind2sub
+            % <https://uk.mathworks.com/help/matlab/ref/ind2sub.html>`_.
             %
 
             [I1, I2, I3] = I2S3(size(obj.network.source),I);
@@ -1435,7 +1432,21 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
         end
 
         function prunedprop = PruneMeasure(obj, var)
-            % var is of dimensions nrings x nslices
+            % Prune any tube object property to the class set
+            % :attr:`prunelength`.
+            %
+            % Uses the :attr:`patchprop`.arcpoints property to trim off
+            % the desired variable property at either end.
+            %
+            % Args:
+            %   var(matrix): n x m dimensional array where n is the number 
+            %     of rings and slices are the number of tube patches. 
+            %
+            % Return:
+            %   1 variable
+            %   * prunedprop(`matrix`): n x -1 dimensional array after
+            %       pruning.
+            %
             if isempty(obj.prunelength)
                 obj.prunelength = [0 0];
             end
@@ -1454,17 +1465,8 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
         function volout = ParseVolOut(obj,options)
             % Parse volume of a given property name
             %
-            % Parses the volume of a given property name 
+            % See :class:`AirQuant.AirQuant`:meth:`ParseVolOut`.
             %
-            % .. todo::
-            %   * add documentation to this function
-            %   * add version that makes tubestack back to parent
-            %
-            % Args:
-            %   x(type):
-            %
-            % Return:
-            %   y(type):
             %
 
             arguments
@@ -1489,6 +1491,9 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
 
     methods (Access = protected)
         function UpdateAnnotateOrthoviewer(obj,ax,pos,rings,showellipses,showpoints)
+            % internal function that updates the interactive plot of
+            % :meth:`OrthoView`.
+            %
             % delete old linetype graphics
             axesHandlesToChildObjects = findobj(ax, 'Type', 'Line');
             if ~isempty(axesHandlesToChildObjects)
