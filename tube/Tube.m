@@ -906,9 +906,8 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
         end
 
         function s = OrthoView(obj, options)
-            % View a series of an airway segment's slices as a volume image
+            % View a series of patches of tube slices as a volume image
             % stack using MATLAB's inbuilt othogonal 3d viewer.
-            %
             %
             % .. todo::
             %   * add 4th panel to show plot
@@ -1368,7 +1367,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             % Example:
             %   >>> run CA_base.m;
             %   >>> figure;
-            %   >>> AQnet.tubes(98).ExportCSV();
+            %   >>> AQnet.tubes(98).ExportCSV('example_tube');
             %
             %
 
