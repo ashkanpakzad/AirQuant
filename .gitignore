@@ -1,7 +1,9 @@
 /results/*
 /data/*
 *.asv
-scripts/*
 *.csv
 .idea/*
 docs/_*
+old/
+*.mat
+*.ipynb_checkpoints
