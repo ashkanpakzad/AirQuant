@@ -34,15 +34,15 @@ AQnet.plane_sample_sz = sample_sz;
 toc
 
 %% single airways demo
-tubeii = 81;
+tubeii = 99;
 
 % interp for tube ii
 AQnet.tubes(tubeii).MakePatchSlices(AQnet.source, type='source', method='linear', sample_sz=sample_sz);
 AQnet.tubes(tubeii).MakePatchSlices(AQnet.seg, type='seg', method='linear', sample_sz=sample_sz);
 % measure using model
-AQnet.tubes(tubeii).Measure('AirwayawyGAN', modulepath, model_path);
-figure; AQnet.tubes(tubeiii).plot(smoothing=0.1)
-AQnet.tubes(tubeii).OrthoView()
+% AQnet.tubes(tubeii).Measure('AirwayawyGAN', modulepath, model_path);
+% figure; AQnet.tubes(tubeiii).plot(smoothing=0.1)
+% AQnet.tubes(tubeii).OrthoView()
 
 %% measure using fwhm
 num_rays = 60;

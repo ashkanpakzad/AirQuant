@@ -1,4 +1,4 @@
-% By Ashkan Pakzad, 2021. ashkanpakzad.github.io
+% By Ashkan Pakzad, 2022. ashkanpakzad.github.io
 % Parent function to set up and run AQ on several cases based on given
 % config file
 
