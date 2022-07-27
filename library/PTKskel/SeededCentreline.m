@@ -40,7 +40,7 @@ seg_parsed = PTKAirwayRegionGrowingWithExplosionControl(seg_ptk, start_point, ma
 
 % generate skeleton
 skeleton_results = PTKGetCentrelineFromAirways(seg_parsed, seg_ptk, reporting);
-
+seg_ptk.RemoveBorder(1)
 % convert to binary PTKimage
 skelvol = zeros(seg_ptk.ImageSize, 'uint8');
 skelvol(seg_ptk.GlobalToLocalIndices(skeleton_results.CentrelinePoints)) = 1;
