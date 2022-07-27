@@ -102,6 +102,8 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             options.largestCC logical = 0
             options.spline_sample_sz = nan
             options.plane_sample_sz = nan
+            options.reorient logical = 1
+            options.voxdim = nan
             end
 
             assert(ndims(seg) == 3, 'seg must be a 3D array.')
@@ -119,9 +121,24 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
                 largestCC=options.largestCC);
 
             % reorient volumes and get properties
-            [obj.source, obj.voxdim] = ReorientVolume(source, obj.sourceinfo);
-            obj.seg = ReorientVolume(robustseg, obj.sourceinfo);
-            obj.skel = ReorientVolume(skel, obj.sourceinfo);
+            if options.reorient == true
+                [obj.source, obj.voxdim] = ReorientVolume(source, obj.sourceinfo);
+                obj.seg = ReorientVolume(robustseg, obj.sourceinfo);
+                obj.skel = ReorientVolume(skel, obj.sourceinfo);
+            else
+                obj.source = source;
+                obj.seg = robustseg;
+                obj.skel = skel;
+                obj.voxdim = sourceinfo.PixelDimensions;
+            end
+            
+            % manual voxdim
+            if ~isnan(options.voxdim)
+                assert(all(size(options.voxdim)==[1,3]), ...
+                    strcat('Size of voxdim must be (1,3), got', ...
+                    num2str(size(options.voxdim))))
+                obj.voxdim = options.voxdim;
+            end
 
             % identify cropped size by seg
             obj.lims = CropVol(obj.seg);
