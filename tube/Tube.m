@@ -1314,7 +1314,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
                 options.rings = ones(size(obj.measures,1),1)
                 options.ellipses = true
                 options.points = false
-                options.framerate (1,1) mustBeNumeric = 20
+                options.framerate (1,1) = 20
             end
 
             % parse filename
