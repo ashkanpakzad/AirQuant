@@ -6,9 +6,11 @@ classdef SuperMeasure < handle
     end
     methods
         function obj = SuperMeasure(varargin)
-            obj.pixsize = [varargin{1}, varargin{1}];
-            obj.tube = varargin{2};
-            obj.Measure(varargin{3:end})
+            if ~isempty(varargin)
+                obj.pixsize = [varargin{1}, varargin{1}];
+                obj.tube = varargin{2};
+                obj.Measure(varargin{3:end})
+            end
         end
         
         function Measure(obj)
