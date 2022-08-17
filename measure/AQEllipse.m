@@ -11,6 +11,7 @@ classdef AQEllipse < handle
     properties (SetAccess = protected)
         area
         diameter
+        hydraulic_diameter
     end
     methods
         function obj = AQEllipse(pixsize, varargin)
@@ -60,6 +61,35 @@ classdef AQEllipse < handle
             nominalradius = sqrt(obj.Rx*obj.Ry)*obj.pixsize(1);
             nominaldiameter = nominalradius*2;
             obj.diameter = nominaldiameter;
+        end
+
+        function hydraulic_diameter = HydraulicDiameter(obj)
+            % Compute the hydraulic diameter for this ellipse.
+            % 
+            % The hydraulic diameter is of mechanical interest, computed by
+            % 4*area/perimeter of the cross section. It should be noted
+            % that the area is unlikely to be a uniform cross section, i.e.
+            % not a circle.
+            %
+            % Perimeter of an ellipse is not a straightforward calculation.
+            % This method uses 'ellipsePerimeter' by Santiago Benito. It
+            % uses Infinite series expansion, up to the order of 5. 
+            %
+            %
+
+            % get/compute area
+            if ~isempty(obj.area)
+                area = obj.area;
+            else
+                area = obj.Area();
+            end
+
+            % compute perimeter
+            perimeter = ellipsePerimeter(obj.Rx,obj.Ry,5);
+
+            % compute
+            hydraulic_diameter = 4*area/perimeter;
+            obj.hydraulic_diameter = hydraulic_diameter;
         end
 
         function [he, hp] = plot(obj, min_centre, ax, showellipse, showpoints)
