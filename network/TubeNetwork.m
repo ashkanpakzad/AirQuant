@@ -91,6 +91,10 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             %   plane_sample_sz (float): *OPTIONAL* `default =
             %   floor((min(obj.voxdim)/2)*10)/10` patch interpolation size
             %       to use for all tubes.
+            %   originmethod (float): *OPTIONAL* `default =
+            %       'topnode'` method to set the tube network's origin. Which
+            %       will be treated as generation 0. See
+            %       :class:`network.TubeNetwork.Skel2Digraph` for options.
             %
             %
             arguments
@@ -104,6 +108,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             options.plane_sample_sz = nan
             options.reorient logical = 1
             options.voxdim = nan
+            options.originmethod = 'topnode';
             end
 
             assert(ndims(seg) == 3, 'seg must be a 3D array.')
@@ -168,7 +173,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             obj.max_plane_sz = 40;
 
             % Convert skel into digraph
-            [g, glink, ~] = Skel2Digraph(obj);
+            [g, glink, ~] = Skel2Digraph(obj, options.originmethod);
 
             % make tube objects
             obj.MakeTubes(glink);

@@ -13,9 +13,9 @@ function [digraphout, glink, gnode] = skel_2_digraph(skel, method)
     %
     %
     % Args:
-    %   skel: skeleton to turn into digraph
+    %   skel: skeleton to turn into digraph 
     %   method(string): *OPTIONAL* method to choose originating direction.
-    %       default uses `topnode` method but chossing the most
+    %       default uses `topnode` method by chossing the most
     %       superior node.
     %
     % Return:
@@ -45,9 +45,16 @@ function [digraphout, glink, gnode] = skel_2_digraph(skel, method)
     % branches and remove opposing direction to originating node.
     G = digraph(gadj);
     bins = conncomp(G);
+    
+    if isnumeric(method)
+        assert(length(unique(bins)) < 2, ['Can only be used with one ' ...
+            'connected component.'])
+        assert(length(method)==3,'Must be of length 3')
+        % construct list of nodes with origins into array
+        node_coords = [[gnode.comy]; [gnode.comx]; [gnode.comz]]';
+        originnode = dsearchn(node_coords,method);
 
-    switch method
-        case {'topnode','top','superior'}
+    elseif strcmp(method,'topnode')
             % use most superiour node as origin for each subgraph
             originnode = zeros(max(bins),1);
             for ii = 1:max(bins)
@@ -58,8 +65,8 @@ function [digraphout, glink, gnode] = skel_2_digraph(skel, method)
                 [~, binorigin] = max([gnodeii.comz]);
                 originnode(ii) = binidx(binorigin);
             end
-        otherwise
-            error('Invalid method')
+    else
+        error('Invalid method')
     end
 
 
