@@ -1081,7 +1081,10 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             end
             if options.context == true
                 % get adjacent tubes
-                adjtubes = [obj.parent, obj.children, obj.parent(1).children];
+                adjtubes = [obj.parent, obj.children];
+                if ~isempty(obj.parent)
+                    adjtubes = [adjtubes obj.parent(1).children];
+                end
                 for adjii = adjtubes
                     adjii.Plot3D(type=options.type, color=options.contextcolor,...
                         context=false, alpha=options.alpha)
