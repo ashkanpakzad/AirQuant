@@ -813,8 +813,13 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             classmeasures = feval(classmethod, varargin{:});
             % set raw measures to tube properties
             obj.measures = classmeasures.measures;
-            obj.diameters = classmeasures.OutputDiameter();
-            obj.areas = classmeasures.OutputArea();
+            obj.diameters = classmeasures.OutputVar('diameter');
+            obj.areas = classmeasures.OutputVar('area');
+            % get hydraulic diameter if exist
+            try
+                obj.patchprop.hydraulic_diameter = classmeasures.OutputVar('hydraulic_diameter');
+            catch
+            end
             % derive stats of measurements
             obj.ComputeMeanDiameter();
             obj.ComputeMeanArea();

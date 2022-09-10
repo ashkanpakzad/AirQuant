@@ -40,8 +40,10 @@ classdef AQEllipse < handle
                 obj.rotation = varargin{5};
             end
             
+            % compute values from ellipses
             obj.Area();
             obj.NominalDiameter();
+            obj.HydraulicDiameter();
         end
 
         function obj = FitEllipse(obj)
