@@ -91,6 +91,10 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             %   plane_sample_sz (float): *OPTIONAL* `default =
             %   floor((min(obj.voxdim)/2)*10)/10` patch interpolation size
             %       to use for all tubes.
+            %   originmethod (float): *OPTIONAL* `default =
+            %       'topnode'` method to set the tube network's origin. Which
+            %       will be treated as generation 0. See
+            %       :class:`network.TubeNetwork.Skel2Digraph` for options.
             %
             %
             arguments
@@ -104,6 +108,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             options.plane_sample_sz = nan
             options.reorient logical = 1
             options.voxdim = nan
+            options.originmethod = 'topnode';
             end
 
             assert(ndims(seg) == 3, 'seg must be a 3D array.')
@@ -168,7 +173,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             obj.max_plane_sz = 40;
 
             % Convert skel into digraph
-            [g, glink, ~] = Skel2Digraph(obj);
+            [g, glink, ~] = Skel2Digraph(obj, options.originmethod);
 
             % make tube objects
             obj.MakeTubes(glink);
@@ -505,7 +510,23 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
         function h = Plot(obj, options)
             % plot the graph of tubes in :attr:`tubes`.
             %
-            % .. todo: documentation is a stub
+            % Args:
+            %   label = *OPTIONAL* `default = 'ID'` set edge labels, 
+            %       if `char` can set options `'ID', 
+            %       'generation'`. Can also be vector of length equal to
+            %       number of tubes to manually set labels. 
+            %   shownodes(bool) = *OPTIONAL* `default = false`
+            %   region(char) = *OPTIONAL* default determined by
+            %     :method:`tube.Tube.ParseRegion`
+            %   linethickness(char) = *OPTIONAL* `default = none` options: 
+            %       `average_inner_diameter, average_outer_diameter, 
+            %       average_thickness`.
+            %   linescalefactor(float) = *OPTIONAL* `default = 10` thickest line
+            %   is scaled to this.
+            %
+            %
+            % .. todo: add more linethickness options and refactor
+            %   linethickness
             %
             % Example:
             %   >>> run CA_base.m;
@@ -521,9 +542,10 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             arguments
                 obj
                 options.label = 'ID'
-                options.weights = []
                 options.shownodes = false
                 options.region = ''
+                options.linethickness = ''
+                options.linescalefactor = 10
             end
 
             ge = TubesAsEdges(obj);
@@ -531,7 +553,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             switch options.label
                 case 'ID' % default
                     edgelabels = ge.Edges.ID;
-                case {'generation','gen'}
+                case {'ID','gen'}
                     edgelabels = [obj.tubes(ge.Edges.ID).generation];
                 otherwise
                     edgelabels = options.label;
@@ -552,8 +574,33 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
 
             h.NodeColor = 'k';
             h.EdgeColor = 'k';
+            
+            % set linewidth
+            tubestats = [obj.tubes(ge.Edges.ID).stats];
+        switch options.linethickness
+            case 'average_inner_diameter'
+                mean_diameter = [tubestats.trimmean];
+                edgevar = mean_diameter(1:2:length(mean_diameter));
+            case 'average_outer_diameter'
+                mean_diameter = [tubestats.trimmean];
+                edgevar = mean_diameter(2:2:length(mean_diameter));
+            case 'average_thickness'
+                mean_diameter = [tubestats.trimmean];
+                inner_diameters = mean_diameter(1:2:length(mean_diameter));
+                outer_diameters = mean_diameter(2:2:length(mean_diameter));
+                edgevar = (outer_diameters-inner_diameters)/2;
+            otherwise % default set to 3
+                edgevar = ones(numedges(ge),1);
+        end
+    
+        % scale up thickest line
+        max_thick = max(edgevar);
+        scale = options.linescalefactor/max_thick;
+        edgevar = edgevar*scale;
 
-            h.LineWidth = 3;
+        % set nan variable edges to very small value
+            edgevar(isnan(edgevar)) = 0.001;
+            h.LineWidth = edgevar;
 
             % set colour to get chosen region.
             % if region none then output none
