@@ -54,9 +54,9 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
     properties
         parent = []
         children = []
+        sibling = []
         generation
         network
-        relatives
         skelpoints
         segpoints
         spline
@@ -72,6 +72,8 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
         diameters = []
         areas = []
         volumes = []
+        lead_dir = []
+        trail_dir = []
     end
 
     methods
@@ -145,6 +147,33 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             %
 
             obj.parent = [obj.parent tube];
+        end
+
+        function siblings = GetSibling(obj)
+            % Get siblings of tube if they exist.
+            %
+            %
+            % Returns:
+            %   1 variable.
+            %   * siblings(`vector of tube`) = returns vector of tubes. If
+            %     no parent or no siblings then returns empty.
+            %
+            
+            % check if parent exists
+            if isempty(obj.parent)
+                siblings = [];
+                return
+            end
+            
+            parent_children = obj.parent.children;
+            % check if any siblings
+            if length(parent_children) == 1
+                siblings = [];
+                return
+            end
+            
+            % remove current tube to get siblings
+            siblings = parent_children(parent_children ~= obj);
         end
 
         function obj = SetGeneration(obj)
@@ -302,8 +331,8 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             end
 
             % get linear indexed points of previous branch if available.
-            if options.useparent == true && isfield(obj.relatives,'parent')
-                parent_points = obj.relatives.parent.skelpoints;
+            if options.useparent == true && ~isempty(obj,'parent')
+                parent_points = obj.parent.skelpoints;
                 [x_p1, y_p1, z_p1] = I2S(size(obj.network.source), parent_points);
             else
                 x_p1 = []; y_p1 = []; z_p1 = [];
@@ -364,6 +393,114 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
 
             % save stats measurement using derived spline points.
             obj = ComputeTortuosity(obj);
+        end
+        
+        function [lead_dir, trail_dir] = ComputeDirections(obj)
+            % Compute the leading and trailing directions of the tube.
+            %
+            % Using the beginning and end section of the tube, calculates
+            % the leading and trailing direction vectors respectively.
+            %
+            % Returns:
+            %   2 variables
+            %   * lead_dir(`3x1 vector`) = vector of leading direction.
+            %   * trail_dir(`3x1 vector`) = vector of trailing direction.
+            %
+
+            % compute leading direction from beginning spline
+            % where spline parameter t = 0
+            lead_dir = spline_normal(obj.spline, 0);
+            obj.lead_dir = lead_dir;
+            % compute trailing direction from end of spline
+            % where spline parameter t = end
+            trail_dir = spline_normal(obj.spline, obj.spline.breaks(end));
+            obj.trail_dir = trail_dir;
+
+        end
+
+        function [change_deg] = ComputeChangeAngle(obj)
+            % Compute the change in angle this tube.
+            %
+            % Compute the change in between the leading direction to the
+            % trailing direction of this tube.
+            %
+            % Returns:
+            %   1 variables
+            %   * change_deg(`scalar`) = angle in degrees. 
+            %
+
+            P1 = obj.lead_dir;
+            P2 = obj.trail_dir;
+            change_deg = vector_angle(P1,P2,'degrees');
+
+            obj.stats.change_deg = change_deg;
+        end
+
+        function [parent_deg] = ComputeParentAngle(obj)
+            % Compute the angle of the parent to this tube.
+            %
+            % Compute the angle of the parent trailing direction to the
+            % leading direction of this tube. If this tube has no parent
+            % then the output will be NaN.
+            %
+            % Returns:
+            %   1 variables
+            %   * parent_deg(`scalar`) = angle in degrees. NaN if no parent.
+            %
+
+            % check if parent exists
+            if isempty(obj.parent)
+                parent_deg = NaN;
+            else
+            P1 = obj.parent.trail_dir;
+            P2 = obj.lead_dir;
+            parent_deg = vector_angle(P1,P2,'degrees');
+            end
+
+            obj.stats.parent_deg = parent_deg;
+        end
+
+        function [sibling_deg] = ComputeSiblingAngle(obj,overwrite)
+            % Compute the angle of this tube to its sibling (bifurcation
+            % only).
+            %
+            % Computes the leading angle of this tube to the
+            % leading direction of its sibling. If this tube has multiple
+            % siblings then the output will be NaN.
+            %
+            % Args:
+            %   overwrite(`bool`) = OPTIONAL `default = true`. If false and
+            %   value has already been set then completes. This behaviour
+            %   has been added for efficiency.
+            %
+            % Returns:
+            %   1 variables
+            %   * sibling_deg(`scalar`) = angle in degrees. NaN if multiple
+            %       siblings.
+            %
+            
+            if nargin < 2
+                overwrite = 1;
+            end
+
+            % only complete if not already set and overwrite is off
+            if isfield(obj.stats,'sibling_deg') && overwrite == 0
+                sibling_deg = [];
+                return
+            end
+
+            % must be only 1 sibling.
+            siblings = obj.GetSibling();
+            if length(siblings) ~= 1
+                sibling_deg = NaN;
+            else
+                P1 = siblings.lead_dir;
+                P2 = obj.lead_dir;
+                sibling_deg = vector_angle(P1,P2,'degrees');
+                % save in sibling tube
+                siblings.stats.sibling_deg = sibling_deg;
+            end
+            obj.stats.sibling_deg = sibling_deg;
         end
 
         % perpendicular slice interpolation

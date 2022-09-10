@@ -183,6 +183,12 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
 
             obj.RunAllTubes('SetGeneration');
 
+            % Compute angles of tubes
+            obj.RunAllTubes('ComputeDirections');
+            obj.RunAllTubes('ComputeChangeAngle');
+            obj.RunAllTubes('ComputeParentAngle');
+            obj.RunAllTubes('ComputeSiblingAngle',0);
+
             % classify segmentation to tubes
             obj.ClassifySegmentationTubes();
         end
