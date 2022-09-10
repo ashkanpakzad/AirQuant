@@ -11,11 +11,9 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
     % .. note:
     %   TubeNetwork class is intended as a base class for analysing
     %    anatomical tubes. sub classes refined for analysing a particular
-    %    anatomy should be used. e.g. :class:`HumanAirways`
+    %    anatomy should be used. e.g. :class:`ClinicalAirways`
     %
     % .. todo::
-    %   * Make segmentation import more generalised by removing need
-    %       for full connectivity.
     %   * Consider making tubes property protected.
     %
     % Args:
@@ -66,11 +64,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             % variables are by default set to half the shortest dimension
             % of the source voxel size.
             %
-            % .. note::
-            %   The network digraph is constructed using the default method.
             %
-            % .. todo::
-            %   * Expose digraph method to user at initialisation.
             %
             % Args:
             %   source (3darray): CT loaded from nifti using niftiread.
@@ -511,22 +505,29 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             % plot the graph of tubes in :attr:`tubes`.
             %
             % Args:
-            %   label = *OPTIONAL* `default = 'ID'` set edge labels, 
-            %       if `char` can set options `'ID', 
-            %       'generation'`. Can also be vector of length equal to
-            %       number of tubes to manually set labels. 
             %   shownodes(bool) = *OPTIONAL* `default = false`
             %   region(char) = *OPTIONAL* default determined by
             %     :method:`tube.Tube.ParseRegion`
-            %   linethickness(char) = *OPTIONAL* `default = none` options: 
-            %       `average_inner_diameter, average_outer_diameter, 
-            %       average_thickness`.
-            %   linescalefactor(float) = *OPTIONAL* `default = 10` thickest line
-            %   is scaled to this.
+            %   label = *OPTIONAL* `default = 'ID'` set edge labels.
+            %       if `char` must be an obj property or obj.stats field.
+            %       e.g. `'generation'` or `'arclength'`.
+            %       Can also be vector of length equal to number of tubes
+            %       in order. 
+            %   labelidx(scalar) = *OPTIONAL* `default = 1`. Index of
+            %       chosen property in `label`.
+            %   weight(char) = *OPTIONAL* `default = none`. set line 
+            %       thickness.
+            %       if `char` must be an obj property or obj.stats field.
+            %       e.g. `'generation'` or `'arclength'`.
+            %       Can also be vector of length equal to number of tubes
+            %       in order. 
+            %   weightidx(scalar) = *OPTIONAL* `default = 1`. Index of
+            %       chosen property in `weight`.
+            %   weightfactor(float) = *OPTIONAL* `default = 1`
+            %     determines the highest scaling of the linethickness.
             %
             %
-            % .. todo: add more linethickness options and refactor
-            %   linethickness
+            % .. todo: colour by generation
             %
             % Example:
             %   >>> run CA_base.m;
@@ -541,28 +542,41 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             %
             arguments
                 obj
-                options.label = 'ID'
                 options.shownodes = false
                 options.region = ''
-                options.linethickness = ''
-                options.linescalefactor = 10
+                options.label = 'ID'
+                options.labelidx = 1
+                options.weight = ''
+                options.weightidx = 1
+                options.weightfactor = 1
             end
-
+            
+            % get graph layout
             ge = TubesAsEdges(obj);
-
-            switch options.label
-                case 'ID' % default
-                    edgelabels = ge.Edges.ID;
-                case {'ID','gen'}
-                    edgelabels = [obj.tubes(ge.Edges.ID).generation];
-                otherwise
-                    edgelabels = options.label;
+            % search for label in tube properties then tube.stats
+            if isprop(obj.tubes(1), options.label)
+                edgelabels = 1:length(ge.Edges.ID);
+                for ii = 1:length(edgelabels)
+                    ID = ge.Edges.ID(ii);
+                    label_all = [obj.tubes(ID).(options.label)];
+                    edgelabels(ii) = label_all(options.labelidx);
+                end
+            elseif isfield(obj.tubes(1).stats, options.label)
+                edgelabels = 1:length(ge.Edges.ID);
+                for ii = 1:length(edgelabels)
+                    ID = ge.Edges.ID(ii);
+                    label_all = [obj.tubes(ID).stats.(options.label)];
+                    edgelabels(ii) = label_all(options.labelidx);
+                end
+            else
+                edgelabels = options.label;
             end
 
             assert(numedges(ge) == length(edgelabels), ['inconsistent ' ...
                 'number of edge labels,' num2str(length(edgelabels)), ...
                 ' expected ', num2str(numedges(ge))]);
-
+            
+            % node labels
             if options.shownodes == true
                 nodelabels = 1:numnodes(ge);
             else
@@ -575,34 +589,45 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             h.NodeColor = 'k';
             h.EdgeColor = 'k';
             
-            % set linewidth
-            tubestats = [obj.tubes(ge.Edges.ID).stats];
-        switch options.linethickness
-            case 'average_inner_diameter'
-                mean_diameter = [tubestats.trimmean];
-                edgevar = mean_diameter(1:2:length(mean_diameter));
-            case 'average_outer_diameter'
-                mean_diameter = [tubestats.trimmean];
-                edgevar = mean_diameter(2:2:length(mean_diameter));
-            case 'average_thickness'
-                mean_diameter = [tubestats.trimmean];
-                inner_diameters = mean_diameter(1:2:length(mean_diameter));
-                outer_diameters = mean_diameter(2:2:length(mean_diameter));
-                edgevar = (outer_diameters-inner_diameters)/2;
-            otherwise % default set to 3
-                edgevar = ones(numedges(ge),1);
-        end
+
+            % search for weight in tube properties then tube.stats
+            if isprop(obj.tubes(1), options.weight)
+                edgevar = 1:length(ge.Edges.ID);
+                for ii = 1:length(edgevar)
+                    ID = ge.Edges.ID(ii);
+                    weight_all = [obj.tubes(ID).(options.weight)];
+                    edgevar(ii) = weight_all(options.weightidx);
+                end
+            elseif isfield(obj.tubes(1).stats, options.weight)
+                edgevar = 1:length(ge.Edges.ID);
+                for ii = 1:length(edgevar)
+                    ID = ge.Edges.ID(ii);
+                    weight_all = [obj.tubes(ID).stats.(options.weight)];
+                    edgevar(ii) = weight_all(options.weightidx);
+                end
+            elseif ~isa(options.weight,"char") && ~isa(options.weight,"string")
+                edgevar = options.weight;
+            else
+                edgevar = 1;
+            end
+            
+            if isempty(edgevar)
+                edgevar = 1;
+            end            
+
     
         % scale up thickest line
         max_thick = max(edgevar);
-        scale = options.linescalefactor/max_thick;
+        scale = options.weightfactor/max_thick;
         edgevar = edgevar*scale;
 
-        % set nan variable edges to very small value
+        % set nan or 0 variable edges to very small value
             edgevar(isnan(edgevar)) = 0.001;
+            edgevar(edgevar==0) = 0.001;
+
             h.LineWidth = edgevar;
 
-            % set colour to get chosen region.
+            % set colour to chosen region.
             % if region none then output none
             % if region
             [options.region, regionid] = obj.ParseRegion(options.region);

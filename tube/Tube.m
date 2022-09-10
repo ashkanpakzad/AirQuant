@@ -112,7 +112,6 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
                 obj.network.plane_sample_sz, ...
                 obj.network.spline_sample_sz];
 
-            obj.relatives = struct;
             obj.patchprop = struct;
             obj.stats = struct;
             obj.region = struct;
@@ -331,7 +330,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             end
 
             % get linear indexed points of previous branch if available.
-            if options.useparent == true && ~isempty(obj,'parent')
+            if options.useparent == true && ~isempty(obj.parent)
                 parent_points = obj.parent.skelpoints;
                 [x_p1, y_p1, z_p1] = I2S(size(obj.network.source), parent_points);
             else
@@ -733,8 +732,8 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
 
             % compute average
             meanDval = real(trimmean(pruned', trim));
-            obj.stats.trimmean = meanDval;
-            obj.stats.trimmean_trim = trim;
+            obj.stats.diameter_mean = meanDval;
+            obj.stats.diameter_trim = trim;
         end
 
         function meanAval = ComputeMeanArea(obj, trim)
@@ -765,8 +764,8 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
 
             % compute average
             meanAval = real(trimmean(pruned', trim));
-            obj.stats.meanarea = meanAval;
-            obj.stats.meanarea_trim = trim;
+            obj.stats.area_mean = meanAval;
+            obj.stats.area_trim = trim;
         end
 
         function intrataperval = ComputeIntrataper(obj)
