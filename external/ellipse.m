@@ -169,7 +169,12 @@ for k=1:maxk
   the=linspace(0,2*pi,Nb(rem(k-1,size(Nb,1))+1,:)+1);
 %  x=radm*cos(the)*co-si*radn*sin(the)+xpos;
 %  y=radm*cos(the)*si+co*radn*sin(the)+ypos;
-  p=line(radm*cos(the)*co-si*radn*sin(the)+xpos,radm*cos(the)*si+co*radn*sin(the)+ypos);
+if ~isempty(ax)
+    p=line(ax,radm*cos(the)*co-si*radn*sin(the)+xpos,radm*cos(the)*si+co*radn*sin(the)+ypos);
+else
+    p=line(radm*cos(the)*co-si*radn*sin(the)+xpos,radm*cos(the)*si+co*radn*sin(the)+ypos);
+end
+
   set(p,'color',C(rem(k-1,size(C,1))+1,:));
   
   if nargout > 0

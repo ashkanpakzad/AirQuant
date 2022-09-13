@@ -1,6 +1,9 @@
 /results/*
 /data/*
 *.asv
-scripts/run*
 *.csv
-scripts/quickAQ.m
+.idea/*
+docs/_*
+old/
+*.mat
+*.ipynb_checkpoints
