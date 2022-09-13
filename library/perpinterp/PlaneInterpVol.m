@@ -34,7 +34,8 @@ function out_plane = PlaneInterpVol(vol, voxdim, point, normal, options)
         normal (3,1) {mustBeNumeric}
         options.plane_sz (1,1) = 40
         options.sample_sz (1,1) = 0.5
-        options.method char = 'cubic'
+        options.method char = 'linear'
+        options.gpu logical = 1
         options.offgrid_val (1,1) {mustBeNumeric} = 0
     end
 
@@ -51,7 +52,7 @@ function out_plane = PlaneInterpVol(vol, voxdim, point, normal, options)
         basis_vecs(:,2), point, options.plane_sz, options.sample_sz);
         
     plane_intensities = AQinterp3(x_domain,y_domain,z_domain,vol, ...
-        plane_grid,options.method);
+        plane_grid,options.method, options.gpu);
     
     % Reshape to plane
     plane_length = sqrt(length(plane_grid(2,:)));

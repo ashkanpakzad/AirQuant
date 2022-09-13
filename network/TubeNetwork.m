@@ -116,18 +116,24 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
                 size(skel),' differs from source ', size(source)])
 
             obj.sourceinfo = sourceinfo;
+            
+            % process segmentation
             robustseg = ParseSeg(seg, fillholes=options.fillholes, ...
+                largestCC=options.largestCC);
+            
+            % process skeleton
+            robustskel = ParseSeg(skel, fillholes=false, ...
                 largestCC=options.largestCC);
 
             % reorient volumes and get properties
             if options.reorient == true
                 [obj.source, obj.voxdim] = ReorientVolume(source, obj.sourceinfo);
                 obj.seg = ReorientVolume(robustseg, obj.sourceinfo);
-                obj.skel = ReorientVolume(skel, obj.sourceinfo);
+                obj.skel = ReorientVolume(robustskel, obj.sourceinfo);
             else
                 obj.source = source;
                 obj.seg = robustseg;
-                obj.skel = skel;
+                obj.skel = robustskel;
                 obj.voxdim = sourceinfo.PixelDimensions;
             end
             
@@ -229,6 +235,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
                 options.type = 'both'
                 options.usesegcrop logical = false
                 options.method char = 'linear'
+                options.gpu logical = 1
             end
 
             for ii = progress(1:length(obj.tubes), 'Title', 'Making tube patches')
@@ -236,12 +243,13 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
                 if strcmp(options.type,'source') || strcmp(options.type,'both')
                     MakePatchSlices(obj.tubes(ii), obj.source, ...
                         type='source', usesegcrop=options.usesegcrop,...
-                        method=options.method);
+                        method=options.method, gpu=options.gpu);
                 end
 
                 if strcmp(options.type,'seg') || strcmp(options.type,'both')
                     MakePatchSlices(obj.tubes(ii), obj.seg, type='seg', ...
-                        usesegcrop=options.usesegcrop, method=options.method);
+                        usesegcrop=options.usesegcrop, method=options.method, ...
+                        gpu=options.gpu);
                 end
 
             end

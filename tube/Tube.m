@@ -538,8 +538,9 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
                 vol (:,:,:)
                 options.type char {mustBeMember(options.type,{'source','seg','infer'})} = 'infer'
                 options.usesegcrop logical = false
-                options.method char = 'cubic'
+                options.method char = 'linear'
                 options.sample_sz = obj.network.plane_sample_sz
+                options.gpu logical = true
             end
 
             assert(~isempty(obj.spline), 'spline is empty, see method MakeSpline')
@@ -601,7 +602,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
                     obj.network.voxdim, point, normvec, ...
                     plane_sz=plane_sz, ...
                     sample_sz=options.sample_sz, ...
-                    offgrid_val=0, method=options.method);
+                    offgrid_val=0, method=options.method, gpu=options.gpu);
             end
 
             % Save plane images

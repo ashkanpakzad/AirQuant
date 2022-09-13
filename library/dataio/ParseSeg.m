@@ -9,15 +9,13 @@ function seg = ParseSeg(seg, options)
     
     arguments
     seg
-    options.fillholes = 1
-    options.largestCC = 1
+    options.fillholes logical = 1 
+    options.largestCC logical = 1
     end
     
     % fill holes
     if options.fillholes == 1
         seg = imfill(seg,'holes');
-    else
-        return
     end
 
     % preprocess segmentation to keep largest
@@ -28,6 +26,4 @@ function seg = ParseSeg(seg, options)
         [~,indexOfMax] = max(numOfPixels);
         seg = false(size(seg));
         seg(CC.PixelIdxList{indexOfMax}) = 1;
-    else
-        return
     end

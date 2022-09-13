@@ -1,9 +1,11 @@
-function plane_intensities = AQinterp3(x_domain,y_domain,z_domain,vol,plane_grid,method)
+function plane_intensities = AQinterp3(x_domain,y_domain,z_domain,vol,plane_grid,method,gpu)
 
 
-if strcmp(method,'linear') && gpuDeviceCount("available")
+if gpu
+    assert(strcmp(method,'linear'),'Can only use "linear" method with gpu optimisation.')
+    assert(license('test','distrib_computing_toolbox'),' "Parallel Computing Toolbox required for gpu optimisation.')
+
     % use gpu
-
     x_domain = gpuArray(x_domain);
     y_domain = gpuArray(y_domain);
     z_domain = gpuArray(z_domain);
