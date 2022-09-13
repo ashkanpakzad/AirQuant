@@ -1,5 +1,16 @@
 ![AirQuant Logo](docs/AirQuant.png)
 
+```
+@misc{pakzad2021evaluation,
+      title={Evaluation of automated airway morphological quantification for assessing fibrosing lung disease}, 
+      author={Ashkan Pakzad and Wing Keung Cheung and Kin Quan and Nesrin Mogulkoc and Coline H. M. Van Moorsel and Brian J. Bartholmai and Hendrik W. Van Es and Alper Ezircan and Frouke Van Beek and Marcel Veltkamp and Ronald Karwoski and Tobias Peikert and Ryan D. Clay and Finbar Foley and Cassandra Braun and Recep Savas and Carole Sudre and Tom Doel and Daniel C. Alexander and Peter Wijeratne and David Hawkes and Yipeng Hu and John R Hurst and Joseph Jacob},
+      year={2021},
+      eprint={2111.10443},
+      archivePrefix={arXiv},
+      primaryClass={physics.med-ph}
+}
+```
+
 AirQuant is a software tool based in MATLAB primarily for extracting airway measurements from fully segmented airways of a chest CT.
 
 ## Acknowledgments
@@ -35,4 +46,4 @@ Labels are from:
 
 [4]  Jonathan C. Lansey (2020). Beautiful and distinguishable line colors + colormap (https://www.mathworks.com/matlabcentral/fileexchange/42673-beautiful-and-distinguishable-line-colors-colormap), MATLAB Central File Exchange. Retrieved July 24, 2020.
 
-[5] Pulmonary Toolkit, Tom Doel. https://github.com/tomdoel/pulmonarytoolkits
+[5] Pulmonary Toolkit, Tom Doel. https://github.com/tomdoel/pulmonarytoolkit
