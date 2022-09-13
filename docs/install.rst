@@ -37,6 +37,8 @@ Required Dependencies
 * MATLAB Curve Fitting Toolbox (>3.5.10)
 * MATLAB Statistics and Machine Learning Toolbox (>12.0)
 
+.. todo:
+  * Quick check tool for dependencies.
 
 Optional Dependencies
 ---------------------
@@ -59,9 +61,11 @@ Please note that each package has its own licenses.
 
 * `skeleton3d-matlab`_ - A 3D thinning skeletonisation algorithm.
 
+* `ellipsePerimeter`_ - ellipse perimeter computation.
 
 .. _skel2graph3d-matlab: https://github.com/phi-max/skel2graph3d-matlab/releases/tag/v1.2
 .. _ellipse: https://www.mathworks.com/matlabcentral/fileexchange/289-ellipse-m
 .. _linspecer: https://www.mathworks.com/matlabcentral/fileexchange/42673-beautiful-and-distinguishable-line-colors-colormap
 .. _MatlabProgressBar: https://www.mathworks.com/help/matlab/ref/waitbar.html
 .. _skeleton3d-matlab: https://github.com/phi-max/skeleton3d-matlab/releases/tag/v1.1
+.. _ellipsePerimeter: https://www.mathworks.com/matlabcentral/fileexchange/66647-ellipse-perimeter

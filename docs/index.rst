@@ -6,6 +6,10 @@
 AirQuant
 ========
 
+.. image:: AirQuant.png
+  :width: 400
+  :alt: AirQuant logo
+
 AirQuant is an open source MATLAB software library for analysing macro tubular networks
 in medical imaging such as airways.
 

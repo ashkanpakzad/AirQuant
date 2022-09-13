@@ -1,30 +1,9 @@
+![AirQuant Logo](docs/AirQuant.png)
+
 AirQuant is a software tool based in MATLAB primarily for extracting airway measurements from fully segmented airways of a chest CT.
 
-## Dependencies
-* MATLAB 2020b (>9.9)
-* MATLAB Signal Processing Toolbox (>8.3)
-* MATLAB Image Processing Toolbox (>11.0)
-* MATLAB Curve Fitting Toolbox (>3.5.10)
-* Statistics and Machine Learning Toolbox (>12.0)
-
-## Install
-* In Terminal:
-```
-$ git clone https://github.com/ashkanpakzad/AirQuant.git
-```
-* To use recommended skeletonisation/centreline algorithm, please install Pulmonary Toolkit, by Tom Doel. https://github.com/tomdoel/pulmonarytoolkit.
-* Example use: see [scripts/example_AQ.m](scripts/example.m)
-
-## Development
-See [docs/](docs/).
-
-## Packaged Dependencies
-* skel2graph3d-matlab (https://github.com/phi-max/skel2graph3d-matlab)
-* ellipse (https://uk.mathworks.com/matlabcentral/fileexchange/289-ellipse-m)
-* linspecer (https://www.mathworks.com/matlabcentral/fileexchange/42673-beautiful-and-distinguishable-line-colors-colormap)
-
 ## Acknowledgments
-* Based on Kin Quan "Airway Tapering In CT" https://github.com/quan14/AirwayTaperingInCT [1]
+* Based on Kin Quan "Airway Tapering In CT" [1]
 * skel2graph3d-matlab by Philip Kollmannsberger [2]
 * ellipse.m by David Long [3]
 * linspecer.m by Jonathan C. Lansey [4]
