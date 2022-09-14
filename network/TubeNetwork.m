@@ -80,11 +80,14 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             %   largestCC (bool): *OPTIONAL* `default = false` Only keep
             %       the largest connected component in the segmentation.
             %   spline_sample_sz (float): *OPTIONAL* `default =
-            %   floor((min(obj.voxdim)/2)*10)/10` spline interval to
+            %   floor((min(obj.voxdim))*10)/10` spline interval to
             %       use for all tubes.
             %   plane_sample_sz (float): *OPTIONAL* `default =
-            %   floor((min(obj.voxdim)/2)*10)/10` patch interpolation size
+            %   floor((min(obj.voxdim))*10)/10` patch interpolation size
             %       to use for all tubes.
+            %   max_plane_sz (float): *OPTIONAL* `default =40` max patch 
+            %       size when tubes interpolated in same units as voxel
+            %       dimensions.
             %   originmethod (float): *OPTIONAL* `default =
             %       'topnode'` method to set the tube network's origin. Which
             %       will be treated as generation 0. See
@@ -100,6 +103,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             options.largestCC logical = 0
             options.spline_sample_sz = nan
             options.plane_sample_sz = nan
+            options.max_plane_sz = nan
             options.reorient logical = 1
             options.voxdim = nan
             options.originmethod = 'topnode';
@@ -110,10 +114,10 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
 
             assert(all(~seg,'all') == false, 'seg is all zero.')
             assert(all(~skel,'all') == false, 'skel is all zero.')
-            assert(all(size(source)==size(seg)),['Size of seg ',size(seg), ...
-                ' differs from source ', size(source)])
+            assert(all(size(source)==size(seg)),['Size of seg ',num2str(size(seg)), ...
+                ' differs from source ', num2str(size(source))])
             assert(all(size(source)==size(skel)),['Size of skel ', ...
-                size(skel),' differs from source ', size(source)])
+                size(skel),' differs from source ', num2str(size(source))])
 
             obj.sourceinfo = sourceinfo;
             
@@ -145,6 +149,9 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
                 obj.voxdim = options.voxdim;
             end
 
+            disp(strcat('Voxel dimensions (in physical units, usually mm) = ', ...
+                num2str(obj.voxdim)))
+
             % identify cropped size by seg
             obj.lims = CropVol(obj.seg);
 
@@ -157,26 +164,47 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             obj = MakeDistanceTransform(obj);
 
             % Set dynamic resampling parameters and limits
-            measure_limit = floor((min(obj.voxdim)/2)*10)/10;
+            measure_limit = floor((min(obj.voxdim))*10)/10;
+
+            % patch sample size
             if ~isnan(options.plane_sample_sz)
                 obj.plane_sample_sz = options.plane_sample_sz;
             else
                 obj.plane_sample_sz = measure_limit;
             end
+            disp(strcat('Patch sampling size (in physical units, usually mm) = ', ...
+                num2str(obj.plane_sample_sz)))
 
+            % spline sample size
             if ~isnan(options.spline_sample_sz)
                 obj.spline_sample_sz = options.spline_sample_sz;
             else
                 obj.spline_sample_sz = measure_limit;
             end
-
-            obj.max_plane_sz = 40;
+            disp(strcat('Spline sampling size (in physical units, usually mm) = ', ...
+                num2str(obj.spline_sample_sz)))
+        
+            if obj.plane_sample_sz < min(obj.voxdim) || obj.spline_sample_sz < min(obj.voxdim)
+                warning(strcat('The smallest voxel diameter is ', ...
+                num2str(min(obj.voxdim)), ['. This is smaller than the ' ...
+                    'patch/spline sample size. This could have unexpected results.']))
+            end
+            % max patch sample size
+            if ~isnan(options.max_plane_sz)
+                obj.max_plane_sz = options.max_plane_sz;
+            else
+                obj.max_plane_sz = 40;
+            end
+            disp(strcat('Max plane size (in physical units, usually mm) = ', ...
+                num2str(obj.max_plane_sz)))
 
             % Convert skel into digraph
-            [g, glink, ~] = Skel2Digraph(obj, options.originmethod);
+            [~, glink, ~] = Skel2Digraph(obj, options.originmethod);
 
             % make tube objects
             obj.MakeTubes(glink);
+            
+            disp(strcat(num2str(length(glink), ' tubes found.')))
 
             % set tube relationships
             for ii = 1:length(glink)
