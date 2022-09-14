@@ -1,3 +1,7 @@
+[![build-docs](https://github.com/ashkanpakzad/AirQuant/actions/workflows/docs.yml/badge.svg)](https://github.com/ashkanpakzad/AirQuant/actions/workflows/docs.yml)
+![License](https://img.shields.io/github/license/ashkanpakzad/AirQuant?style=plastic)
+[![arXiv](https://img.shields.io/badge/arXiv-2111.10443-b31b1b.svg?style=plastic)](https://arxiv.org/abs/2111.10443)
+
 ![AirQuant Logo](docs/AirQuant.png)
 
 ```
