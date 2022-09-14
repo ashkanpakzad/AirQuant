@@ -149,8 +149,8 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
                 obj.voxdim = options.voxdim;
             end
 
-            disp(strcat('Voxel dimensions (in physical units, usually mm) = ', ...
-                num2str(obj.voxdim)))
+            disp(['Voxel dimensions (in physical units, usually mm) = ', ...
+                num2str(obj.voxdim)])
 
             % identify cropped size by seg
             obj.lims = CropVol(obj.seg);
@@ -172,8 +172,8 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             else
                 obj.plane_sample_sz = measure_limit;
             end
-            disp(strcat('Patch sampling size (in physical units, usually mm) = ', ...
-                num2str(obj.plane_sample_sz)))
+            disp(['Patch sampling size (in physical units, usually mm) = ', ...
+                num2str(obj.plane_sample_sz)])
 
             % spline sample size
             if ~isnan(options.spline_sample_sz)
@@ -181,13 +181,13 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             else
                 obj.spline_sample_sz = measure_limit;
             end
-            disp(strcat('Spline sampling size (in physical units, usually mm) = ', ...
-                num2str(obj.spline_sample_sz)))
+            disp(['Spline sampling size (in physical units, usually mm) = ', ...
+                num2str(obj.spline_sample_sz)])
         
             if obj.plane_sample_sz < min(obj.voxdim) || obj.spline_sample_sz < min(obj.voxdim)
-                warning(strcat('The smallest voxel diameter is ', ...
-                num2str(min(obj.voxdim)), ['. This is smaller than the ' ...
-                    'patch/spline sample size. This could have unexpected results.']))
+                warning(['The smallest voxel diameter is ', ...
+                num2str(min(obj.voxdim)), '. This is smaller than the ' ...
+                    'patch/spline sample size. This could have unexpected results.'])
             end
             % max patch sample size
             if ~isnan(options.max_plane_sz)
@@ -195,8 +195,8 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             else
                 obj.max_plane_sz = 40;
             end
-            disp(strcat('Max plane size (in physical units, usually mm) = ', ...
-                num2str(obj.max_plane_sz)))
+            disp(['Max plane size (in physical units, usually mm) = ', ...
+                num2str(obj.max_plane_sz)])
 
             % Convert skel into digraph
             [~, glink, ~] = Skel2Digraph(obj, options.originmethod);
@@ -204,7 +204,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             % make tube objects
             obj.MakeTubes(glink);
             
-            disp(strcat(num2str(length(glink), ' tubes found.')))
+            disp(strcat(num2str(length(glink)), ' tubes found.'))
 
             % set tube relationships
             for ii = 1:length(glink)
