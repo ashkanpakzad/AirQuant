@@ -386,10 +386,11 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             assert(~isempty(obj.spline), 'spline is empty, see method MakeSpline')
 
             % get spline points by set interval
-            [obj.stats.arclength, obj.patchprop.parapoints, ...
+            [arclength, obj.patchprop.parapoints, ...
                 obj.patchprop.arcpoints] = ...
                 Compute_Spline_Points(obj.spline, options.sample_interval);
 
+            obj.stats.arclength = real(arclength);
             % save stats measurement using derived spline points.
             obj = ComputeTortuosity(obj);
         end
@@ -645,7 +646,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
         end
 
         % stats
-        function obj = ComputeEucLength(obj)
+        function euclength = ComputeEucLength(obj)
             % Computes euclidean length of the tube.
             %
             % Computes euclidean length of the tube by considering the skeleton
@@ -653,7 +654,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             %
             % .. note:
             %   Requires splines to have been fitted first using
-            %   :meth:`tube.Tube.ComputeSplinePoints.
+            %   :meth:`tube.Tube.FindSplinePoints`.
             %
 
             assert(isfield(obj.patchprop,'parapoints'), 'no parapoints computed, see method ComputeSplinePoints')
@@ -661,7 +662,11 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
                 obj.patchprop.parapoints(1));
             [~, point_end] = spline_normal(obj.spline, ...
                 obj.patchprop.parapoints(end));
-            obj.stats.euclength = real(norm(point_end - point_1));
+            euclength = real(norm(point_end - point_1));
+            if euclength == 0
+                warning('Euclidean length of a branch is 0, try reducing your spline sampling size')
+            end
+            obj.stats.euclength = euclength;
         end
 
         function obj = ComputeArcLength(obj)
@@ -671,14 +676,16 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             % of the tube spline and saves to :attr:`tube.Tube.stats`.arclength.
             %
             % .. note:
-            %   Requires splines to have been fitted first using
-            %   :meth:`tube.Tube.ComputeSplinePoints.
-            %
+            %   * Requires splines to have been fitted first using
+            %   :meth:`tube.Tube.FindSplinePoints`.
+            %   * This function is not called by class internals,
+            %   :meth:`tube.Tube.FindSplinePoints` does instead to avoid
+            %   code redundancy.
 
             obj.stats.arclength = real(Compute_Spline_Points(obj.spline));
         end
 
-        function obj = ComputeTortuosity(obj)
+        function tortuosity = ComputeTortuosity(obj)
             % Computes tortuosity of the tube.
             %
             % Computes tortuosity of the tube by considering the ratio of the
@@ -692,19 +699,21 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             if ~isfield(obj.stats,'arclength')
                 obj = ComputeArcLength(obj);
             end
-            obj = ComputeEucLength(obj);
+            ComputeEucLength(obj);
             % arclength / euclidean length
-            obj.stats.tortuosity = real(obj.stats.arclength./obj.stats.euclength);
+            tortuosity = real(obj.stats.arclength./obj.stats.euclength);
             % note that we evaluate with a tolerance for the rare case that
             % arclength is very close to 1 due to the precision of
             % numerical methods.
             precision = 1e-6;
-            if obj.stats.tortuosity < 1-precision
+            if tortuosity < 1-precision
                 warning(strcat("Tortuosity shouldn't be less than 1 " + ...
                     "by definition. Got ", ...
                 num2str(obj.stats.tortuosity),". This could be " + ...
                     "due to numerical imprecision."))
             end
+
+            obj.stats.tortuosity = tortuosity;
         end
 
         function meanDval = ComputeMeanDiameter(obj, trim)
@@ -929,7 +938,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             % measurements.
             %
             % .. todo:: 
-            %   * add documentation to this function.
+            %   * add more detailed documentation to this function.
             %   * make measurements specific page to link to.
             %   * initiate by deleting all calculations.
             %
@@ -1584,7 +1593,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             %
             % Args:
             %   var(matrix): n x m dimensional array where n is the number 
-            %     of rings and slices are the number of tube patches. 
+            %     of rings and m are the number of tube patches. 
             %
             % Return:
             %   1 variable
@@ -1597,7 +1606,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             nrings = size(var,1);
             pl = obj.prunelength;
             al = obj.patchprop.arcpoints;
-            assert(length(al) == length(var), 'Input variable must be the same length as arclength.')
+            assert(size(al,2) == size(var,2), 'Input variable must be the same length as arclength.')
 
             prunebool = (al >= pl(1) & al <= (al(end) - pl(2)));
             % scale to number of measures
