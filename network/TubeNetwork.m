@@ -445,6 +445,32 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
         end
 
         % VISUALISATION - utilites
+        
+        function outlabel = GetTubeValues(obj, labelname, labelidx)
+            % get the value of each tube property or stat
+            
+            % get num tubes and reserve memory
+            numtubes = length(obj.tubes);
+            outlabel = zeros(size(obj.tubes));
+            % search for label in tube properties
+            if isprop(obj.tubes(1), labelname)
+                for ii = 1:numtubes
+                    label_all = [obj.tubes(ii).(labelname)];
+                    outlabel(ii) = label_all(labelidx);
+                end
+            % then search for label in tube stats
+            elseif isfield(obj.tubes(1).stats, labelname)
+                for ii = 1:length(outlabel)
+                    label_all = [obj.tubes(ii).stats.(labelname)];
+                    outlabel(ii) = label_all(labelidx);
+                end
+            elseif isempty(labelname)
+                outlabel = {};
+            else
+                error(['No tube property/stats found with name ', labelname,'.'])
+            end
+
+        end
 
         function [regionkwarg,regionid] = ParseRegion(obj, regionkwarg)
             % visualisation utility method to interpret the `region`
@@ -589,29 +615,18 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             
             % get graph layout
             ge = TubesAsEdges(obj);
-            % search for label in tube properties then tube.stats
-            if isprop(obj.tubes(1), options.label)
-                edgelabels = 1:length(ge.Edges.ID);
-                for ii = 1:length(edgelabels)
-                    ID = ge.Edges.ID(ii);
-                    label_all = [obj.tubes(ID).(options.label)];
-                    edgelabels(ii) = label_all(options.labelidx);
-                end
-            elseif isfield(obj.tubes(1).stats, options.label)
-                edgelabels = 1:length(ge.Edges.ID);
-                for ii = 1:length(edgelabels)
-                    ID = ge.Edges.ID(ii);
-                    label_all = [obj.tubes(ID).stats.(options.label)];
-                    edgelabels(ii) = label_all(options.labelidx);
-                end
-            else
-                edgelabels = options.label;
-            end
 
-            assert(numedges(ge) == length(edgelabels), ['inconsistent ' ...
+            % get label list
+            outlabel = GetTubeValues(obj, options.label, options.labelidx);
+            if isempty(outlabel)
+                edgelabels = outlabel;
+            else
+                edgelabels = outlabel(ge.Edges.ID);
+                assert(numedges(ge) == length(edgelabels), ['inconsistent ' ...
                 'number of edge labels,' num2str(length(edgelabels)), ...
                 ' expected ', num2str(numedges(ge))]);
-            
+            end
+
             % node labels
             if options.shownodes == true
                 nodelabels = 1:numnodes(ge);
@@ -624,33 +639,16 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
 
             h.NodeColor = 'k';
             h.EdgeColor = 'k';
-            
 
-            % search for weight in tube properties then tube.stats
-            if isprop(obj.tubes(1), options.weight)
-                edgevar = 1:length(ge.Edges.ID);
-                for ii = 1:length(edgevar)
-                    ID = ge.Edges.ID(ii);
-                    weight_all = [obj.tubes(ID).(options.weight)];
-                    edgevar(ii) = weight_all(options.weightidx);
-                end
-            elseif isfield(obj.tubes(1).stats, options.weight)
-                edgevar = 1:length(ge.Edges.ID);
-                for ii = 1:length(edgevar)
-                    ID = ge.Edges.ID(ii);
-                    weight_all = [obj.tubes(ID).stats.(options.weight)];
-                    edgevar(ii) = weight_all(options.weightidx);
-                end
-            elseif ~isa(options.weight,"char") && ~isa(options.weight,"string")
-                edgevar = options.weight;
+            outweight = GetTubeValues(obj, options.weight, options.weightidx);
+            if isempty(outweight)
+                edgevar = 1;
             else
-                edgevar = 1;
+                edgevar = outweight(ge.Edges.ID);
+                assert(numedges(ge) == length(edgevar), ['inconsistent ' ...
+                'number of edge weights,' num2str(length(edgevar)), ...
+                ' expected ', num2str(numedges(ge))]);
             end
-            
-            if isempty(edgevar)
-                edgevar = 1;
-            end            
-
     
         % scale up thickest line
         max_thick = max(edgevar);
@@ -658,29 +656,29 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
         edgevar = edgevar*scale;
 
         % set nan or 0 variable edges to very small value
-            edgevar(isnan(edgevar)) = 0.001;
-            edgevar(edgevar==0) = 0.001;
+        edgevar(isnan(edgevar)) = 0.001;
+        edgevar(edgevar==0) = 0.001;
 
-            h.LineWidth = edgevar;
+        h.LineWidth = edgevar;
 
-            % set colour to chosen region.
-            % if region none then output none
-            % if region
-            [options.region, regionid] = obj.ParseRegion(options.region);
+        % set colour to chosen region.
+        % if region none then output none
+        % if region
+        [options.region, regionid] = obj.ParseRegion(options.region);
 
-            if ~isempty(options.region)
-                try
-                    cdata = ColourIndex(obj, options.region, regionid);
-                    edgeregion = cdata(ge.Edges.ID);
-    
-                    % set edge colour by index
-                    G.Edges.EdgeColors = edgeregion';
-                    h.EdgeCData = G.Edges.EdgeColors;
-                catch
-                    warning(['Attempted to colour image. Failed ' ...
-                        'due to incomplete region definition for all tubes.'])
-                end
+        if ~isempty(options.region)
+            try
+                cdata = ColourIndex(obj, options.region, regionid);
+                edgeregion = cdata(ge.Edges.ID);
+
+                % set edge colour by index
+                G.Edges.EdgeColors = edgeregion';
+                h.EdgeCData = G.Edges.EdgeColors;
+            catch
+                warning(['Attempted to colour image. Failed ' ...
+                    'due to incomplete region definition for all tubes.'])
             end
+        end
 
         end
 
