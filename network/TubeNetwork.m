@@ -449,25 +449,40 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
         function outlabel = GetTubeValues(obj, labelname, labelidx)
             % get the value of each tube property or stat
             
-            % get num tubes and reserve memory
-            numtubes = length(obj.tubes);
-            outlabel = zeros(size(obj.tubes));
             % search for label in tube properties
             if isprop(obj.tubes(1), labelname)
-                for ii = 1:numtubes
-                    label_all = [obj.tubes(ii).(labelname)];
-                    outlabel(ii) = label_all(labelidx);
-                end
-            % then search for label in tube stats
+                object_eval = ('obj.tubes(ii)');
+                % then search for label in tube stats
             elseif isfield(obj.tubes(1).stats, labelname)
-                for ii = 1:length(outlabel)
-                    label_all = [obj.tubes(ii).stats.(labelname)];
-                    outlabel(ii) = label_all(labelidx);
-                end
+                object_eval = ('obj.tubes(ii).stats');
+                % then search for label in region
+            elseif isfield(obj.tubes(1).region, labelname)
+                object_eval = 'obj.tubes(ii).region';
             elseif isempty(labelname)
+                % if blank then return blank.
                 outlabel = {};
+                return
             else
-                error(['No tube property/stats found with name ', labelname,'.'])
+                error(['No tube property/stats/region found with name ', labelname,'.'])
+            end
+            
+            % get num tubes and reserve memory
+            numtubes = length(obj.tubes);
+            outlabel = cell(size(obj.tubes));
+
+            % get values
+            for ii = 1:numtubes
+                label_all = [eval(object_eval).(labelname)];
+                if ischar(label_all)
+                    outlabel{ii} = label_all;
+                else
+                    outlabel{ii} = label_all(labelidx);
+                end
+            end
+            
+            % if value type is numerical then convert to matrix
+            if isnumeric(outlabel{1})
+                outlabel = cell2mat(outlabel);
             end
 
         end
@@ -495,44 +510,74 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             end
         end
 
-        function [cdata, rgb] = ColourIndex(obj, regiontouse, regionid, options)
-            % visualisation utility method to set colours by `region`.
+        function [cdata, rgb] = ColourIndex(obj, vals, options)
+            % Set colours properties per tube segment.
             %
-            % .. todo: documentation is a stub
+            % Visualisation utility method to set colours properties per
+            % tube segment. It behaves differently depending on
+            % quantitative or qualitative input. i.e. change in colourmap
+            % style and colourbar tick value style.
+            %
+            % ..todo:
+            %   * Reinstate set order for colours. e.g. region properties.
             %
             % Args:
-            %   regiontouse 
-            %   regionid
-            %   maptype(char): *OPTIONAL* `default = 'qua'` accepts either
-            %   `'qua'` or `'seq'` to specify the maptype.
+            %   vals(array or cell array): list of values per tube.
+            %   types(array or cell array): *OPTIONAL* `default = ''` 
+            %       possible values that `vals` can take. Leave empty to
+            %       infer.
+            %   name(char): *OPTIOANL* `default = ''` name to appear on
+            %       colourbar label.
+            %   maptype(char): *OPTIONAL* `default = ''` accepts either
+            %       `''`, `'qua'` or `'seq'`. Leave blank to infer by `vals` 
+            %       input.
             %
             arguments
                 obj
-                regiontouse
-                regionid
-                options.maptype char {mustBeMember(options.maptype,{'qua','seq'})} = 'qua'
+                vals (1,:)
+                options.types = ''
+                options.name = ''
+                options.maptype char {mustBeMember(options.maptype,{'qua','seq',''})} = ''
             end
-            % get region info
-            regionlist = AirQuant.list_property({obj.tubes.region},regiontouse);
 
+            assert(length(obj.tubes) == length(vals), ['Should have same number ' ...
+                'of vals input as there are tubes. Got ', num2str(length(vals)), ...
+                ', but expected ', num2str(length(obj.tubes))])
+            
             % convert labels into numbers
-            if nargin < 3 || isempty(regionid)
-                regionid = unique(AirQuant.list_property({obj.tubes.region},regiontouse));
+            if isempty(options.types)
+                types = unique(vals);
+            else
+                types = options.types;
+            end
+            
+            % bin into unique bins
+            cdata = zeros(size(vals));
+            for ii = 1:length(cdata)
+                [~, ~, cdata(ii)] = intersect(vals(ii),types);
             end
 
-            cdata = zeros(size(regionlist));
-            for ii = 1:length(cdata)
-                [~, ~, cdata(ii)] = intersect(regionlist(ii),regionid);
+            % infer colourmap type if necessary
+            if isempty(options.maptype)
+                if iscell(vals)
+                    options.maptype = 'qua';
+                else
+                    options.maptype = 'seq';
+                end
             end
 
             % set colours map and text
             clims = [1 max(cdata(:))];
-
-            colorbarstring = regiontouse;
-            colourshow = clims(1):clims(2);
-            colourlabels = regionid;
+            colorbarstring = options.name;
             rgb = linspecer(max(cdata(:)), options.maptype);
             colormap(rgb)
+            if strcmp(options.maptype, 'qua')
+                colourshow = clims(1):clims(2);
+                colourlabels = types;
+            else
+                colourshow = [clims(1), clims(2)];
+                colourlabels = [min(types), max(types)];
+            end
             c = colorbar('Ticks', colourshow, 'TickLabels', colourlabels);
             c.Label.String = colorbarstring;
             caxis(clims)
@@ -564,32 +609,37 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
         % VISUALISATION
 
         function h = Plot(obj, options)
-            % plot the graph of tubes in :attr:`tubes`.
+            % Very powerful graph visualisation tool of tubes. Can
+            % manipulate by label, edge weight and colour.
             %
             % Args:
             %   shownodes(bool) = *OPTIONAL* `default = false`
-            %   region(char) = *OPTIONAL* default determined by
-            %     :method:`tube.Tube.ParseRegion`
             %   label = *OPTIONAL* `default = 'ID'` set edge labels.
-            %       if `char` must be an obj property or obj.stats field.
-            %       e.g. `'generation'` or `'arclength'`.
+            %       if `char` must be an :class:`tube` property, :class:`tube` `stats` or `region` field.
+            %       e.g. `'generation'`, `'arclength'`, `'lobe'`.
             %       Can also be vector of length equal to number of tubes
             %       in order. 
             %   labelidx(scalar) = *OPTIONAL* `default = 1`. Index of
             %       chosen property in `label`.
             %   weight(char) = *OPTIONAL* `default = none`. set line 
             %       thickness.
-            %       if `char` must be an obj property or obj.stats field.
-            %       e.g. `'generation'` or `'arclength'`.
+            %       if `char` must be an :class:`tube` property, :class:`tube` `stats` or `region` field.
+            %       e.g. `'generation'`, `'arclength'`, `'lobe'`.
             %       Can also be vector of length equal to number of tubes
             %       in order. 
             %   weightidx(scalar) = *OPTIONAL* `default = 1`. Index of
             %       chosen property in `weight`.
             %   weightfactor(float) = *OPTIONAL* `default = 1`
             %     determines the highest scaling of the linethickness.
+            %   colour(char) = *OPTIONAL* `default = 1`. Set variable for
+            %       colour labelling.
+            %       if `char` must be an :class:`tube` property, :class:`tube` `stats` or `region` field.
+            %       e.g. `'generation'`, `'arclength'`, `'lobe'`.
+            %       Can also be vector of length equal to number of tubes
+            %       in order. 
+            %   colouridx(scalar) = *OPTIONAL* `default = 1` Index of
+            %       chosen property in `colour`.          
             %
-            %
-            % .. todo: colour by generation
             %
             % Example:
             %   >>> run CA_base.m;
@@ -605,12 +655,13 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             arguments
                 obj
                 options.shownodes = false
-                options.region = ''
                 options.label = 'ID'
                 options.labelidx = 1
                 options.weight = ''
                 options.weightidx = 1
                 options.weightfactor = 1
+                options.colour = ''
+                options.colouridx = 1
             end
             
             % get graph layout
@@ -623,8 +674,8 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             else
                 edgelabels = outlabel(ge.Edges.ID);
                 assert(numedges(ge) == length(edgelabels), ['inconsistent ' ...
-                'number of edge labels,' num2str(length(edgelabels)), ...
-                ' expected ', num2str(numedges(ge))]);
+                    'number of edge labels,' num2str(length(edgelabels)), ...
+                    ' expected ', num2str(numedges(ge))]);
             end
 
             % node labels
@@ -634,9 +685,11 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
                 nodelabels = [''];
             end
 
+            % plot
             h = plot(ge,nodelabel=nodelabels,edgelabel=edgelabels, ...
                 layout='layered');
 
+            % node colours
             h.NodeColor = 'k';
             h.EdgeColor = 'k';
 
@@ -646,39 +699,37 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             else
                 edgevar = outweight(ge.Edges.ID);
                 assert(numedges(ge) == length(edgevar), ['inconsistent ' ...
-                'number of edge weights,' num2str(length(edgevar)), ...
-                ' expected ', num2str(numedges(ge))]);
+                    'number of edge weights,' num2str(length(edgevar)), ...
+                    ' expected ', num2str(numedges(ge))]);
             end
-    
-        % scale up thickest line
-        max_thick = max(edgevar);
-        scale = options.weightfactor/max_thick;
-        edgevar = edgevar*scale;
 
-        % set nan or 0 variable edges to very small value
-        edgevar(isnan(edgevar)) = 0.001;
-        edgevar(edgevar==0) = 0.001;
+            % scale up thickest line
+            max_thick = max(edgevar);
+            scale = options.weightfactor/max_thick;
+            edgevar = edgevar*scale;
 
-        h.LineWidth = edgevar;
+            % set nan or 0 variable edges to very small value
+            edgevar(isnan(edgevar)) = 0.001;
+            edgevar(edgevar==0) = 0.001;
 
-        % set colour to chosen region.
-        % if region none then output none
-        % if region
-        [options.region, regionid] = obj.ParseRegion(options.region);
+            h.LineWidth = edgevar;
 
-        if ~isempty(options.region)
-            try
-                cdata = ColourIndex(obj, options.region, regionid);
-                edgeregion = cdata(ge.Edges.ID);
+            % set colour
 
-                % set edge colour by index
-                G.Edges.EdgeColors = edgeregion';
-                h.EdgeCData = G.Edges.EdgeColors;
-            catch
-                warning(['Attempted to colour image. Failed ' ...
-                    'due to incomplete region definition for all tubes.'])
+            if ~isempty(options.colour)
+                try
+                    colours = GetTubeValues(obj, options.colour, options.colouridx);
+                    colourvals = colours(ge.Edges.ID);
+                    cdata = ColourIndex(obj, colourvals, name=options.colour);
+
+                    % set edge colour by index
+                    G.Edges.EdgeColors = cdata';
+                    h.EdgeCData = G.Edges.EdgeColors;
+                catch
+                    warning(['Attempted to colour image but failed. Likely ' ...
+                        'due to incomplete definition for all tubes.'])
+                end
             end
-        end
 
         end
 
@@ -689,13 +740,21 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             %
             % .. todo: 
             %   * add arrows.
-            %   * stub
+            %   * add weight parameter.
+            %   * documentation stub
             %
             % Args:
             %   gen(int): *OPTIONAL* `default =
             %       max([obj.tubes.generation])` plot up to which generation.
             %       All by default.
-            %   region(char)
+            %   colour(char) = *OPTIONAL* `default = 1`. Set variable for
+            %       colour labelling.
+            %       if `char` must be an :class:`tube` property, :class:`tube` `stats` or `region` field.
+            %       e.g. `'generation'`, `'arclength'`, `'lobe'`.
+            %       Can also be vector of length equal to number of tubes
+            %       in order. 
+            %   colouridx(scalar) = *OPTIONAL* `default = 1` Index of
+            %       chosen property in `colour`.      
             %
             % Example:
             %   >>> run CA_base.m;
@@ -711,19 +770,21 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             arguments
                 obj
                 options.gen = max([obj.tubes.generation])
-                options.region = ''
+                options.colour = ''
+                options.colouridx = 1
             end
 
             % set up reduced graph
             vis_Glink_logical = [obj.tubes.generation] <= options.gen;
             vis_tubes = obj.tubes(vis_Glink_logical);
 
-            % set colour to get chosen region.
-            [options.region, regionid] = obj.ParseRegion(options.region);
+            % set colour
 
-            if ~isempty(options.region)
+            if ~isempty(options.colour)
                 try
-                [cdata, rgb] = ColourIndex(obj, options.region, regionid);
+                colourvals = GetTubeValues(obj, options.colour, options.colouridx);
+                [cdata, rgb] = ColourIndex(obj, colourvals, name=options.colour);
+                hold on
                 catch
                     warning(['Attempted to colour image. Failed ' ...
                         'due to incomplete region definition for all tubes.'])
@@ -757,7 +818,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             %       All by default.
             %  alpha (float): *OPTIONAL* `default = 0.3` opacity of surface
             %   plot.
-            %  color: *OPTIONAL* `default = 'c'` color of surface. Can be any
+            %  colour: *OPTIONAL* `default = 'c'` color of surface. Can be any
             %   MATLAB accepted color format, e.g. RGB.
             %  type(char): *OPTIONAL* `default = 'seg'` can be either
             %  `'seg'` or `'skel'`. which to plot surface.
@@ -767,7 +828,11 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             %   plotting multiple patches (>20) significantly reduces
             %   performance. This is why this function tries to collate every
             %   patch that is designated a different colour and then plots
-            %   them.
+            %   them. 
+            % 
+            % .. warning:
+            %   Choosing a colour option that is continuous will cause this
+            %   method to take a very long time.
             %
             %
             % Example:
@@ -786,9 +851,9 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
                 obj
                 options.gen = max([obj.tubes.generation]);
                 options.alpha = 0.3
-                options.color = 'c'
+                options.colour = ''
+                options.colouridx = ''
                 options.type {mustBeMember(options.type,{'seg','skel'})} = 'seg'
-                options.region = ''
             end
 
 
@@ -798,12 +863,11 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
 
             V = zeros(size(obj.(options.type)));
 
-            % set colour to get chosen region.
-            [options.region, regionid] = obj.ParseRegion(options.region);
-
-            if ~isempty(options.region)
+            % set colour
+            if ~isempty(options.colour)
                 try
-                    [cdata, rgb] = ColourIndex(obj, options.region, regionid);
+                colourvals = GetTubeValues(obj, options.colour, options.colouridx);
+                [cdata, rgb] = ColourIndex(obj, colourvals, name=options.colour);                
                 catch
                     warning(['Attempted to colour image. Failed ' ...
                         'due to incomplete region definition for all tubes.'])
@@ -835,12 +899,6 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
                 'EdgeColor', 'none');
                 hold on
                 end
-            else
-                patch(isosurface(V),...
-                'FaceAlpha', options.alpha,...
-                'FaceColor', options.color,...
-                'EdgeColor', 'none');
-
             end
 
             obj.vol3daxes()
@@ -852,12 +910,20 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             %
             % .. todo: 
             %   * stub
+            %   * consider weight parameter.
             %
             % Args:
             %   gen(int): *OPTIONAL* `default =
             %       max([obj.tubes.generation])` plot up to which generation.
             %       All by default.
-            %   region(char)
+            %   colour(char) = *OPTIONAL* `default = 1`. Set variable for
+            %       colour labelling.
+            %       if `char` must be an :class:`tube` property, :class:`tube` `stats` or `region` field.
+            %       e.g. `'generation'`, `'arclength'`, `'lobe'`.
+            %       Can also be vector of length equal to number of tubes
+            %       in order. 
+            %   colouridx(scalar) = *OPTIONAL* `default = 1` Index of
+            %       chosen property in `colour`.    
             %
             %
             % Example:
@@ -874,19 +940,20 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             arguments
                 obj
                 options.gen = max([obj.tubes.generation])
-                options.region = ''
+                options.colour = ''
+                options.colouridx = 1
             end
 
             % set up reduced graph
             vis_Glink_logical = [obj.tubes.generation] <= options.gen;
             vis_tubes = obj.tubes(vis_Glink_logical);
 
-            % set colour to get chosen region.
-            [options.region, regionid] = obj.ParseRegion(options.region);
-
-            if ~isempty(options.region)
+            % set colour
+            if ~isempty(options.colour)
                 try
-                    [cdata, rgb] = ColourIndex(obj, options.region, regionid);
+                colourvals = GetTubeValues(obj, options.colour, options.colouridx);
+                [cdata, rgb] = ColourIndex(obj, colourvals, name=options.colour);
+                hold on
                 catch
                     warning(['Attempted to colour image. Failed ' ...
                         'due to incomplete region definition for all tubes.'])
