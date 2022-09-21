@@ -51,8 +51,27 @@ function out_plane = PlaneInterpVol(vol, voxdim, point, normal, options)
     plane_grid = Grids_coords_for_plane(basis_vecs(:,3),...
         basis_vecs(:,2), point, options.plane_sz, options.sample_sz);
         
-    plane_intensities = AQinterp3(x_domain,y_domain,z_domain,vol, ...
-        plane_grid,options.method, options.gpu);
+    if options.gpu
+        assert(strcmp(options.method,'linear'),'Can only use "linear" method with gpu optimisation.')
+        assert(license('test','distrib_computing_toolbox'),' "Parallel Computing Toolbox required for gpu optimisation.')
+
+        % use gpu
+        x_domain = gpuArray(x_domain);
+        y_domain = gpuArray(y_domain);
+        z_domain = gpuArray(z_domain);
+        vol = gpuArray(vol);
+        plane_grid = gpuArray(plane_grid);
+
+        plane_intensities = interp3(x_domain,y_domain,z_domain,...
+            vol,plane_grid(2,:),plane_grid(1,:),...
+            plane_grid(3,:),'linear');
+        plane_intensities = gather(plane_intensities);
+    else
+        % use standard
+        plane_intensities = interp3(x_domain,y_domain,z_domain,...
+            vol,plane_grid(2,:),plane_grid(1,:),...
+            plane_grid(3,:),options.method);
+    end
     
     % Reshape to plane
     plane_length = sqrt(length(plane_grid(2,:)));
