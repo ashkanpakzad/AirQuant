@@ -148,8 +148,9 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
                     num2str(size(options.voxdim))))
                 obj.voxdim = options.voxdim;
             end
-
-            disp(['Voxel dimensions (in physical units, usually mm) = ', ...
+            
+            disp('Dimensions in physical units, usually millimetres.')
+            disp(['Voxel dimensions = ', ...
                 num2str(obj.voxdim)])
 
             % identify cropped size by seg
@@ -172,7 +173,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             else
                 obj.plane_sample_sz = measure_limit;
             end
-            disp(['Patch sampling size (in physical units, usually mm) = ', ...
+            disp(['Patch sampling size = ', ...
                 num2str(obj.plane_sample_sz)])
 
             % spline sample size
@@ -181,10 +182,10 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             else
                 obj.spline_sample_sz = measure_limit;
             end
-            disp(['Spline sampling size (in physical units, usually mm) = ', ...
+            disp(['Spline sampling size = ', ...
                 num2str(obj.spline_sample_sz)])
         
-            if obj.plane_sample_sz < min(obj.voxdim) || obj.spline_sample_sz < min(obj.voxdim)
+            if min(obj.voxdim) < obj.plane_sample_sz || min(obj.voxdim) < obj.spline_sample_sz
                 warning(['The smallest voxel diameter is ', ...
                 num2str(min(obj.voxdim)), '. This is smaller than the ' ...
                     'patch/spline sample size. This could have unexpected results.'])
@@ -195,7 +196,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             else
                 obj.max_plane_sz = 40;
             end
-            disp(['Max plane size (in physical units, usually mm) = ', ...
+            disp(['Max plane size = ', ...
                 num2str(obj.max_plane_sz)])
 
             % Convert skel into digraph
@@ -852,7 +853,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
                 options.gen = max([obj.tubes.generation]);
                 options.alpha = 0.3
                 options.colour = ''
-                options.colouridx = ''
+                options.colouridx = 1
                 options.type {mustBeMember(options.type,{'seg','skel'})} = 'seg'
             end
 
@@ -887,7 +888,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
                 end
             end
 
-            % plot each color vol
+            % plot each color vol as isosurface individually
 
             if ~isempty(rgb)
                 for ii = 1:max(cdata)
@@ -899,6 +900,12 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
                 'EdgeColor', 'none');
                 hold on
                 end
+            else                
+                patch(isosurface(V),...
+                'FaceAlpha', options.alpha,...
+                'FaceColor', 'k',...
+                'EdgeColor', 'none');
+                hold on
             end
 
             obj.vol3daxes()
