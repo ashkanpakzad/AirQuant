@@ -827,7 +827,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             %
             % .. note:
             %   plotting multiple patches (>20) significantly reduces
-            %   performance. This is why this function tries to collate every
+            %   performance. This is why this function tries to collate everys
             %   patch that is designated a different colour and then plots
             %   them. 
             % 
@@ -1055,7 +1055,79 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
                 'ScaleFactors',obj.voxdim, 'CrosshairLineWidth', 0.3);
 
         end
+        
+        function [h, out] = Histogram(obj, options)
+            % Plot histogram of :attr:`tubes`.
+            %
+            %
+            % .. note::
+            %
+            %   Consider case where label contains NaNs.
+            %
+            % .. warning::
+            %
+            %   Behaviour untested for label containing NaNs.
+            %
+            %
+            % Args:
+            %   label = *OPTIONAL* `default = 'generation'` set variable to count.
+            %       if `char` must be an :class:`tube` property, :class:`tube` `stats` or `region` field.
+            %       e.g. `'generation'`, `'arclength'`, `'lobe'`.
+            %       Can also be vector of length equal to number of tubes
+            %       in order. 
+            %   labelidx(scalar) = *OPTIONAL* `default = 1`. Index of
+            %       chosen property in `label`.
+            %   print(bool) = *OPTIONAL* `default = false`. print frequency
+            %       table.
+            %  
+            %
+            % Example:
+            %   >>> run CA_base.m;
+            %   >>> figure;
+            %   >>> AQnet.PlotGen();
+            %
+            %
+            arguments
+                obj
+                options.label = 'generation'
+                options.labelidx = 1
+                options.print = false
+            end
+            
+            % get index for each branch
+            outlabel = GetTubeValues(obj, options.label, options.labelidx);
+            outlabel = outlabel';
 
+            % get unique values
+            outlabel_unique = unique(outlabel);
+
+            % set up cell for each unique val
+            rownames = compose('%d', outlabel_unique);
+            rownames = cellstr(string(rownames));
+
+            % count for all gens
+            [count, ~] = histcounts(outlabel, [outlabel_unique; outlabel_unique(end)+1]);
+            % show figure result as bar chart
+            h = bar(outlabel_unique, count');
+            title(['Number of tubes per ', options.label])
+            xlabel(options.label)
+            ylabel('count')
+            grid on
+
+            if nargout > 1 || options.print == true
+                reporttable = table(count', 'RowNames', rownames, 'VariableNames', {options.label});
+            end
+
+            if options.print == true
+                disp(['Number of tubes per ', options.label])
+                disp(reporttable)
+            end
+
+            if nargout > 1
+                out = reporttable;
+            end
+            
+        end
         % Data IO
         
         function ExportOrthoPatches(obj, path, casename, options)
