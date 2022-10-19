@@ -1102,11 +1102,21 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             outlabel_unique = unique(outlabel);
 
             % set up cell for each unique val
-            rownames = compose('%d', outlabel_unique);
-            rownames = cellstr(string(rownames));
+            if isnumeric(outlabel_unique)
+                rownames = compose('%d', outlabel_unique);
+                rownames = cellstr(string(rownames));
+                % 2nd variable defines the right side of each bin only
+                [count, ~] = histcounts(outlabel, [outlabel_unique; outlabel_unique(end)+1]);
+            else
+                % must be categorical, convert
+                rownames = outlabel_unique;
+                outlabel = categorical(outlabel);
+                outlabel_unique = categorical(outlabel_unique);
+                [count, ~] = histcounts(outlabel);
+            end
 
-            % count for all gens
-            [count, ~] = histcounts(outlabel, [outlabel_unique; outlabel_unique(end)+1]);
+
+            % count for all vals
             % show figure result as bar chart
             h = bar(outlabel_unique, count');
             title(['Number of tubes per ', options.label])
@@ -1128,6 +1138,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             end
             
         end
+        
         % Data IO
         
         function ExportOrthoPatches(obj, path, casename, options)
