@@ -746,6 +746,37 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             obj.stats.diameter_trim = trim;
         end
 
+        function meanHydraulicDval = ComputeMeanHydraulicD(obj, trim)
+            % Computes the trim mean hydraulic diameter of each measurement type in
+            % :attr:`tube.Tube.patchprop.hydraulic_diameter`.
+            %
+            % Where :attr:`tube.Tube.patchprop.hydraulic_diameter` is a `m x n` matrix, the trimmean
+            % is calculated for each m row returning an n length vector. result is saved
+            % in `tube.Tube.stats`.hydraulicD_mean and  `tube.Tube.stats`.hydraulicD_trim.
+            % For ordinary mean (no trim) set trim to 0.
+            %
+            % Args:
+            %   trim(float): *OPTIONAL* `default = 0` trim as % of extremes
+            %   of data to discard in trimmean calculation.
+            %
+            %
+
+            if nargin < 2
+                trim = 0;
+            end
+
+            assert(~isempty(obj.patchprop.hydraulic_diameter), ...
+                'No hydraulic_diameter in patchprop. Need measurements.')
+
+            % prune the two variables
+            pruned = obj.PruneMeasure(obj.patchprop.hydraulic_diameter);
+
+            % compute average
+            meanHydraulicDval = real(trimmean(pruned', trim));
+            obj.stats.hydraulicD_mean = meanHydraulicDval;
+            obj.stats.hydraulicD_trim = trim;
+        end
+
         function meanAval = ComputeMeanArea(obj, trim)
             % Computes the mean area of each measurement type in
             % :attr:`tube.Tube.areas`.
@@ -968,6 +999,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             end
             % derive stats of measurements
             obj.ComputeMeanDiameter();
+            obj.ComputeMeanHydraulicD();
             obj.ComputeMeanArea();
             obj.ComputeIntrataper();
             obj.ComputeGradient();
