@@ -1,4 +1,4 @@
-function [digraphout, glink, gnode] = skel_2_digraph(skel, method)
+function [digraphout, glinkout, gnode] = skel_2_digraph(skel, method)
     % Generate digraph from skeleton.
     %
     % Generate digraph from skeleton using skel2graph library.
@@ -120,7 +120,7 @@ function [digraphout, glink, gnode] = skel_2_digraph(skel, method)
             % Swap round path order
             glink(i).point = fliplr(glink(i).point);
         end
-    end
+    end    
 
     % Copy over glink to create digraph with same edge order
     edges = [[glink.n1]', [glink.n2]'];
@@ -138,4 +138,32 @@ function [digraphout, glink, gnode] = skel_2_digraph(skel, method)
     digraphout.Nodes.comz(:) = [gnode(:).comz];
     digraphout.Nodes.ep(:) = [gnode(:).ep];
     digraphout.Nodes.label(:) = [1:length(gnode)]';
+
+    % BFS per graph in digraph
+    % first convert digraph to graph to get CCs
+    bins = conncomp(digraphout,'Type','weak','OutputForm','cell');
+    
+    % order bins by descending size of each CC
+    [~,I] = sort(cellfun(@length,bins));
+    bins = bins(I);
+    
+    % in that order get edge BFS of each CC
+    E = [];
+    for ii = 1:length(bins)
+        nodes = bins{ii};
+        % find root, defined by min node idx
+        root_node = min(nodes);
+        % find sub graph (CC) BFS
+        [~,sub_E] = bfsearch(digraphout,root_node,'edgetonew');
+        E = [E; sub_E];
+    end
+    
+    assert(length(E)==length(glink),'Number of edges in new edge BFS not expected.')
+
+    % convert E indicies to glink indicies
+    E_glink = digraphout.Edges.Label(E);
+    
+    % reorder glink
+    glinkout = glink(E_glink);
+    
 end
