@@ -33,3 +33,5 @@ sphinxcontrib-qthelp==1.0.3
 sphinxcontrib-serializinghtml==1.1.5
 urllib3==1.26.9
 zipp==3.8.0
+sphinx_design==0.3.0
+sphinx-pdj-theme==0.2.1

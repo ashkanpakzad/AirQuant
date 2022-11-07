@@ -3,25 +3,9 @@ function AirQuantDir = AirQuantAddPath(AirQuantDirIn)
 % Optional input argument to the directory that user may prefer to store
 % data and save outputs.
 % AirQuantDir out argument is the directory configured for Input/Output
+% See <a href = "https://airquant.readthedocs.io/">AirQuant Documentation</a> for help.'
 
-% example expected structure:
-% AirQuantDir/
-    % data/
-    %   exampledataset/
-    %       examplecase1/
-    %           examplecase1_raw.nii.gz
-    %           examplecase1_seg.nii.gz
-    %           examplecase1_seg_PTKskel.nii.gz
-    %           examplecase2_raw.nii.gz
-    %           examplecase2_seg.nii.gz
-    %           examplecase2_seg_PTKskel.nii.gz
-    % results/
-    %   exampledataset/
-    %       examplecase1/
-    %           examplecase1_AQ.mat
-    %       examplecase2/
-    %          examplecase2_AQ.mat
-
+disp('See <a href = "https://airquant.readthedocs.io/">AirQuant Documentation</a> for help.')
 
 % get path to airquant library directory and add to matlab path
 [AirQuantDirLib,~,~] = fileparts(which('AirQuantAddPath'));
@@ -43,4 +27,5 @@ results_dir = fullfile(AirQuantDir, 'results');
 if ~isfolder(results_dir)
     mkdir(results_dir)
 end
+
 end
