@@ -1,0 +1,186 @@
+
+<!DOCTYPE html
+  PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head>
+      <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+   <!--
+This HTML was auto-generated from MATLAB code.
+To make changes, update the MATLAB code and republish this document.
+      --><title>CA_FWHMesl</title><meta name="generator" content="MATLAB 9.12"><link rel="schema.DC" href="http://purl.org/dc/elements/1.1/"><meta name="DC.date" content="2022-11-07"><meta name="DC.source" content="CA_FWHMesl.m"><style type="text/css">
+html,body,div,span,applet,object,iframe,h1,h2,h3,h4,h5,h6,p,blockquote,pre,a,abbr,acronym,address,big,cite,code,del,dfn,em,font,img,ins,kbd,q,s,samp,small,strike,strong,tt,var,b,u,i,center,dl,dt,dd,ol,ul,li,fieldset,form,label,legend,table,caption,tbody,tfoot,thead,tr,th,td{margin:0;padding:0;border:0;outline:0;font-size:100%;vertical-align:baseline;background:transparent}body{line-height:1}ol,ul{list-style:none}blockquote,q{quotes:none}blockquote:before,blockquote:after,q:before,q:after{content:'';content:none}:focus{outine:0}ins{text-decoration:none}del{text-decoration:line-through}table{border-collapse:collapse;border-spacing:0}
+
+html { min-height:100%; margin-bottom:1px; }
+html body { height:100%; margin:0px; font-family:Arial, Helvetica, sans-serif; font-size:10px; color:#000; line-height:140%; background:#fff none; overflow-y:scroll; }
+html body td { vertical-align:top; text-align:left; }
+
+h1 { padding:0px; margin:0px 0px 25px; font-family:Arial, Helvetica, sans-serif; font-size:1.5em; color:#d55000; line-height:100%; font-weight:normal; }
+h2 { padding:0px; margin:0px 0px 8px; font-family:Arial, Helvetica, sans-serif; font-size:1.2em; color:#000; font-weight:bold; line-height:140%; border-bottom:1px solid #d6d4d4; display:block; }
+h3 { padding:0px; margin:0px 0px 5px; font-family:Arial, Helvetica, sans-serif; font-size:1.1em; color:#000; font-weight:bold; line-height:140%; }
+
+a { color:#005fce; text-decoration:none; }
+a:hover { color:#005fce; text-decoration:underline; }
+a:visited { color:#004aa0; text-decoration:none; }
+
+p { padding:0px; margin:0px 0px 20px; }
+img { padding:0px; margin:0px 0px 20px; border:none; }
+p img, pre img, tt img, li img, h1 img, h2 img { margin-bottom:0px; }
+
+ul { padding:0px; margin:0px 0px 20px 23px; list-style:square; }
+ul li { padding:0px; margin:0px 0px 7px 0px; }
+ul li ul { padding:5px 0px 0px; margin:0px 0px 7px 23px; }
+ul li ol li { list-style:decimal; }
+ol { padding:0px; margin:0px 0px 20px 0px; list-style:decimal; }
+ol li { padding:0px; margin:0px 0px 7px 23px; list-style-type:decimal; }
+ol li ol { padding:5px 0px 0px; margin:0px 0px 7px 0px; }
+ol li ol li { list-style-type:lower-alpha; }
+ol li ul { padding-top:7px; }
+ol li ul li { list-style:square; }
+
+.content { font-size:1.2em; line-height:140%; padding: 20px; }
+
+pre, code { font-size:12px; }
+tt { font-size: 1.2em; }
+pre { margin:0px 0px 20px; }
+pre.codeinput { padding:10px; border:1px solid #d3d3d3; background:#f7f7f7; }
+pre.codeoutput { padding:10px 11px; margin:0px 0px 20px; color:#4c4c4c; }
+pre.error { color:red; }
+
+@media print { pre.codeinput, pre.codeoutput { word-wrap:break-word; width:100%; } }
+
+span.keyword { color:#0000FF }
+span.comment { color:#228B22 }
+span.string { color:#A020F0 }
+span.untermstring { color:#B20000 }
+span.syscmd { color:#B28C00 }
+span.typesection { color:#A0522D }
+
+.footer { width:auto; padding:10px 0px; margin:25px 0px 0px; border-top:1px dotted #878787; font-size:0.8em; line-height:140%; font-style:italic; color:#878787; text-align:left; float:none; }
+.footer p { margin:0px; }
+.footer a { color:#878787; }
+.footer a:hover { color:#878787; text-decoration:underline; }
+.footer a:visited { color:#878787; }
+
+table th { padding:7px 5px; text-align:left; vertical-align:middle; border: 1px solid #d6d4d4; font-weight:bold; }
+table td { padding:7px 5px; text-align:left; vertical-align:top; border:1px solid #d6d4d4; }
+
+
+
+
+
+  </style></head><body><div class="content"><h2>Contents</h2><div><ul><li><a href="#1">AirQuant FWHM (Clinical Airways)</a></li><li><a href="#2">Single airway/tube patch interpolation and FWHMesl</a></li><li><a href="#3">Basic visualisation</a></li><li><a href="#4">Export individual airway/tube</a></li><li><a href="#5">process all airways to make patches</a></li></ul></div><h2 id="1">AirQuant FWHM (Clinical Airways)</h2><p>This tutorial assumes you have run the quickstart tutorial and have built the `ClinicalAirways` object saved as `AQnet`.</p><p>Now that the backbone of the AirQuant analysis has been set up, we can work through subsequent steps of interpolating the source image for airway measurement. we opt to only demonstrate this on one airway, though in reality we want this to be done on every airway. We pick one airway id.</p><pre class="codeinput">tic
+<span class="comment">% You may need to run `AirQuantAddPath` before running this script to</span>
+<span class="comment">% configure MATLAB to run AirQuant.</span>
+AirQuantDir = AirQuantAddPath();
+</pre><pre class="codeoutput">See &lt;a href = "https://airquant.readthedocs.io/"&gt;AirQuant Documentation&lt;/a&gt; for help.
+</pre><h2 id="2">Single airway/tube patch interpolation and FWHMesl</h2><p>we can access any 'tube' (airway) by its index, this allows us to access the methods of tubes.</p><pre class="codeinput">atube = AQnet.tubes(10);
+
+<span class="comment">% We run the method make the airway patch slices of this airway on the CT.</span>
+usegpu = 0;
+atube.MakePatchSlices(AQnet.source, type=<span class="string">'source'</span>, method=<span class="string">'linear'</span>, gpu=usegpu);
+
+<span class="comment">% set up parameters of FWHMesl</span>
+<span class="comment">% With our airway patches interpolated we now run the measurement of each patch. We a very straightforward method, FWHMesl.</span>
+num_rays = 60;
+ray_interval = 0.2;
+<span class="comment">% segmentation interpolation is also required for the FWHMesl method</span>
+atube.MakePatchSlices(AQnet.seg, type=<span class="string">'seg'</span>, method=<span class="string">'linear'</span>, gpu=usegpu);
+atube.Measure(<span class="string">'AirwayFWHMesl'</span>, num_rays, ray_interval);
+
+<span class="comment">%   We can interactively visualise the CT image along the airway patches with its estimated ellipse fitting.</span>
+<span class="comment">% (opens externally)</span>
+figure; atube.OrthoView();
+</pre><img vspace="5" hspace="5" src="CA_FWHMesl_01.png" alt=""> <h2 id="3">Basic visualisation</h2><p>We can plot any measurement along the airway against its arc-length</p><pre class="codeinput">figure; atube.plot(Y=<span class="string">'diameters'</span>);
+<span class="comment">% though this is the default options for X and Y, we will be explicit.</span>
+</pre><img vspace="5" hspace="5" src="CA_FWHMesl_02.png" alt=""> <h2 id="4">Export individual airway/tube</h2><pre class="codeinput">atube.ExportCSV(<span class="string">'example.csv'</span>);
+<span class="comment">% print first 10 rows of example.csv</span>
+T = readtable(<span class="string">'example.csv'</span>);
+T(1:10,:)
+</pre><pre class="codeoutput">
+ans =
+
+  10&times;8 table
+
+    patchprop_parapoints    patchprop_arcpoints    patchprop_hydraulic_diameter_1    patchprop_hydraulic_diameter_2    diameters_1    diameters_2    areas_1    areas_2
+    ____________________    ___________________    ______________________________    ______________________________    ___________    ___________    _______    _______
+
+                0                     0                        4.1821                            5.5801                  8.6861         11.376       59.258     101.65 
+          0.51138                   0.5                        4.0957                            5.6672                     8.4         11.423       55.417     102.47 
+           1.0202                     1                         4.099                            5.7358                  8.3941         11.577        55.34     105.27 
+           1.5261                   1.5                        4.1442                            5.9386                  8.4346         11.961       55.876     112.36 
+            2.035                     2                        3.2137                            4.4179                  6.5737         9.1138       33.939     65.236 
+           2.5531                   2.5                        3.4288                            4.7814                  6.9293         9.5775       37.712     72.043 
+           3.0845                     3                         2.234                            3.7067                   4.633         7.5485       16.858     44.752 
+           3.6301                   3.5                        2.1077                             3.474                   4.328         6.9874       14.712     38.346 
+            4.184                     4                        2.3562                            4.0027                  4.7744         8.0743       17.903     51.203 
+           4.7337                   4.5                        2.4931                            4.1682                  5.0059         8.3534       19.681     54.804 
+
+</pre><h2 id="5">process all airways to make patches</h2><p>We can process all airways now. This can take somewhere between 1-4 hours to run. By default it will try to run on GPU if available which can speed things up. uncomment the lines below to run.</p><pre class="codeinput"><span class="comment">% AQnet.MakeTubePatches(method='linear', gpu=usegpu)</span>
+<span class="comment">% AQnet.Measure('AirwayFWHMesl', num_rays, ray_interval);</span>
+
+<span class="comment">% We can now visualise the characteristics derived from diameter measurements.</span>
+<span class="comment">% figure; AQnet.Plot(colour='lobe', weight='meandiameter', weightfactor='10')</span>
+
+toc
+</pre><pre class="codeoutput">Elapsed time is 23.171602 seconds.
+</pre><p class="footer"><br><a href="https://www.mathworks.com/products/matlab/">Published with MATLAB&reg; R2022a</a><br></p></div><!--
+##### SOURCE BEGIN #####
+%% AirQuant FWHM (Clinical Airways)
+% This tutorial assumes you have run the quickstart tutorial and have built
+% the `ClinicalAirways` object saved as `AQnet`.
+%
+% Now that the backbone of the AirQuant analysis has been set up, we can work through subsequent steps of interpolating the source image for airway measurement. 
+% we opt to only demonstrate this on one airway, though in reality we want
+% this to be done on every airway. We pick one airway id.
+tic
+% You may need to run `AirQuantAddPath` before running this script to 
+% configure MATLAB to run AirQuant.
+AirQuantDir = AirQuantAddPath();
+
+%% Single airway/tube patch interpolation and FWHMesl
+% we can access any 'tube' (airway) by its index, this allows us to access
+% the methods of tubes.
+atube = AQnet.tubes(10);
+
+% We run the method make the airway patch slices of this airway on the CT.
+usegpu = 0;
+atube.MakePatchSlices(AQnet.source, type='source', method='linear', gpu=usegpu);
+
+% set up parameters of FWHMesl
+% With our airway patches interpolated we now run the measurement of each patch. We a very straightforward method, FWHMesl.
+num_rays = 60;
+ray_interval = 0.2;
+% segmentation interpolation is also required for the FWHMesl method
+atube.MakePatchSlices(AQnet.seg, type='seg', method='linear', gpu=usegpu);
+atube.Measure('AirwayFWHMesl', num_rays, ray_interval);
+
+%   We can interactively visualise the CT image along the airway patches with its estimated ellipse fitting.
+% (opens externally)
+figure; atube.OrthoView();
+
+%% Basic visualisation
+% We can plot any measurement along the airway against its arc-length
+figure; atube.plot(Y='diameters');
+% though this is the default options for X and Y, we will be explicit.
+
+%% Export individual airway/tube
+atube.ExportCSV('example.csv');
+% print first 10 rows of example.csv
+T = readtable('example.csv');
+T(1:10,:)
+
+
+%% process all airways to make patches
+% We can process all airways now. This can take somewhere between 1-4 hours to run. 
+% By default it will try to run on GPU if available which can speed things up.
+% uncomment the lines below to run.
+
+% AQnet.MakeTubePatches(method='linear', gpu=usegpu)
+% AQnet.Measure('AirwayFWHMesl', num_rays, ray_interval);
+
+% We can now visualise the characteristics derived from diameter measurements.
+% figure; AQnet.Plot(colour='lobe', weight='meandiameter', weightfactor='10')
+
+toc
+
+##### SOURCE END #####
+--></body></html>

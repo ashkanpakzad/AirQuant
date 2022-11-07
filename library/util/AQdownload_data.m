@@ -44,7 +44,7 @@ end
 disp(['Downloading AirQuant dataset, "', dataname, '" of ', num2str(size), ' MB. This may ',...
     'take a while depending on your connection.'])
 websave(filename_withext, url);
-disp('This is case is from an opensource dataset, please see AirQuant readme.md for credits.')
+disp('This case is from an opensource dataset, please see AirQuant readme for credits.')
 
 % unzip and delete compressed
 untar(filename_withext,datadir)

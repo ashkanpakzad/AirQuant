@@ -68,7 +68,7 @@ Table of Contents
    :maxdepth: 2
 
    install
-   quickstart
+   tutorials
    network
    tube
    measure

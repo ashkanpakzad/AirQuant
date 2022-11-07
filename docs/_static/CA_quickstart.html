@@ -1,0 +1,228 @@
+
+<!DOCTYPE html
+  PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head>
+      <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+   <!--
+This HTML was auto-generated from MATLAB code.
+To make changes, update the MATLAB code and republish this document.
+      --><title>CA_quickstart</title><meta name="generator" content="MATLAB 9.12"><link rel="schema.DC" href="http://purl.org/dc/elements/1.1/"><meta name="DC.date" content="2022-11-07"><meta name="DC.source" content="CA_quickstart.m"><style type="text/css">
+html,body,div,span,applet,object,iframe,h1,h2,h3,h4,h5,h6,p,blockquote,pre,a,abbr,acronym,address,big,cite,code,del,dfn,em,font,img,ins,kbd,q,s,samp,small,strike,strong,tt,var,b,u,i,center,dl,dt,dd,ol,ul,li,fieldset,form,label,legend,table,caption,tbody,tfoot,thead,tr,th,td{margin:0;padding:0;border:0;outline:0;font-size:100%;vertical-align:baseline;background:transparent}body{line-height:1}ol,ul{list-style:none}blockquote,q{quotes:none}blockquote:before,blockquote:after,q:before,q:after{content:'';content:none}:focus{outine:0}ins{text-decoration:none}del{text-decoration:line-through}table{border-collapse:collapse;border-spacing:0}
+
+html { min-height:100%; margin-bottom:1px; }
+html body { height:100%; margin:0px; font-family:Arial, Helvetica, sans-serif; font-size:10px; color:#000; line-height:140%; background:#fff none; overflow-y:scroll; }
+html body td { vertical-align:top; text-align:left; }
+
+h1 { padding:0px; margin:0px 0px 25px; font-family:Arial, Helvetica, sans-serif; font-size:1.5em; color:#d55000; line-height:100%; font-weight:normal; }
+h2 { padding:0px; margin:0px 0px 8px; font-family:Arial, Helvetica, sans-serif; font-size:1.2em; color:#000; font-weight:bold; line-height:140%; border-bottom:1px solid #d6d4d4; display:block; }
+h3 { padding:0px; margin:0px 0px 5px; font-family:Arial, Helvetica, sans-serif; font-size:1.1em; color:#000; font-weight:bold; line-height:140%; }
+
+a { color:#005fce; text-decoration:none; }
+a:hover { color:#005fce; text-decoration:underline; }
+a:visited { color:#004aa0; text-decoration:none; }
+
+p { padding:0px; margin:0px 0px 20px; }
+img { padding:0px; margin:0px 0px 20px; border:none; }
+p img, pre img, tt img, li img, h1 img, h2 img { margin-bottom:0px; }
+
+ul { padding:0px; margin:0px 0px 20px 23px; list-style:square; }
+ul li { padding:0px; margin:0px 0px 7px 0px; }
+ul li ul { padding:5px 0px 0px; margin:0px 0px 7px 23px; }
+ul li ol li { list-style:decimal; }
+ol { padding:0px; margin:0px 0px 20px 0px; list-style:decimal; }
+ol li { padding:0px; margin:0px 0px 7px 23px; list-style-type:decimal; }
+ol li ol { padding:5px 0px 0px; margin:0px 0px 7px 0px; }
+ol li ol li { list-style-type:lower-alpha; }
+ol li ul { padding-top:7px; }
+ol li ul li { list-style:square; }
+
+.content { font-size:1.2em; line-height:140%; padding: 20px; }
+
+pre, code { font-size:12px; }
+tt { font-size: 1.2em; }
+pre { margin:0px 0px 20px; }
+pre.codeinput { padding:10px; border:1px solid #d3d3d3; background:#f7f7f7; }
+pre.codeoutput { padding:10px 11px; margin:0px 0px 20px; color:#4c4c4c; }
+pre.error { color:red; }
+
+@media print { pre.codeinput, pre.codeoutput { word-wrap:break-word; width:100%; } }
+
+span.keyword { color:#0000FF }
+span.comment { color:#228B22 }
+span.string { color:#A020F0 }
+span.untermstring { color:#B20000 }
+span.syscmd { color:#B28C00 }
+span.typesection { color:#A0522D }
+
+.footer { width:auto; padding:10px 0px; margin:25px 0px 0px; border-top:1px dotted #878787; font-size:0.8em; line-height:140%; font-style:italic; color:#878787; text-align:left; float:none; }
+.footer p { margin:0px; }
+.footer a { color:#878787; }
+.footer a:hover { color:#878787; text-decoration:underline; }
+.footer a:visited { color:#878787; }
+
+table th { padding:7px 5px; text-align:left; vertical-align:middle; border: 1px solid #d6d4d4; font-weight:bold; }
+table td { padding:7px 5px; text-align:left; vertical-align:top; border:1px solid #d6d4d4; }
+
+
+
+
+
+  </style></head><body><div class="content"><h2>Contents</h2><div><ul><li><a href="#1">AirQuant Quickstart (Clinical Airways)</a></li><li><a href="#2">Download Data</a></li><li><a href="#3">Load data</a></li><li><a href="#4">Make AirQuant object of data</a></li><li><a href="#5">Basic visualisation</a></li><li><a href="#6">Advanced visualisation</a></li><li><a href="#7">Export values to csv</a></li></ul></div><h2 id="1">AirQuant Quickstart (Clinical Airways)</h2><p>A quickstart tutorial to get going with AirQuant's functionality with example data!</p><pre class="codeinput">tic
+<span class="comment">% You may need to run `AirQuantAddPath` before running this script to</span>
+<span class="comment">% configure MATLAB to run AirQuant.</span>
+AirQuantDir = AirQuantAddPath();
+</pre><pre class="codeoutput">See &lt;a href = "https://airquant.readthedocs.io/"&gt;AirQuant Documentation&lt;/a&gt; for help.
+</pre><h2 id="2">Download Data</h2><p>First download the data!</p><pre class="codeinput">dataname=<span class="string">'chestct'</span>;
+AQdownload_data(dataname);
+</pre><pre class="codeoutput">See &lt;a href = "https://airquant.readthedocs.io/"&gt;AirQuant Documentation&lt;/a&gt; for help.
+Downloading AirQuant dataset, "chestct" of 257 MB. This may take a while depending on your connection.
+This case is from an opensource dataset, please see AirQuant readme for credits.
+</pre><h2 id="3">Load data</h2><p>get data from nifti images into arrays and header variables.</p><pre class="codeinput"><span class="comment">% get CT, segmentation and skeleton images of the case</span>
+CT_name = [dataname, <span class="string">'_source.nii.gz'</span>];
+seg_name = [dataname, <span class="string">'_airway.nii.gz'</span>];
+skel_name = [dataname, <span class="string">'_airway_PTKskel.nii.gz'</span>];
+
+<span class="comment">% Load data into relevant formations from nifti images.</span>
+<span class="comment">% Load the source CT metadata information</span>
+meta = niftiinfo(CT_name);
+<span class="comment">% Load CT data as double</span>
+source = double(niftiread(meta));
+
+<span class="comment">% Load Airway segmentation and its skeleton as logicals</span>
+seg = logical(niftiread(seg_name));
+skel = logical(niftiread(skel_name));
+</pre><h2 id="4">Make AirQuant object of data</h2><p>There are lots of options here, be sure to check the documentation. This will process the skeleton of our image into its components for the AirQuant framework. Is the major step where the airway tree is broken down into its constituent branches. Splines are fitted to each branch, making the backbone of our analysis.</p><pre class="codeinput">AQnet = ClinicalAirways(skel, source=source, header=meta, seg=seg, fillholes=1, largestCC=1, plane_sample_sz=0.5, spline_sample_sz=0.5);
+<span class="comment">% note: if you are running this in a live matlab script then the progress bar</span>
+<span class="comment">% will not function properly.</span>
+
+<span class="comment">% ClinicalAirways class has its own method for implementing automated lobe classification. We can call this to run on our image.</span>
+<span class="comment">% The colour option can also be called for any visualisation method. Here</span>
+<span class="comment">% it is called to show the lobes.</span>
+AQnet.ClassifyLungLobes();
+</pre><pre class="codeoutput">Dimensions in physical units, usually millimetres.
+Voxel dimensions = 0.63672     0.63672         0.5
+Patch sampling size = 0.5
+Spline sampling size = 0.5
+Max plane size = 40
+142 tubes found.
+Tubes:SetGeneration :  100%  |&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;| 142/142it [00:00:00&lt;00:00:00, 6034.59 it/s]
+Tubes:ComputeDirecti:  100%  |&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;| 142/142it [00:00:00&lt;00:00:00, 2301.65 it/s]
+Tubes:ComputeChangeA:  100%  |&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;| 142/142it [00:00:00&lt;00:00:00, 7402.39 it/s]
+Tubes:ComputeParentA:  100%  |&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;| 142/142it [00:00:00&lt;00:00:00, 7465.43 it/s]
+Tubes:ComputeSibling:  100%  |&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;| 142/142it [00:00:00&lt;00:00:00, 6818.40 it/s]
+Tubes:SetGeneration :  100%  |&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;| 142/142it [00:00:00&lt;00:00:00, 6249.72 it/s]
+</pre><h2 id="5">Basic visualisation</h2><p>There are lots of visualisation options. Here we cover some basic options.</p><pre class="codeinput">figure;
+AQnet.Plot3D();
+
+figure; AQnet.Plot3();
+figure; AQnet.Plot();
+<span class="comment">% note that the edge labels correspond to the segment indicies</span>
+</pre><img vspace="5" hspace="5" src="CA_quickstart_01.png" alt=""> <img vspace="5" hspace="5" src="CA_quickstart_02.png" alt=""> <img vspace="5" hspace="5" src="CA_quickstart_03.png" alt=""> <h2 id="6">Advanced visualisation</h2><p>We can use the lobe region classifications to further enrich our visualisation. Checkout the documentation for more advanced visualision use cases.</p><pre class="codeinput">figure; AQnet.Plot(colour=<span class="string">'lobe'</span>, weight=<span class="string">'generation'</span>, weightfactor=10);
+title(<span class="string">'Edge weighted by generation'</span>)
+figure; AQnet.Plot3D(colour=<span class="string">'lobe'</span>);
+<span class="comment">% `Plot3D` can be resourse demanding on your specs. You maywant to</span>
+<span class="comment">% skip it.</span>
+figure; AQnet.PlotSpline(colour=<span class="string">'lobe'</span>);
+</pre><img vspace="5" hspace="5" src="CA_quickstart_04.png" alt=""> <img vspace="5" hspace="5" src="CA_quickstart_05.png" alt=""> <img vspace="5" hspace="5" src="CA_quickstart_06.png" alt=""> <h2 id="7">Export values to csv</h2><p>Finally we can export our values to a csv file for easy analysis in our next favourite package!</p><pre class="codeinput">AQnet.ExportCSV(<span class="string">'example.csv'</span>);
+<span class="comment">% print first 10 rows of example.csv</span>
+T = readtable(<span class="string">'example.csv'</span>);
+T(1:10,:)
+toc
+</pre><pre class="codeoutput">
+ans =
+
+  10&times;15 table
+
+    ID    children_1    children_2    children_3    generation    method    parent    region_lobe        region_name         stats_arclength    stats_change_deg    stats_euclength    stats_parent_deg    stats_sibling_deg    stats_tortuosity
+    __    __________    __________    __________    __________    ______    ______    ___________    ____________________    _______________    ________________    _______________    ________________    _________________    ________________
+
+     1         2             3           NaN            0          NaN       NaN        {'T'  }      {'Trachea'         }        109.42              16.708             106.45                 NaN                 NaN               1.0278     
+     2         4             5           NaN            1          NaN         1        {'B'  }      {'LeftMajor'       }        59.976              11.784             57.322              36.332              141.72               1.0463     
+     3         6             7           NaN            1          NaN         1        {'B'  }      {'RightMajor'      }        37.229              40.222             34.813              105.86              141.72               1.0694     
+     4         8             9           NaN            2          NaN         2        {'LLL'}      {0&times;0 char          }         13.42              61.068             12.467              93.493              121.23               1.0764     
+     5        10            11           NaN            2          NaN         2        {'B'  }      {'LeftIntermedius' }        12.758              31.189             12.367              28.605              121.23               1.0316     
+     6        12            13           NaN            2          NaN         3        {'B'  }      {'RightIntermedius'}         23.72              68.463             22.419              54.851              127.15                1.058     
+     7        14            15            16            2          NaN         3        {'RUL'}      {0&times;0 char          }        15.757              10.596             15.312              79.511              127.15                1.029     
+     8        17            18           NaN            3          NaN         4        {'LLL'}      {0&times;0 char          }        20.557              46.134             19.925               111.5              129.92               1.0317     
+     9        19            20            21            3          NaN         4        {'LLL'}      {0&times;0 char          }        9.7253              27.097             9.2612              22.602              129.92               1.0501     
+    10        22            23           NaN            3          NaN         5        {'LML'}      {0&times;0 char          }        16.521              14.084             16.446              57.132              44.191               1.0045     
+
+Elapsed time is 69.855670 seconds.
+</pre><p class="footer"><br><a href="https://www.mathworks.com/products/matlab/">Published with MATLAB&reg; R2022a</a><br></p></div><!--
+##### SOURCE BEGIN #####
+%% AirQuant Quickstart (Clinical Airways)
+% A quickstart tutorial to get going with AirQuant's functionality with
+% example data!
+tic
+% You may need to run `AirQuantAddPath` before running this script to 
+% configure MATLAB to run AirQuant.
+AirQuantDir = AirQuantAddPath();
+
+%% Download Data
+% First download the data!
+dataname='chestct';
+AQdownload_data(dataname);
+
+%% Load data 
+% get data from nifti images into arrays and header variables.
+
+% get CT, segmentation and skeleton images of the case
+CT_name = [dataname, '_source.nii.gz'];
+seg_name = [dataname, '_airway.nii.gz'];
+skel_name = [dataname, '_airway_PTKskel.nii.gz'];
+
+% Load data into relevant formations from nifti images.
+% Load the source CT metadata information
+meta = niftiinfo(CT_name);
+% Load CT data as double
+source = double(niftiread(meta));
+
+% Load Airway segmentation and its skeleton as logicals
+seg = logical(niftiread(seg_name));
+skel = logical(niftiread(skel_name));
+
+
+%% Make AirQuant object of data
+% There are lots of options here, be sure to check the documentation.
+% This will process the skeleton of our image into its components for the AirQuant framework.
+% Is the major step where the airway tree is broken down into its constituent branches. 
+% Splines are fitted to each branch, making the backbone of our analysis.
+AQnet = ClinicalAirways(skel, source=source, header=meta, seg=seg, fillholes=1, largestCC=1, plane_sample_sz=0.5, spline_sample_sz=0.5);
+% note: if you are running this in a live matlab script then the progress bar
+% will not function properly.
+
+% ClinicalAirways class has its own method for implementing automated lobe classification. We can call this to run on our image.
+% The colour option can also be called for any visualisation method. Here
+% it is called to show the lobes.
+AQnet.ClassifyLungLobes();
+%% Basic visualisation
+% There are lots of visualisation options. Here we cover some basic options.
+
+figure;
+AQnet.Plot3D();
+
+figure; AQnet.Plot3();
+figure; AQnet.Plot();
+% note that the edge labels correspond to the segment indicies
+
+%% Advanced visualisation
+% We can use the lobe region classifications to further enrich our visualisation.
+% Checkout the documentation for more advanced visualision use cases.
+figure; AQnet.Plot(colour='lobe', weight='generation', weightfactor=10);
+title('Edge weighted by generation')
+figure; AQnet.Plot3D(colour='lobe');
+% `Plot3D` can be resourse demanding on your specs. You maywant to
+% skip it.
+figure; AQnet.PlotSpline(colour='lobe');
+
+%% Export values to csv
+% Finally we can export our values to a csv file for easy analysis in our
+% next favourite package!
+AQnet.ExportCSV('example.csv');
+% print first 10 rows of example.csv
+T = readtable('example.csv');
+T(1:10,:)
+toc
+
+##### SOURCE END #####
+--></body></html>
