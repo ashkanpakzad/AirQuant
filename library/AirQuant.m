@@ -42,12 +42,18 @@ classdef AirQuant < handle & matlab.mixin.SetGet & matlab.mixin.Copyable
             elseif isprop(obj,'network')
                 info = obj.network.sourceinfo;
             end
-            info.ImageSize = size(volout);
-            info.PixelDimensions = obj.voxdim;
-            info.Datatype = 'int16';
-            info.Description = 'Output from AirQuant';
 
-            niftiwrite(volout,filename,info)
+            if exist('info','var')
+                info.ImageSize = size(volout);
+                info.PixelDimensions = obj.voxdim;
+                info.Datatype = 'int16';
+                info.Description = 'Output from AirQuant';
+    
+                niftiwrite(volout,filename,info)
+            else
+                niftiwrite(volout,filename)
+            end
+
 
             if options.gz == true
                 gzip(filename)

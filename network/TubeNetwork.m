@@ -18,7 +18,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
     %
     % Args:
     %   source(3Darray): source image, e.g. CT
-    %   sourceinfo(struct): header information from source
+    %   header(struct): header information from source
     %   voxdim: `[float, float, float]` voxel dimensions
     %   seg: binary airway segmentation in the same grid space as
     %       :attr:`source` dimensions must match with :attr:`source`.
@@ -36,7 +36,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
     %
     properties
         tubes = [];
-        sourceinfo
+        header
         skel
         lims
         regioncategories
@@ -55,7 +55,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
 
     methods
         % init
-        function obj = TubeNetwork(source, sourceinfo, seg, skel, options)
+        function obj = TubeNetwork(skel, options)
             % Initialise the TubeNetwork class object. 
             % 
             % Optional arguments for initialising relating to segmentation
@@ -67,13 +67,13 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             %
             %
             % Args:
-            %   source (3darray): CT loaded from nifti using niftiread.
-            %   sourceinfo (struct): CT metadata loaded from nifti using
-            %       niftiinfo.
-            %   seg (3darray): Binary airway segmentation in the
-            %       same grid space as CT. Dimensions must match with CT.
             %   skel (3darray): Binary airway centreline in the
             %       same grid space as CT. Dimensions must match with CT
+            %   source (3darray): *OPTIONAL* CT loaded from nifti using niftiread.
+            %   header (struct): *OPTIONAL* CT metadata loaded from nifti using
+            %       niftiinfo.
+            %   seg (3darray): *OPTIONAL* Binary airway segmentation in the
+            %       same grid space as CT. Dimensions must match with CT.
             %   fillholes (bool): *OPTIONAL* `default = true` whether to
             %       fill any holes found in a 2.5D (any 2D orthogonal plane) 
             %       search.
@@ -95,74 +95,91 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             %
             %
             arguments
-            source (:,:,:)
-            sourceinfo struct
-            seg (:,:,:) logical
             skel (:,:,:) logical
+            options.source (:,:,:)
+            options.header struct
+            options.seg (:,:,:) logical
             options.fillholes logical = 1
             options.largestCC logical = 0
             options.spline_sample_sz = nan
             options.plane_sample_sz = nan
             options.max_plane_sz = nan
             options.reorient logical = 1
-            options.voxdim = nan
+            options.voxdim (1,3)
             options.originmethod = 'topnode';
             end
 
-            assert(ndims(seg) == 3, 'seg must be a 3D array.')
-            assert(ndims(skel) == 3, 'skel must be a 3D array.')
+            assert(all(~skel,'all') == false, 'Skel appears to be empty.')
 
-            assert(all(~seg,'all') == false, 'seg is all zero.')
-            assert(all(~skel,'all') == false, 'skel is all zero.')
-            assert(all(size(source)==size(seg)),['Size of seg ',num2str(size(seg)), ...
-                ' differs from source ', num2str(size(source))])
-            assert(all(size(source)==size(skel)),['Size of skel ', ...
-                size(skel),' differs from source ', num2str(size(source))])
+            if isfield(options,'source')
+            assert(all(size(options.source)==size(skel)),['Size of source ',num2str(size(options.source)), ...
+                ' differs from skel ', num2str(size(skel))])
+            end
 
-            obj.sourceinfo = sourceinfo;
-            
-            % process segmentation
-            robustseg = ParseSeg(seg, fillholes=options.fillholes, ...
-                largestCC=options.largestCC);
+            if isfield(options,'seg')
+            assert(all(size(options.seg)==size(skel)),['Size of seg ', ...
+                size(options.seg),' differs from skel ', num2str(size(skel))])
+            end
+
+            if isfield(options,'header')
+                obj.header = options.header;
+            end
             
             % process skeleton
             robustskel = ParseSeg(skel, fillholes=false, ...
                 largestCC=options.largestCC);
 
+            % process segmentation
+            if isfield(options,'seg')
+                robustseg = ParseSeg(options.seg, fillholes=options.fillholes, ...
+                    largestCC=options.largestCC);
+            end
+
             % reorient volumes and get properties
-            if options.reorient == true
-                [obj.source, obj.voxdim] = ReorientVolume(source, obj.sourceinfo);
-                obj.seg = ReorientVolume(robustseg, obj.sourceinfo);
-                obj.skel = ReorientVolume(robustskel, obj.sourceinfo);
+            if options.reorient == true && isfield(options,'header')
+                [obj.skel, obj.voxdim] = ReorientVolume(robustskel, obj.header);
+                if isfield(options,'source')
+                    obj.source = ReorientVolume(options.source, obj.header);
+                end
+                if isfield(options,'seg')
+                    obj.seg = ReorientVolume(robustseg, obj.header);
+                end
             else
-                obj.source = source;
-                obj.seg = robustseg;
                 obj.skel = robustskel;
-                obj.voxdim = sourceinfo.PixelDimensions;
+                if isfield(options,'seg')
+                    obj.seg = robustseg;
+                end
+                if isfield(options,'source')
+                    obj.source = options.source;
+                end
             end
             
-            % manual voxdim
-            if ~isnan(options.voxdim)
-                assert(all(size(options.voxdim)==[1,3]), ...
-                    strcat('Size of voxdim must be (1,3), got', ...
-                    num2str(size(options.voxdim))))
+            % use provided voxdim if exists
+            if isfield(options,'voxdim')
                 obj.voxdim = options.voxdim;
+            elseif ~isfield(options,'header')
+                obj.voxdim = [1, 1, 1];
             end
-            
+
             disp('Dimensions in physical units, usually millimetres.')
             disp(['Voxel dimensions = ', ...
                 num2str(obj.voxdim)])
 
-            % identify cropped size by seg
-            obj.lims = CropVol(obj.seg);
+            % identify cropped size by seg if available
+            if isfield(options,'seg')
+                obj.lims = CropVol(obj.seg);
+            else
+                obj.lims = CropVol(obj.skel);
+            end
 
             % crop all images
-            obj.seg = (CropVol(obj.seg, obj.lims));
-            obj.source = CropVol(obj.source, obj.lims);
+            if isfield(options,'seg')
+                obj.seg = (CropVol(obj.seg, obj.lims));
+            end
+            if isfield(options,'source')
+                obj.source = CropVol(obj.source, obj.lims);
+            end
             obj.skel = CropVol(obj.skel, obj.lims);
-
-            % Compute distance transform
-            obj = MakeDistanceTransform(obj);
 
             % Set dynamic resampling parameters and limits
             measure_limit = floor((min(obj.voxdim))*10)/10;
@@ -224,7 +241,9 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             obj.RunAllTubes('ComputeSiblingAngle',0);
 
             % classify segmentation to tubes
-            obj.ClassifySegmentationTubes();
+            if isfield(options,'seg')
+                obj.ClassifySegmentationTubes();
+            end
         end
 
         function obj = MakeTubes(obj, glink)
@@ -270,12 +289,16 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             for ii = progress(1:length(obj.tubes), 'Title', 'Making tube patches')
 
                 if strcmp(options.type,'source') || strcmp(options.type,'both')
+                    assert(~isempty(obj.source),['No source volume to derive patches.' ...
+                        ' May need to change `type`, currently set to: ', options.type, '.'])
                     MakePatchSlices(obj.tubes(ii), obj.source, ...
                         type='source', usesegcrop=options.usesegcrop,...
                         method=options.method, gpu=options.gpu);
                 end
 
                 if strcmp(options.type,'seg') || strcmp(options.type,'both')
+                    assert(~isempty(obj.seg),['No source volume to derive patches.' ...
+                        ' May need to change `type`, currently set to: ', options.type, '.'])                    
                     MakePatchSlices(obj.tubes(ii), obj.seg, type='seg', ...
                         usesegcrop=options.usesegcrop, method=options.method, ...
                         gpu=options.gpu);
@@ -420,7 +443,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             % <https://uk.mathworks.com/help/matlab/ref/sub2ind.html>`_.
             %
 
-            I = S2I3(size(obj.source),I1,I2,I3);
+            I = S2I3(size(obj.skel),I1,I2,I3);
         end
 
         function [I1,I2,I3] = I2S(obj,I)
@@ -428,7 +451,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             % <https://uk.mathworks.com/help/matlab/ref/ind2sub.html>`_.
             %
 
-            [I1, I2, I3] = I2S3(size(obj.source),I);
+            [I1, I2, I3] = I2S3(size(obj.skel),I);
             if nargout == 1
                 I1 = [I1; I2; I3]';
             end

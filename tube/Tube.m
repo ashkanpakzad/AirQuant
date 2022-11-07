@@ -332,7 +332,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             % get linear indexed points of previous branch if available.
             if options.useparent == true && ~isempty(obj.parent)
                 parent_points = obj.parent.skelpoints;
-                [x_p1, y_p1, z_p1] = I2S(size(obj.network.source), parent_points);
+                [x_p1, y_p1, z_p1] = I2S(size(obj.network.skel), parent_points);
             else
                 x_p1 = []; y_p1 = []; z_p1 = [];
             end
@@ -1274,7 +1274,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
                     hold on
                 end
             end
-            V = zeros(size(obj.network.seg));
+            V = zeros(size(obj.network.skel));
 
             V(obj.([options.type, 'points'])) = 1;
 
@@ -1597,7 +1597,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             % <https://uk.mathworks.com/help/matlab/ref/sub2ind.html>`_.
             %
 
-            I = S2I3(size(obj.network.source),I1,I2,I3);
+            I = S2I3(size(obj.network.skel),I1,I2,I3);
         end
 
         function [I1,I2,I3] = I2S(obj,I)
@@ -1605,7 +1605,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             % <https://uk.mathworks.com/help/matlab/ref/ind2sub.html>`_.
             %
 
-            [I1, I2, I3] = I2S3(size(obj.network.source),I);
+            [I1, I2, I3] = I2S3(size(obj.network.skel),I);
         end
 
         function obj = SetPruneLength(obj, prunelength)
