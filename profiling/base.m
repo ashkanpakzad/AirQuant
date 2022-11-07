@@ -21,5 +21,5 @@ CT = double(niftiread(meta));
 S = logical(niftiread(seg_name));
 skel = logical(niftiread(skel_name));
 
-AQnet = TubeNetwork(CT, meta, S, skel);
+AQnet = TubeNetwork(skel, seg=seg, source=source, header=meta, fillholes=1, largestCC=1);
 toc

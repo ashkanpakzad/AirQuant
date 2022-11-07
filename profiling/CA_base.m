@@ -22,5 +22,6 @@ source = double(niftiread(meta));
 seg = logical(niftiread(seg_name));
 skel = logical(niftiread(skel_name));
 
-AQnet = ClinicalAirways(source, meta, seg, skel, fillholes=1, largestCC=1);
+AQnet = ClinicalAirways(skel, seg=seg, source=source, header=meta, fillholes=1, largestCC=1);
+
 toc
