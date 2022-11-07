@@ -23,7 +23,7 @@ Tutorials
 
       Open tutorial
 
-  .. button-link:: https://raw.githubusercontent.com/ashkanpakzad/AirQuant/tutorials/CA_quickstart.m
+  .. button-link:: https://raw.githubusercontent.com/ashkanpakzad/AirQuant/master/tutorials/CA_quickstart.m
       :color: secondary
       :align: right
       :expand:
@@ -40,7 +40,7 @@ Tutorials
 
       Open tutorial
 
-  .. button-link:: https://raw.githubusercontent.com/ashkanpakzad/AirQuant/tutorials/CA_FWHMesl.m
+  .. button-link:: https://raw.githubusercontent.com/ashkanpakzad/AirQuant/master/tutorials/CA_FWHMesl.m
       :color: secondary
       :align: right
       :expand:
