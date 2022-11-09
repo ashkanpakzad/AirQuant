@@ -2,6 +2,7 @@ name: copyreadme
 on:
   push:
     branches: [ master ]
+    paths: 'docs/index.rst'
 
 jobs:
   docit:
@@ -16,7 +17,8 @@ jobs:
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
-        git commit -m "Add changes" -a
+        git add readme.rst
+        git commit -m "updated readme" -a
     - name: Push changes
       uses: ad-m/github-push-action@master
       with:
