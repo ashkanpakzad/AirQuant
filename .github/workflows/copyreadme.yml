@@ -1,14 +1,23 @@
-name: copy readme
-on: [push]
-jobs:
+name: copyreadme
+on:
+  push:
+    branches: [ master ]
 
-  build:
-    name: Build
+jobs:
+  docit:
     runs-on: ubuntu-latest
+
     steps:
     - uses: actions/checkout@master
-    - name: copy file
-      uses: canastro/copy-file-action@master
+    - name: Copy the index
+      run: cp docs/index.rst readme.rst
+
+    - name: Commit files
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git commit -m "Add changes" -a
+    - name: Push changes
+      uses: ad-m/github-push-action@master
       with:
-        source: "docs/index.rst"
-        target: "README.rst"
+        github_token: ${{ secrets.GITHUB_TOKEN }}
