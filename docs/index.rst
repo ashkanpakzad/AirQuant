@@ -32,6 +32,10 @@ Facilitating detailed quantitative clinical analysis.
 
 Please see the `https://airquant.readthedocs.io/ <https://airquant.readthedocs.io/>`_ regarding information on installation, use and tutorials.
 
+Open to ★★★★★, issues, contributions and discussions!
+
+Would really appreciate a message or a star if this has been useful for you!
+
 ..  code-block::
 
    @misc{pakzad2021evaluation,
