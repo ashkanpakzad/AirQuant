@@ -6,17 +6,47 @@
 AirQuant
 ========
 
+.. image:: https://readthedocs.org/projects/airquant/badge/?version=latest
+    :target: https://airquant.readthedocs.io/en/latest/?badge=latest
+    :alt: Documentation Status
+
+.. image:: https://img.shields.io/github/license/ashkanpakzad/AirQuant?style=plastic
+    :target: https://github.com/ashkanpakzad/AirQuant/blob/master/LICENSE
+    :alt: License
+
+.. image:: https://img.shields.io/badge/arXiv-2111.10443-b31b1b.svg?style=plastic
+    :target: https://arxiv.org/abs/2111.10443
+    :alt: arXiv
+
 .. image:: AirQuant.png
   :width: 400
   :alt: AirQuant logo
 
-AirQuant is an open source MATLAB software library for analysing macro tubular networks
-in medical imaging such as airways.
 
-Given segmentation/centreline of the tube anatomy it can interpret the structure,
-extracting length measurements and interpolate the original image at perpendicular
-planes to extract diameter measurements. Facilitating detailed quantitative
-clinical analysis.
+
+AirQuant is an open source framework for analysing macro tubular networks in medical images such as airways.
+
+Given centreline of the tube anatomy it can interpret the structure,
+extracting measurements. By also providing the original image it can derive detailed measurements diameter measurements.
+Facilitating detailed quantitative clinical analysis.
+
+Please see the `https://airquant.readthedocs.io/ <https://airquant.readthedocs.io/>`_ regarding information on installation, use and tutorials.
+
+Open to ★★★★★, issues, contributions and discussions!
+
+Would really appreciate a message or a star if this has been useful for you!
+
+..  code-block::
+
+   @misc{pakzad2021evaluation,
+         title={Evaluation of automated airway morphological quantification for assessing fibrosing lung disease},
+         author={Ashkan Pakzad and Wing Keung Cheung and Kin Quan and Nesrin Mogulkoc and Coline H. M. Van Moorsel and Brian J. Bartholmai and Hendrik W. Van Es and Alper Ezircan and Frouke Van Beek and Marcel Veltkamp and Ronald Karwoski and Tobias Peikert and Ryan D. Clay and Finbar Foley and Cassandra Braun and Recep Savas and Carole Sudre and Tom Doel and Daniel C. Alexander and Peter Wijeratne and David Hawkes and Yipeng Hu and John R Hurst and Joseph Jacob},
+         year={2021},
+         eprint={2111.10443},
+         archivePrefix={arXiv},
+         primaryClass={physics.med-ph}
+   }
+
 
 Acknowledgments
 ---------------

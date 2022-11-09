@@ -1,4 +1,4 @@
-function AirQuantDir = AirQuantAddPath(AirQuantDirIn)
+function varargout = AirQuantAddPath(AirQuantDirIn)
 % Add AirQuant's directories to the MATLAB path so that its libraries can be used.
 % Optional input argument to the directory that user may prefer to store
 % data and save outputs.
@@ -6,6 +6,17 @@ function AirQuantDir = AirQuantAddPath(AirQuantDirIn)
 % See <a href = "https://airquant.readthedocs.io/">AirQuant Documentation</a> for help.'
 
 disp('See <a href = "https://airquant.readthedocs.io/">AirQuant Documentation</a> for help.')
+
+% check if required toolboxes are installed
+required_packages = {'Signal Processing Toolbox', 'Image Processing Toolbox', ...
+    'Statistics and Machine Learning Toolbox', 'Curve Fitting Toolbox',...
+    'Parallel Computing Toolbox'};
+for apackage = required_packages
+    if contains(struct2array(ver), apackage) == 0
+        warning(strcat(apackage{1},' is not installed, some features may not work properly.'))
+    end
+end
+
 
 % get path to airquant library directory and add to matlab path
 [AirQuantDirLib,~,~] = fileparts(which('AirQuantAddPath'));
@@ -20,6 +31,9 @@ else
     AirQuantDir = AirQuantDirIn;
 end
 
+if nargout > 0
+    varargout{1} = AirQuantDir
+end
 % configure expected paths for AirQuant
 results_dir = fullfile(AirQuantDir, 'results');
 
