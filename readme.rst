@@ -26,7 +26,11 @@ AirQuant
 ========
 .. image:: AirQuant.png
   :width: 400
-  :alt: AirQuant logo
+  :alt:
+
+.. image:: docs/AirQuant.png
+  :width: 400
+  :alt:
 
 
 AirQuant is an open source framework for analysing macro tubular networks in medical images such as airways.
