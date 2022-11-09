@@ -3,25 +3,30 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-AirQuant
-========
 
-.. image:: https://readthedocs.org/projects/airquant/badge/?version=latest
+
+.. image:: https://readthedocs.org/projects/airquant/badge/?style=for-the-badge
     :target: https://airquant.readthedocs.io/en/latest/?badge=latest
     :alt: Documentation Status
 
-.. image:: https://img.shields.io/github/license/ashkanpakzad/AirQuant?style=plastic
+.. image:: https://img.shields.io/github/license/ashkanpakzad/AirQuant?style=for-the-badge
     :target: https://github.com/ashkanpakzad/AirQuant/blob/master/LICENSE
     :alt: License
 
-.. image:: https://img.shields.io/badge/arXiv-2111.10443-b31b1b.svg?style=plastic
+.. image:: https://img.shields.io/badge/arXiv-2111.10443-b31b1b.svg?style=for-the-badge
     :target: https://arxiv.org/abs/2111.10443
     :alt: arXiv
 
+.. image:: https://img.shields.io/badge/-Tutorials-pink?style=for-the-badge
+    :target: tutorials.html
+    :alt: Tutorials
+
+
+AirQuant
+========
 .. image:: AirQuant.png
   :width: 400
   :alt: AirQuant logo
-
 
 
 AirQuant is an open source framework for analysing macro tubular networks in medical images such as airways.
