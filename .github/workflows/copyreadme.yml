@@ -1,18 +1,14 @@
-name: copyreadme
-on:
-  push:
-    branches: [ "master" ]
-  pull_request:
-    branches: [ "master" ]
-
+name: copy readme
+on: [push]
 jobs:
-  docit:
-    runs-on: ubuntu-latest
 
+  build:
+    name: Build
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@master
-      - name: copy file
-        uses: vodapay-gateway/github-action-copy@main
-        with:
-          source: "docs/index.rst"
-          target: "readme.txt"
+    - uses: actions/checkout@master
+    - name: copy file
+      uses: canastro/copy-file-action@master
+      with:
+        source: "docs/index.rst"
+        target: "README.rst"
