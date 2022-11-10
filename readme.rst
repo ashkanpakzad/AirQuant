@@ -40,12 +40,13 @@ extracting measurements. By also providing the original image it can derive deta
 Facilitating detailed quantitative clinical analysis.
 
 Please see the `https://airquant.readthedocs.io/ <https://airquant.readthedocs.io/>`_ regarding information on installation, use and tutorials.
+See `https://github.com/ashkanpakzad/AirQuant <https://github.com/ashkanpakzad/AirQuant>`_ for GitHub repository.
 
-Open to ★★★★★, issues, contributions and discussions!
+Open to ★★★★★, issues, discussions and contributions!
 
 Would really appreciate a message or a star if this has been useful for you!
 
-..  code-block::
+..  code-block:: bibtex
 
    @misc{pakzad2021evaluation,
          title={Evaluation of automated airway morphological quantification for assessing fibrosing lung disease},
