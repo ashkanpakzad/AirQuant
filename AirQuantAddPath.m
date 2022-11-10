@@ -12,7 +12,7 @@ required_packages = {'Signal Processing Toolbox', 'Image Processing Toolbox', ..
     'Statistics and Machine Learning Toolbox', 'Curve Fitting Toolbox',...
     'Parallel Computing Toolbox'};
 for apackage = required_packages
-    if contains(struct2array(ver), apackage) == 0
+    if contains(AQstruct2array(ver), apackage) == 0
         warning(strcat(apackage{1},' is not installed, some features may not work properly.'))
     end
 end

@@ -2,9 +2,61 @@ Installation
 ============
 See `Latest Releases <https://github.com/ashkanpakzad/AirQuant/releases>`__:
 
-.. code-block:: RST
+.. code-block:: bash
 
   $ git clone https://github.com/ashkanpakzad/AirQuant.git
+
+In MATLAB:
+
+.. code-block:: matlab
+
+  >>> % Change folder to cloned AirQuant directory.
+  >>> cd AirQuant
+  >>> % Run AirQuantAddPath to add all the AirQuant directories to your MALTAB path.
+  >>> AirQuantAddPath
+  >>> % AirQuantAddPath will warn you if you don't have required toolboxes installed.
+
+That's it! Why not try running one of the :doc:`tutorials`?
+
+**OPTIONAL: Add AirQuant to your MATLAB path permanently**
+
+This requires configuring your ```startup.m``` file to find AirQuant. startup.m is a file that MATLAB looks for and runs every time you start it.
+Run in MATLAB:
+
+.. code-block:: matlab
+
+  >>> % Your startup file is likely here.
+  >>> edit ~/Documents/MATLAB/startup.m
+
+Add lines to run the addpath functions of each package, edit paths to the correct locations.
+
+.. code-block:: matlab
+
+  >>> run path/to/AirQuant/AirQuantAddPath.m
+
+Save and run ```startup.m``` or restart MATLAB to take effect.
+
+Required Toolboxes
+------------------
+* MATLAB 2022a (>9.12)
+* MATLAB Signal Processing Toolbox (>8.3)
+* MATLAB Image Processing Toolbox (>11.0)
+* MATLAB Curve Fitting Toolbox (>3.5.10)
+* MATLAB Statistics and Machine Learning Toolbox (>12.0)
+
+
+Optional Toolboxes
+------------------
+* Parallel Computing Toolbox
+
+  * For GPU utilisation in patch interpolation (to measure tube diameters).
+
+
+
+Optional Dependencies
+---------------------
+
+* `Pulmonary Toolkit <https://github.com/ashkanpakzad/pulmonarytoolkit/releases/tag/ForAirQuant1.0>`__ - For in-built skeletonisation algorithm.
 
 **For skeletonisation** dependency, clone this specific version of `PTK <https://github.com/ashkanpakzad/pulmonarytoolkit/releases/tag/ForAirQuant1.0>`__:
 
@@ -13,37 +65,6 @@ See `Latest Releases <https://github.com/ashkanpakzad/AirQuant/releases>`__:
   $ git clone https://github.com/ashkanpakzad/pulmonarytoolkit.git
   $ cd pulmonarytoolkit
   $ git checkout nifti-gz-load-import
-
-**MATLAB path** configuring your ```startup.m``` file to find AirQuant and PTK. Run in matlab:
-
-.. code-block:: RST
-
-  >>> edit ~/Documents/MATLAB/startup.m
-
-Add lines to run the addpath functions of each package, edit paths to the correct locations.
-
-.. code-block:: RST
-
-  >>> run ~/AirQuant/AirQuantAddPath.m
-  >>> run ~/pulmonarytoolkit/PTKAddPaths.m
-
-Save and run ```startup.m``` or restart MATLAB to take effect.
-
-Required Dependencies
----------------------
-* MATLAB 2022a (>9.12)
-* MATLAB Signal Processing Toolbox (>8.3)
-* MATLAB Image Processing Toolbox (>11.0)
-* MATLAB Curve Fitting Toolbox (>3.5.10)
-* MATLAB Statistics and Machine Learning Toolbox (>12.0)
-
-.. todo:
-  * Quick check tool for dependencies.
-
-Optional Dependencies
----------------------
-
-* `Pulmonary Toolkit <https://github.com/ashkanpakzad/pulmonarytoolkit/releases/tag/ForAirQuant1.0>`__ - For in-built skeletonisation algorithm.
 
 
 Packaged Dependencies
