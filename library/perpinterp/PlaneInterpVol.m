@@ -52,8 +52,10 @@ function out_plane = PlaneInterpVol(vol, voxdim, point, normal, options)
         basis_vecs(:,2), point, options.plane_sz, options.sample_sz);
         
     if options.gpu
-        assert(strcmp(options.method,'linear'),'Can only use "linear" method with gpu optimisation.')
-        assert(license('test','distrib_computing_toolbox'),' "Parallel Computing Toolbox required for gpu optimisation.')
+        assert(strcmp(options.method,'linear'),'Can only use "linear" method with gpu optimisation.')        
+        verstruct = struct2cell(ver);
+        assert(contains([verstruct{:}], 'Parallel Computing Toolbox'), "Parallel Computing Toolbox required for gpu optimisation. Otherwise set gpu=0")
+        
 
         % use gpu
         x_domain = gpuArray(x_domain);

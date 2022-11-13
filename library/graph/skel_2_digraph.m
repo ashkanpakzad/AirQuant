@@ -44,6 +44,9 @@ function [digraphout, glinkout, gnode] = skel_2_digraph(skel, method)
     % Create digraph with edges in both directions, loop through
     % branches and remove opposing direction to originating node.
     G = digraph(gadj);
+
+    assert(length(glink) == height(G.Edges)/2, 'Skeleton appears to contain loops. This is not supported.')
+
     bins = conncomp(G);
     
     if isnumeric(method)
@@ -130,7 +133,7 @@ function [digraphout, glinkout, gnode] = skel_2_digraph(skel, method)
     end
     labels = [1:length(glink)]';
     Edgetable = table(edges,weights,labels,'VariableNames',{'EndNodes', 'Weight', 'Label'});
-
+    
     digraphout = digraph(Edgetable);
     % add node properties from Gnode
     digraphout.Nodes.comx(:) = [gnode(:).comx];
@@ -165,5 +168,4 @@ function [digraphout, glinkout, gnode] = skel_2_digraph(skel, method)
     
     % reorder glink
     glinkout = glink(E_glink);
-    
 end
