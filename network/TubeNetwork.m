@@ -570,7 +570,11 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             
             % convert labels into numbers
             if isempty(options.types)
-                types = unique(vals);
+                if isfield(obj.regioncategories,options.name)
+                    types = obj.regioncategories.(options.name);
+                else
+                    types = unique(vals);
+                end
             else
                 types = options.types;
             end

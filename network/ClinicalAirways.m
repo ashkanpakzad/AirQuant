@@ -29,8 +29,12 @@ classdef ClinicalAirways < TubeNetwork
             
             obj.regioncategories.lobe = {'B','RUL','RML','RLL','LUL','LML','LLL','T'};
             obj.IdentifyCarinaAndTrachea();
-
-%             obj.ClassifyLungLobes()
+            
+            % attempt to classify into lunglobes
+            try
+                obj.ClassifyLungLobes()
+            catch
+            end
 
         end
 
