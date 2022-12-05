@@ -1401,7 +1401,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
 
         % Data IO
 
-        function ExportOrthoPatches(obj, path, casename)
+        function ExportOrthoPatches(obj, path, casename, type)
             % export perpendicular slice patches of this tube.
             %
             % export the perpendicular slice patches of this tube stored in
@@ -1419,11 +1419,6 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             %   >>> run CA_base.m;
             %   >>> AQnet.tubes(98).ExportOrthoPatches('patches','example')
             %
-
-            % make directory
-            if ~exist(path, 'dir')
-                mkdir(path)
-            end
         
             % ensure char
             casename = char(casename);
@@ -1432,37 +1427,64 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             allslices = 1:length(obj.source);
             chosenslices = obj.PruneMeasure(allslices);
 
+            % make dir if tiff, check csv if csv
+            if strcmp(type,'tiff') 
+                % make directory
+                mkdir_existok(path)
+            elseif strcmp(type,'csv')
+                csvpath = parse_filename_extension(path,'.csv');
+                % make matrix to save as csv
+                col_size = numel(obj.source{1,1}) + 1;
+                row_size = length(chosenslices);
+                tubepatches = cell(row_size, col_size);
+            else
+                error('unknown type, must be either tiff or csv')
+            end
+
             % loop through slices
+            ii = 1;
             for k = chosenslices
+                % save as int16
                 float = obj.source{k,1};
                 img = int16(float);
                 
+                % patch name
                 paddedk = sprintf('%08d', k); 
-
-                % save as int16 TIF
-                imgsavename = fullfile(path, [ ...
-                    casename, ...
+                patchname = [casename, ...
                     '_id_',num2str(obj.ID), ...
                     '_gen_', num2str(obj.generation), ...
-                    '_slice_',paddedk, ...
-                    '.tif']);
-
-                imgdata = img;
-
-                t = Tiff(imgsavename,'w');
-                tagstruct.Compression = Tiff.Compression.None;
-                tagstruct.ImageLength = size(imgdata,1);
-                tagstruct.ImageWidth = size(imgdata,2);
-                tagstruct.Photometric = Tiff.Photometric.MinIsBlack;
-                tagstruct.SampleFormat = Tiff.SampleFormat.Int; % int
-                tagstruct.BitsPerSample = 16;
-                tagstruct.SamplesPerPixel = 1;
-                tagstruct.PlanarConfiguration = Tiff.PlanarConfiguration.Chunky;
-                tagstruct.Software = 'AirQuant';
-                setTag(t,tagstruct)
-                write(t,imgdata)
-                close(t);
+                    '_slice_',paddedk];
+                
+                if strcmp(type,'tiff')
+                    % save as tif
+                    imgsavename = fullfile(path, [patchname, '.tif']);
+                    imgdata = img;
+    
+                    t = Tiff(imgsavename,'w');
+                    tagstruct.Compression = Tiff.Compression.None;
+                    tagstruct.ImageLength = size(imgdata,1);
+                    tagstruct.ImageWidth = size(imgdata,2);
+                    tagstruct.Photometric = Tiff.Photometric.MinIsBlack;
+                    tagstruct.SampleFormat = Tiff.SampleFormat.Int; % int
+                    tagstruct.BitsPerSample = 16;
+                    tagstruct.SamplesPerPixel = 1;
+                    tagstruct.PlanarConfiguration = Tiff.PlanarConfiguration.Chunky;
+                    tagstruct.Software = 'AirQuant';
+                    setTag(t,tagstruct)
+                    write(t,imgdata)
+                    close(t);
+                elseif strcmp(type,'csv')
+                    tubepatches{ii,1} = patchname;
+                    % convert to cell first
+                    cellimg = num2cell(img(:)');
+                    % assign to cell
+                    [tubepatches{ii,2:end}] = cellimg{:};
+                    ii = ii + 1;
+                end
             end
+            % append to csv
+            writetable(cell2table(tubepatches),csvpath,'WriteVariableNames',0,'WriteMode','append')
+
         end
 
         function toGif(obj, filename, options)
