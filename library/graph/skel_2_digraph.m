@@ -1,4 +1,4 @@
-function [digraphout, glinkout, gnode] = skel_2_digraph(skel, method)
+function [digraphout, glinkout, gnode, isloops] = skel_2_digraph(skel, method)
     % Generate digraph from skeleton.
     %
     % Generate digraph from skeleton using skel2graph library.
@@ -36,6 +36,8 @@ function [digraphout, glinkout, gnode] = skel_2_digraph(skel, method)
     if nargin < 2
         method = 'topnode';
     end
+    
+    isloops = 0;
 
     [gadj,gnode,glink] = Skel2Graph3D(skel,1);
     % choose originating node using chosen method
@@ -43,9 +45,19 @@ function [digraphout, glinkout, gnode] = skel_2_digraph(skel, method)
 
     % Create digraph with edges in both directions, loop through
     % branches and remove opposing direction to originating node.
-    G = digraph(gadj);
+    
+    edges_og = [[glink.n1]', [glink.n2]'];
+    edges_rev = [[glink.n2]', [glink.n1]'];
+    edges_twoway = [edges_og; edges_rev];
+    Edgetable = table(edges_twoway,'VariableNames',{'EndNodes'});
+    G = digraph(Edgetable);
 
-    assert(length(glink) == height(G.Edges)/2, 'Skeleton appears to contain loops. This is not supported.')
+
+    G_loop_check = digraph(gadj);
+    if length(glink) ~= height(G_loop_check.Edges)/2
+        warning('Skeleton appears to contain multiple edges between the same nodes. There may be unexpected behaviour')
+        isloops = 1;
+    end
 
     bins = conncomp(G);
     
@@ -142,6 +154,7 @@ function [digraphout, glinkout, gnode] = skel_2_digraph(skel, method)
     digraphout.Nodes.ep(:) = [gnode(:).ep];
     digraphout.Nodes.label(:) = [1:length(gnode)]';
 
+    try
     % BFS per graph in digraph
     % first convert digraph to graph to get CCs
     bins = conncomp(digraphout,'Type','weak','OutputForm','cell');
@@ -161,11 +174,17 @@ function [digraphout, glinkout, gnode] = skel_2_digraph(skel, method)
         E = [E; sub_E];
     end
     
-    assert(length(E)==length(glink),'Number of edges in new edge BFS not expected.')
+    assert(length(E)==length(glink))
 
     % convert E indicies to glink indicies
     E_glink = digraphout.Edges.Label(E);
     
     % reorder glink
     glinkout = glink(E_glink);
+
+    catch
+        glinkout = glink;
+        warning('Failed to reorder edges by BFS. Likely due to presence loops.')
+    end
+
 end
