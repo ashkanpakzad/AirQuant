@@ -1084,7 +1084,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
 
         end
         
-        function [h, out] = Histogram(obj, options)
+        function [h, out] = Histogram2(obj, options)
             % Plot histogram of :attr:`tubes`.
             %
             %
@@ -1096,6 +1096,9 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             %
             %   Behaviour untested for label containing NaNs.
             %
+            % .. todo::
+            %
+            %   Remove redundant variables.
             %
             % Args:
             %   label = *OPTIONAL* `default = 'generation'` set variable to count.
@@ -1105,14 +1108,16 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             %       in order. 
             %   labelidx(scalar) = *OPTIONAL* `default = 1`. Index of
             %       chosen property in `label`.
-            %   print(bool) = *OPTIONAL* `default = false`. print frequency
+            %   print(bool) = *OPTIONAL* `default = false`. Print frequency
             %       table.
+            %   exact(bool) = *OPTIONAL* `default = false`. Bin values by
+            %       their exact number if label is numerical.
             %  
             %
             % Example:
             %   >>> run CA_base.m;
             %   >>> figure;
-            %   >>> AQnet.PlotGen();
+            %   >>> AQnet.Histogram();
             %
             %
             arguments
@@ -1120,6 +1125,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
                 options.label = 'generation'
                 options.labelidx = 1
                 options.print = false
+                options.exact = false
             end
             
             % get index for each branch
@@ -1128,25 +1134,39 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
 
             % get unique values
             outlabel_unique = unique(outlabel);
-
+            categoricalinput = 0;
             % set up cell for each unique val
             if isnumeric(outlabel_unique)
                 rownames = compose('%d', outlabel_unique);
                 rownames = cellstr(string(rownames));
                 % 2nd variable defines the right side of each bin only
-                [count, ~] = histcounts(outlabel, [outlabel_unique; outlabel_unique(end)+1]);
             else
                 % must be categorical, convert
+                categoricalinput = 1;
                 rownames = outlabel_unique;
                 outlabel = categorical(outlabel);
                 outlabel_unique = categorical(outlabel_unique);
-                [count, ~] = histcounts(outlabel);
             end
 
+            if ~options.exact || categoricalinput
+                % determine counts by binning algorithm if numeric
+                [count, edges] = histcounts(outlabel);
+            else
+                % use exact bins
+                [count, edges] = histcounts(outlabel, [outlabel_unique; outlabel_unique(end)+1]);
+            end
+            
+            if categoricalinput
+                % convert to categoric
+                edges = categorical(edges);
+            else
+                % remove right most edge if numerical.
+                edges = edges(1:end-1);
+            end
 
             % count for all vals
             % show figure result as bar chart
-            h = bar(outlabel_unique, count');
+            h = bar(edges, count');
             title(['Number of tubes per ', options.label])
             xlabel(options.label)
             ylabel('count')
@@ -1166,7 +1186,77 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             end
             
         end
-        
+ 
+        function h = Histogram(obj, options)
+            % Plot histogram of :attr:`tubes`.
+            %
+            %
+            % .. note::
+            %
+            %   Consider case where label contains NaNs.
+            %
+            % .. warning::
+            %
+            %   Behaviour untested for label containing NaNs.
+            %
+            % .. todo::
+            %
+            %   Remove redundant variables.
+            %
+            % Args:
+            %   label = *OPTIONAL* `default = 'generation'` set variable to count.
+            %       if `char` must be an :class:`tube` property, :class:`tube` `stats` or `region` field.
+            %       e.g. `'generation'`, `'arclength'`, `'lobe'`.
+            %       Can also be vector of length equal to number of tubes
+            %       in order. 
+            %   labelidx(scalar) = *OPTIONAL* `default = 1`. Index of
+            %       chosen property in `label`.
+            %   region(char) = *OPTIONAL* `default = ''`. Region to
+            %       group label values by.
+            %  
+            %
+            % Example:
+            %   >>> run CA_base.m;
+            %   >>> figure;
+            %   >>> AQnet.Histogram2();
+            %
+            %
+            arguments
+                obj
+                options.label = 'generation'
+                options.labelidx = 1
+                options.region = ''
+            end
+            
+            % get index for each branch
+            outlabel = GetTubeValues(obj, options.label, options.labelidx);
+            outlabel = outlabel';
+            
+            if ~isempty(options.region)
+                regions = GetTubeValues(obj, options.region, 1);
+            else
+                regions = cell(1, length(outlabel));
+                regions(:) = {'all'};
+            end
+            
+            regions = categorical(regions);
+            regions_unique = unique(regions);
+
+            % count for all vals
+            % show figure result as bar chart
+            tcl = tiledlayout('flow');
+            for iregion = regions_unique
+                nexttile
+                h = histogram(outlabel(regions == iregion));
+                title(iregion)
+                xlabel(options.label)
+                ylabel('count')
+            end
+            title(tcl,options.label)
+            grid on
+
+
+        end
         % Data IO
         
         function ExportOrthoPatches(obj, path, casename, options)

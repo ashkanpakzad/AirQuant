@@ -188,7 +188,7 @@ classdef ClinicalAirways < TubeNetwork
             end
 
             % set gen by lobe
-%             obj.RunAllTubes('SetRegionGeneration', 'lobe')
+            obj.RunAllTubes('SetRegionGeneration', 'lobe')
         end
     
     end

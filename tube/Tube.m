@@ -255,9 +255,14 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
         genname = [regiontype, '_gen'];
         currentube = obj;
         count = 0;
-        while ~strcmp(currentube.region.(regiontype), ...
-                currentube.parent.region.(regiontype))||...
-                isempty(currentube.parent)
+        % check same region
+%         if length(currentube.parent) > 1
+        while ~isempty(currentube.parent) 
+            current_reg = currentube.region.(regiontype);
+            parent_reg = currentube.parent.region.(regiontype);
+            if ~strcmp(current_reg, parent_reg)
+                break
+            end
             if length(currentube.parent) > 1
                 obj.region.(genname) = NaN;
                 warning('Multiple parents, not possible to set generation')
@@ -1396,17 +1401,24 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
 
         % Data IO
 
-        function ExportOrthoPatches(obj, path, casename)
+        function ExportOrthoPatches(obj, tarpath, casename)
             % export perpendicular slice patches of this tube.
             %
             % export the perpendicular slice patches of this tube stored in
-            % source as int16 tiff files.
+            % source as int16 tiff files to a tar file.
+            %
+            %
+            % .. note:
+            %   This uses the GNU tar command from the system to create the
+            %   final tarball. Therefore it is only expected to work on unix system.
+            %   This was the only way to achieve the desired 'append'
+            %   functionality that MATLAB `tar` doesn't offer.
             %
             %
             % Args:
-            %   path(str): path to directory to save the exported patches.
-            %       The directory will be created if it doesn't already 
-            %       exist.
+            %   tarpath(str): path to tarfile save the exported patches.
+            %       The tarfile will be be appended to or created if it 
+            %       doesn't already exist.
             %   casename(char): casename to use as prefix to each patch
             %       slice name.
             % 
@@ -1414,11 +1426,6 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             %   >>> run CA_base.m;
             %   >>> AQnet.tubes(98).ExportOrthoPatches('patches','example')
             %
-
-            % make directory
-            if ~exist(path, 'dir')
-                mkdir(path)
-            end
         
             % ensure char
             casename = char(casename);
@@ -1427,21 +1434,28 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             allslices = 1:length(obj.source);
             chosenslices = obj.PruneMeasure(allslices);
 
+            % save files to temp dir
+            atemp_dir = tempname;
+            mkdir(atemp_dir);
+
+            % check tar path
+            tarpath = parse_filename_extension(tarpath,'.tar');
+
             % loop through slices
             for k = chosenslices
+                % save as int16
                 float = obj.source{k,1};
                 img = int16(float);
-                
-                paddedk = sprintf('%08d', k); 
 
-                % save as int16 TIF
-                imgsavename = fullfile(path, [ ...
-                    casename, ...
+                % patch name
+                paddedk = sprintf('%08d', k);
+                patchname = [casename, ...
                     '_id_',num2str(obj.ID), ...
                     '_gen_', num2str(obj.generation), ...
-                    '_slice_',paddedk, ...
-                    '.tif']);
+                    '_slice_',paddedk];
 
+                % save as tif to temp dir
+                imgsavename = fullfile(atemp_dir, [patchname, '.tif']);
                 imgdata = img;
 
                 t = Tiff(imgsavename,'w');
@@ -1458,6 +1472,13 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
                 write(t,imgdata)
                 close(t);
             end
+
+            % append files to tar path 
+            tarcommand = ['tar --append -f ', tarpath, ' --remove-files -C ', atemp_dir,...
+                ' $(cd ', atemp_dir, ' ; echo *.tif)'];
+
+            % execute tar
+            system(tarcommand);
         end
 
         function toGif(obj, filename, options)
