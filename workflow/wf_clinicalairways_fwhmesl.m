@@ -57,7 +57,7 @@ function skip = wf_clinicalairways_fwhmesl(casename, sourcef, segf, skelf, root_
         % segskel
         f = figure; AQnet.Plot3D(alpha=0.3); hold on; AQnet.Plot3D(type='skel',alpha=1);
         savefig(f,fullfile(results_dir, strcat(casename,"_skel")));
-        exportgraphics(f, fullfile(results_dir,strcat(casename,"_segskel.png")));
+        exportgraphics(f, fullfile(results_dir,strcat(casename,"_skel.png")));
         close(f);
 
         % generation per lobe histogram
@@ -103,7 +103,7 @@ function skip = wf_clinicalairways_fwhmesl(casename, sourcef, segf, skelf, root_
         AQnet.ExportCSV(fullfile(results_dir,strcat(casename,"_FWHMesl")))
 
         % save orthopatches
-        AQnet.RunAllTubes('ExportOrthoPatches',fullfile(root_results_dir,'patches'), casename)
+        AQnet.RunAllTubes('ExportOrthoPatches',fullfile(results_dir,[casename, '_patches']), casename)
 
         % generate post analysis figures
         % plot 2d - avg D
@@ -132,14 +132,6 @@ function skip = wf_clinicalairways_fwhmesl(casename, sourcef, segf, skelf, root_
     end
     close all;
     diary off;
-
-    function checkfield(field, default)
-        % checks if the field for the config struct exists and if not,
-        % then sets to the default value provided.
-        if ~isfield(config, field)
-            config.(field) = default;
-        end
-    end
 
     function checkfile(filepath, filetype)
         % checks if the file exists, if not it will throw a warning and
