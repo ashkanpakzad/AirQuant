@@ -2,31 +2,10 @@
 % Parent function to set up and run AQ on several cases based on given
 % config file
 
-function batch_clinicalairways_fwhmesl(varargin)
+function batch_clinicalairways_fwhmesl(source_dir, seg_dir, skel_dir, gpu)
 
 %% parse input
-% dataset dirs
-if nargin == 1 || nargin == 2
-    dataset = varargin{1};
-    source_dir = fullfile(dataset,'source');
-    seg_dir = fullfile(dataset,'airway');
-    skel_dir = fullfile(dataset,'skel');
-elseif nargin == 3 || nargin == 4
-    source_dir = varargin{1};
-    seg_dir = varargin{2};
-    skel_dir = varargin{3};
-else
-    error('Expected either 1,2,3 or 4 input arguments.')
-end
-
-% results dir
-if nargin == 2
-    results_dir = varargin{2};
-elseif nargin == 4
-    results_dir = varargin{4};
-else % if nargs = 1 or 3 just make in cwd
-    results_dir = 'results';
-end
+results_dir = 'results';
 
 % get list of casenames from source dir
 alldir = dir(fullfile(source_dir));
@@ -61,7 +40,7 @@ for ii = 1:length(casenames)
     segf = fullfile(seg_dir,[casename,filesuffix]);
     skelf = fullfile(skel_dir,[casename,filesuffix]);
     
-    skip = wf_clinicalairways_fwhmesl(casename, sourcef, segf, skelf, results_dir);
+    skip = wf_clinicalairways_fwhmesl(casename, sourcef, segf, skelf, results_dir, gpu);
     if skip
         fskip;
     end

@@ -2,7 +2,7 @@
 % Parent function to set up and run AQ on several cases based on given
 % config file
 
-function skip = wf_clinicalairways_fwhmesl(casename, sourcef, segf, skelf, root_results_dir)
+function skip = wf_clinicalairways_fwhmesl(casename, sourcef, segf, skelf, root_results_dir, gpu)
 
     % recommended
     num_rays = 180;
@@ -91,7 +91,7 @@ function skip = wf_clinicalairways_fwhmesl(casename, sourcef, segf, skelf, root_
         close(f);
 
         % make measurements
-        AQnet.MakeTubePatches(method='linear')
+        AQnet.MakeTubePatches(method='linear',gpu=gpu)
     
         % make FWHM measurement
         AQnet.Measure('AirwayFWHMesl', num_rays, ray_interval);
