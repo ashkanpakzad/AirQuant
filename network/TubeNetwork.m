@@ -1111,7 +1111,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             % Example:
             %   >>> run CA_base.m;
             %   >>> figure;
-            %   >>> AQnet.PlotGen();
+            %   >>> AQnet.Histogram();
             %
             %
             arguments

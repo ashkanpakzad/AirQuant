@@ -255,9 +255,14 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
         genname = [regiontype, '_gen'];
         currentube = obj;
         count = 0;
-        while ~strcmp(currentube.region.(regiontype), ...
-                currentube.parent.region.(regiontype))||...
-                isempty(currentube.parent)
+        % check same region
+%         if length(currentube.parent) > 1
+        while ~isempty(currentube.parent) 
+            current_reg = currentube.region.(regiontype);
+            parent_reg = currentube.parent.region.(regiontype);
+            if ~strcmp(current_reg, parent_reg)
+                break
+            end
             if length(currentube.parent) > 1
                 obj.region.(genname) = NaN;
                 warning('Multiple parents, not possible to set generation')
