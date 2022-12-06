@@ -39,8 +39,12 @@ for ii = 1:length(casenames)
     sourcef = fullfile(source_dir,[casename,filesuffix]);
     segf = fullfile(seg_dir,[casename,filesuffix]);
     skelf = fullfile(skel_dir,[casename,filesuffix]);
-    
+    try
     skip = wf_clinicalairways_fwhmesl(casename, sourcef, segf, skelf, results_dir, gpu);
+    catch
+        skip = 1;
+    end
+
     if skip
         fskip;
     end
