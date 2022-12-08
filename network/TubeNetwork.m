@@ -497,7 +497,11 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
 
             % get values
             for ii = 1:numtubes
-                label_all = [eval(object_eval).(labelname)];
+                try
+                    label_all = [eval(object_eval).(labelname)];
+                catch % incase tube doesn't have the label
+                    label_all = NaN;
+                end
                 if ischar(label_all)
                     outlabel{ii} = label_all;
                 else
@@ -1239,6 +1243,9 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
                 regions(:) = {'all'};
             end
             
+            % make any possible nans into chars
+            [regions{~cellfun(@ischar,regions)}] = deal('none');
+            % convert to categorical for histogram function
             regions = categorical(regions);
             regions_unique = unique(regions);
 
