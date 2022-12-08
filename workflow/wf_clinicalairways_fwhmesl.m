@@ -60,6 +60,18 @@ function skip = wf_clinicalairways_fwhmesl(casename, sourcef, segf, skelf, root_
         exportgraphics(f, fullfile(results_dir,strcat(casename,"_skel.png")));
         close(f);
 
+        % plot3
+        f = figure; AQnet.Plot3D(alpha=0.3); hold on; AQnet.Plot3();
+        savefig(f,fullfile(results_dir, strcat(casename,"_plot3")));
+        exportgraphics(f, fullfile(results_dir,strcat(casename,"_plot3.png")));
+        close(f);
+
+        % splines
+        f = figure; AQnet.Plot3D(alpha=0.3); hold on; AQnet.PlotSpline();
+        savefig(f,fullfile(results_dir, strcat(casename,"_spline")));
+        exportgraphics(f, fullfile(results_dir,strcat(casename,"_splines.png")));
+        close(f);
+
         % generation per lobe histogram
         f = figure; AQnet.Histogram(label='lobe_gen',region='lobe')
         savefig(f,fullfile(results_dir, strcat(casename,"_hist_lobegen")));
