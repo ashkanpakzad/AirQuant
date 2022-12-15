@@ -2,7 +2,17 @@
 % Parent function to set up and run AQ on several cases based on given
 % config file
 
-function batch_clinicalairways_fwhmesl(source_dir, seg_dir, skel_dir, gpu)
+function batch_clinicalairways_fwhmesl(source_dir, seg_dir, skel_dir, gpu, overwrite)
+
+if nargin < 4
+    % default behaviour is not to use gpu.
+    gpu = 0;
+end
+
+if nargin < 5
+    % default behaviour is not to overwrite.
+    overwrite = 0;
+end
 
 %% parse input
 results_dir = 'results';
@@ -11,7 +21,7 @@ results_dir = 'results';
 alldir = dir(fullfile(source_dir));
 alldir = alldir(~[alldir.isdir]);
 raw_names = string({(alldir.name)});
-casenames = strrep(raw_names,'.nii.gz','') ;
+casenames = strrep(raw_names,'.nii.gz','');
 
 
 %% Set-up directories
@@ -33,6 +43,14 @@ for ii = 1:length(casenames)
     casename = char(casenames(ii));
     skip = 0; % do not skip by default
     disp([num2str(ii),' of ', num2str(length(casenames))])
+
+    % check if it already exists
+    case_dir = fullfile(results_dir,casename);
+    if overwrite == 0 && isfolder(case_dir)
+        disp(['[',casename,'] already exists. overwrite == false, therefore skipping.'])
+        fskip;
+        continue
+    end
     
     % Get filenames
     filesuffix = '.nii.gz';
@@ -45,7 +63,7 @@ for ii = 1:length(casenames)
         skip = 1;
     end
 
-    if skip
+    if skip == 1
         fskip;
     end
 end
