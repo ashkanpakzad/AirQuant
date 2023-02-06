@@ -161,12 +161,14 @@ classdef ClinicalAirways < TubeNetwork
             % get ancestor list and find intersection
             RML_endpath = [RML_eptube.Ancestors().ID];
             RLL_endpath = [RLL_eptube.Ancestors().ID];
-            [~, intersections] = intersect(RML_endpath, RLL_endpath);
-            RML_RLLNid = RML_endpath(min(intersections));
+            [intersected_B, intersections] = intersect(RML_endpath, RLL_endpath);
 
-            % assign right bronchus intermedius
-            obj.tubes(RML_RLLNid).SetRegion('lobe','B');
-            obj.tubes(RML_RLLNid).SetRegion('name','RightIntermedius');
+            % assign right bronchus intermedius to branches between carina
+            % and RML except the major right bronchus
+            for id = intersected_B(2:end)
+                obj.tubes(id).SetRegion('lobe','B');
+                obj.tubes(id).SetRegion('name','RightIntermedius');
+            end
 
             % assign RML
             RML_id = RML_endpath(min(intersections)-1);
