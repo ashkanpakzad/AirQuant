@@ -51,6 +51,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
         Dmap
         tubemat
         tubepath
+        isloops
     end
 
     methods
@@ -355,7 +356,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             if nargin < 2
                 method = 'topnode';
             end
-            [g, glink, gnode] = skel_2_digraph(obj.skel, method);
+            [g, glink, gnode, obj.isloops] = skel_2_digraph(obj.skel, method);
         end
 
         function ge = TubesAsEdges(obj)
