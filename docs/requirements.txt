@@ -2,7 +2,7 @@ alabaster==0.7.12
 Babel==2.10.1
 btd.sphinx.graphviz==2.3.1.post1
 btd.sphinx.inheritance-diagram==2.3.1.post1
-certifi==2021.10.8
+certifi==2022.12.7
 charset-normalizer==2.0.12
 docutils==0.17.1
 future==0.18.3
