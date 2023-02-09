@@ -641,7 +641,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
 
         % VISUALISATION
 
-        function h = Plot(obj, options)
+        function [h, ge] = Plot(obj, options)
             % Very powerful graph visualisation tool of tubes. Can
             % manipulate by label, edge weight and colour.
             %
@@ -854,17 +854,17 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             %  colour: *OPTIONAL* `default = 'c'` color of surface. Can be any
             %   MATLAB accepted color format, e.g. RGB.
             %  type(char): *OPTIONAL* `default = 'seg'` can be either
-            %  `'seg'` or `'skel'`. which to plot surface.
-            %  region
+            %   `'seg'` or `'skel'`. which to plot surface.
+            %  smooth_sz(int): *OPTIONAL* `default = 0` size of gaussian 
+            %   smoothing kernel. 0 for no smoothing.
             %
             % .. note:
-            %   plotting multiple patches (>20) significantly reduces
-            %   performance. This is why this function tries to collate everys
-            %   patch that is designated a different colour and then plots
-            %   them. 
+            %   Plotting multiple patches (>20) significantly reduces
+            %   performance. This function attempts to group
+            %   segments of the same colour to plot together.
             % 
             % .. warning:
-            %   Choosing a colour option that is continuous will cause this
+            %   Choosing a colour option with several colours will cause this
             %   method to take a very long time.
             %
             %
@@ -887,6 +887,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
                 options.colour = ''
                 options.colouridx = 1
                 options.type {mustBeMember(options.type,{'seg','skel'})} = 'seg'
+                options.smooth_sz = 0
             end
 
 
@@ -919,6 +920,8 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
                     V(tubeii.([options.type,'points'])) = 1;
                 end
             end
+            
+
 
             % plot each color vol as isosurface individually
 
@@ -926,13 +929,20 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
                 for ii = 1:max(cdata)
                 U = zeros(size(V));
                 U(V==ii) = 1;
+                % smoothing
+                if options.smooth_sz > 0
+                    U = smooth3(U,'gaussian',options.smooth_sz);
+                end
                 patch(isosurface(U),...
                 'FaceAlpha', options.alpha,...
                 'FaceColor', rgb(ii,:),...
                 'EdgeColor', 'none');
                 hold on
                 end
-            else                
+            else
+                if options.smooth_sz > 0
+                    V = smooth3(V,'gaussian',options.smooth_sz);
+                end
                 patch(isosurface(V),...
                 'FaceAlpha', options.alpha,...
                 'FaceColor', 'k',...
