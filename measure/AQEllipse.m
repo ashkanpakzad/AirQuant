@@ -41,13 +41,15 @@ classdef AQEllipse < handle
             end
             
             % compute values from ellipses
-            obj.Area();
-            obj.NominalDiameter();
-            try
-                obj.HydraulicDiameter();
-            catch
+            if obj.Rx < 0 || obj.Ry < 0 
                 % if ellipse RA or RB turns out to be negative
+                obj.area = nan;
                 obj.hydraulic_diameter = nan;
+                obj.diameter = nan;
+            else
+                obj.Area();
+                obj.NominalDiameter();
+                obj.HydraulicDiameter();
             end
         end
 

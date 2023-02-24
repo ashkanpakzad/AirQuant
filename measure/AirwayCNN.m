@@ -34,7 +34,8 @@ classdef AirwayCNN < SuperMeasure
             pyrun(['import sys; sys.path.append("', modulepath,'");']);
             mod = py.importlib.import_module('AQ_CNR');
             py.importlib.reload(mod);
-
+            
+            % set up inference
             pycode = ...
                 ['import sys; sys.path.append("', modulepath,'");', ...
                 ' from AQ_CNN import runCNNmodel;',...
@@ -44,9 +45,13 @@ classdef AirwayCNN < SuperMeasure
                 ' mean = ', num2str(meanval), ';', ...
                 ' var = ', num2str(varval), ';', ...
                 ' out = runCNNmodel(modelpath, data_path, batch_size, mean, var)'];
-
+            
+            % run inference
             pymeasures = pyrun(pycode, 'out');
             measures = double(pymeasures{1});
+
+            % delete temp files to avoid accumulation
+            delete(temp_dir)
 
             % set up memory
             allslices = 1:length(obj.tube.source);
@@ -84,6 +89,7 @@ classdef AirwayCNN < SuperMeasure
             obj.measures = cell(2, length(ellipse_inner));
             obj.measures(1,:) = ellipse_inner;
             obj.measures(2,:) = ellipse_outer;
+            
 
         end
 
