@@ -125,12 +125,18 @@ classdef ClinicalAirways < TubeNetwork
             % identify upper lobe and lingular
             MLULLML2 = MLlung(MLULLML).children;
             [~, ~, MLl2z] = obj.I2S(ClinicalAirways.SkelEnds(MLULLML2));
-            [~,MLUL] = max(MLl2z);
+            % set LML by lowest z descendant
             [~,MLML] = min(MLl2z);
-            MLULLML2(MLUL).SetRegionDescendants('lobe','LUL');
             MLULLML2(MLML).SetRegionDescendants('lobe','LML');
+            
+            % set remaining descendants to LUL
+            MLULLML2(MLML) = [];
+            for idx = 1:length(MLULLML2)
+%                 [~,MLUL] = max(MLl2z);
+                MLULLML2(idx).SetRegionDescendants('lobe','LUL');
+            end
 
-            % % Identify right upper lobe
+            % identify right upper lobe
             MRlung = MB(rightMBI).children;
             [~, ~, MRz] = obj.I2S(ClinicalAirways.SkelEnds(MRlung));
             [~,MRULi] = max(MRz);
