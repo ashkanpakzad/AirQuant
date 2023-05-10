@@ -18,7 +18,14 @@ function [output, outvoxdim] = ReorientVolume(source, meta)
     %
 
     % get affine matrix
-    aff_raw_RAS = meta.Transform.T;
+    aff_raw_RAS_loaded = meta.Transform.T;
+    % set values that are basically 0 to 0
+    zero_tol = aff_raw_RAS_loaded < 1e-6 & aff_raw_RAS_loaded > -1e-6;
+    aff_raw_RAS = aff_raw_RAS_loaded;
+    aff_raw_RAS(zero_tol) = 0;
+    if any(aff_raw_RAS_loaded ~= aff_raw_RAS)
+        warning('Oblique orientation, precision loss within 1e-6')
+    end
     % remove origin information
     aff_raw_RAS(4,1:3) = [0,0,0];
     % remove spacing information
