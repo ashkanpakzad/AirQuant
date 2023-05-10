@@ -400,6 +400,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             
             % DFS from each zero gen tube, creating edgetable.
             for ii = 1:length(zerogentubes)
+                % independent DFS search from each origin tube.
                 edgestosearch = obj.tubes(zerogentubes(ii));
                 if isempty(edgestosearch.parent) && isempty(edgestosearch.children)
                     g = addnode(g,1);
@@ -435,7 +436,13 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             assert(isa(tubefunc,"char") || isa(tubefunc,"string"), ...
                 'tubefunction must be provided as char/string.')
             for ii = progress(1:length(obj.tubes), 'Title', strcat('RunAllTubes: ', tubefunc))
+                try
                 obj.tubes(ii).(tubefunc)(varargin{:});
+                catch e
+                    warning([char(tubefunc), ' failed for tube index ', num2str(ii), ' .'])
+                    fprintf(2,'error identifier :\n%s\n',e.identifier);
+                    fprintf(2,'There was an error! The message was:\n%s\n',e.message);
+                end
             end
         end
 
@@ -945,7 +952,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
                 end
                 patch(isosurface(V),...
                 'FaceAlpha', options.alpha,...
-                'FaceColor', 'k',...
+                'FaceColor', 'c',...
                 'EdgeColor', 'none');
                 hold on
             end
