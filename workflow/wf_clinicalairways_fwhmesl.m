@@ -1,11 +1,13 @@
-% By Ashkan Pakzad, 2021. ashkanpakzad.github.io
 % Parent function to set up and run AQ on several cases based on given
 % config file
 
-function skip = wf_clinicalairways_fwhmesl(casename, sourcef, segf, skelf, root_results_dir, gpu)
+function skip = wf_clinicalairways_fwhmesl(casename, sourcef, segf, skelf, root_results_dir)
 
-    % recommended
-    num_rays = 180;
+    % prune ends of airways
+    prune_ends = [2, 2];
+
+    % recommended fwhmesl parameters
+    num_rays = 60;
     ray_interval = 0.2;
 
 %% run loop
@@ -50,99 +52,94 @@ function skip = wf_clinicalairways_fwhmesl(casename, sourcef, segf, skelf, root_
         % Parses CT, segmentation and skeleton to compute airway tree graph
         disp(['[',casename,'] ','Init AirQuant.'])
         AQnet = ClinicalAirways(skel, source=CT, header=meta, seg=S,fillholes=1, ...
-            largestCC=1, spline_sample_sz=0.5, plane_sample_sz=0.5);
+            largestCC=1, spline_sample_sz=0.5, plane_sample_sz=0.5)
 
         % Generate initial analysis figures and save
 
         % segskel
-        f = figure('WindowStyle', 'Docked'); AQnet.Plot3D(alpha=0.3); hold on; AQnet.Plot3D(type='skel',alpha=1);
-        savefig(f,fullfile(results_dir, strcat(casename,"_skel")));
-        exportgraphics(f, fullfile(results_dir,strcat(casename,"_skel.png")));
+        f = figure(); AQnet.Plot3D(alpha=0.3); hold on; AQnet.Plot3D(type='skel',alpha=1);
+        fig_save(f,fullfile(results_dir, strcat(casename,"_skel")));
         close(f);
 
         % plot3
-        f = figure('WindowStyle', 'Docked'); AQnet.Plot3D(alpha=0.3); hold on; AQnet.Plot3();
-        savefig(f,fullfile(results_dir, strcat(casename,"_plot3")));
-        exportgraphics(f, fullfile(results_dir,strcat(casename,"_plot3.png")));
+        f = figure(); AQnet.Plot3D(alpha=0.3); hold on; AQnet.Plot3();
+        fig_save(f,fullfile(results_dir, strcat(casename,"_plot3")));
         close(f);
 
         % splines
-        f = figure('WindowStyle', 'Docked'); AQnet.Plot3D(alpha=0.3); hold on; AQnet.PlotSpline();
-        savefig(f,fullfile(results_dir, strcat(casename,"_spline")));
-        exportgraphics(f, fullfile(results_dir,strcat(casename,"_splines.png")));
+        f = figure(); AQnet.Plot3D(alpha=0.3); hold on; AQnet.PlotSpline();
+        fig_save(f,fullfile(results_dir, strcat(casename,"_spline")));
         close(f);
 
         % generation per lobe histogram
-        f = figure('WindowStyle', 'Docked'); AQnet.Histogram(label='lobe_gen',region='lobe')
-        savefig(f,fullfile(results_dir, strcat(casename,"_hist_lobegen")));
-        exportgraphics(f, fullfile(results_dir,strcat(casename,"_hist_lobegen.png")));
+        f = figure(); AQnet.Histogram(label='lobe_gen',region='lobe')
+        fig_save(f,fullfile(results_dir, strcat(casename,"_hist_lobegen")));
         close(f);
 
         % plot 2d
-        f = figure('WindowStyle', 'Docked'); [h, g] = AQnet.Plot(colour='lobe',weightfactor=3);
+        f = figure(); [h, g] = AQnet.Plot(colour='lobe',weightfactor=3);
         try
              AQnet.GraphLobarLayout(h, g)
         catch
         end
-        savefig(f,fullfile(results_dir, strcat(casename,"_plot")))
-        exportgraphics(f, fullfile(results_dir,strcat(casename,"_plot.png")));
+        fig_save(f,fullfile(results_dir, strcat(casename,"_plot")))
         close(f);
 
         % lobe 3d + plot 3
-        f = figure('WindowStyle', 'Docked'); AQnet.Plot3D(colour='lobe'); hold on; AQnet.Plot3(colour='lobe');
-        savefig(f,fullfile(results_dir, strcat(casename,"_plot3d_lobe")));
-        exportgraphics(f, fullfile(results_dir,strcat(casename,"_plot3d_lobe.png")));
+        f = figure(); AQnet.Plot3D(colour='lobe'); hold on; AQnet.Plot3(colour='lobe');
+        fig_save(f,fullfile(results_dir, strcat(casename,"_plot3d_lobe")));
         close(f);
 
         % gen 3d
-        f = figure('WindowStyle', 'Docked'); AQnet.Plot3D(colour='generation');
-        savefig(f,fullfile(results_dir, strcat(casename,"_plot3d_generation")));
-        exportgraphics(f, fullfile(results_dir,strcat(casename,"_plot3d_generation.png")));
+        f = figure(); AQnet.Plot3D(colour='generation');
+        fig_save(f,fullfile(results_dir, strcat(casename,"_plot3d_generation")));
         close(f);
 
         % tortuosity
-        f = figure('WindowStyle', 'Docked'); AQnet.Histogram(label='tortuosity',region='lobe')
-        savefig(f,fullfile(results_dir, strcat(casename,"_hist_tortuosity")));
-        exportgraphics(f, fullfile(results_dir,strcat(casename,"_hist_tortuosity.png")));
+        f = figure(); AQnet.Histogram(label='tortuosity',region='lobe')
+        fig_save(f,fullfile(results_dir, strcat(casename,"_hist_tortuosity")));
         close(f);
 
-        % make measurements
-        AQnet.MakeTubePatches(method='linear',gpu=gpu)
+        % set prune
+        AQnet.RunAllTubes('SetPruneLength',prune_ends);
+
+        % get patches
+        AQnet.MakeTubePatches(method='linear');
     
         % make FWHM measurement
-        AQnet.Measure('AirwayFWHMesl', num_rays, ray_interval);
+        AQnet.Measure('AirwayFWHMesl', num_rays, ray_interval, 0);
     
         % save measures
-        save(savename, "AQnet")
+        save(savename, "AQnet");
         
         % save measurements
-        AQnet.ExportCSV(fullfile(results_dir,strcat(casename,"_FWHMesl")))
+        AQnet.ExportCSV(fullfile(results_dir,strcat(casename,"_FWHMesl")));
 
         % save orthopatches
-        AQnet.RunAllTubes('ExportOrthoPatches',fullfile(results_dir,[casename, '_patches']), casename)
+        tarpath = fullfile(results_dir,[casename, '_patches.tar']);
+        AQnet.RunAllTubes('ExportOrthoPatches',tarpath, casename);
+        % save grid preview of patches
+        grid_preview(tarpath, 8, 8, fullfile(results_dir,[casename, '_patch_preview.png']));
 
         % generate post analysis figures
         % plot 2d - avg D
-        f = figure('WindowStyle', 'Docked'); [h, g] = AQnet.Plot(colour='lobe', weight='diameter_mean', ...,
+        f = figure(); [h, g] = AQnet.Plot(colour='lobe', weight='diameter_mean', ...,
             weightfactor=10, label='lobe_gen');
         try
-             AQnet.GraphLobarLayout(h, g)
+             AQnet.GraphLobarLayout(h, g);
         catch
         end
-        savefig(f,fullfile(results_dir, strcat(casename,"_plot_diameter")))
-        exportgraphics(f, fullfile(results_dir,strcat(casename,"_plot_diameter.png")));
+        fig_save(f,fullfile(results_dir, strcat(casename,"_plot_diameter")));
         close(f);
 
         % intertapering
-        f = figure('WindowStyle', 'Docked'); AQnet.Histogram(label='intertaper',region='lobe')
-        savefig(f,fullfile(results_dir, strcat(casename,"_hist_inter")));
-        exportgraphics(f, fullfile(results_dir,strcat(casename,"_hist_inter.png")));
+        f = figure(); AQnet.Histogram(label='intertaper',region='lobe');
+        fig_save(f,fullfile(results_dir, strcat(casename,"_hist_inter")));
         close(f);
 
         % diameter
-        f = figure('WindowStyle', 'Docked'); AQnet.Histogram(label='diameter_mean',region='lobe')
-        savefig(f,fullfile(results_dir, strcat(casename,"_hist_diameter")));
-        exportgraphics(f, fullfile(results_dir,strcat(casename,"_hist_diameter.png")));
+        f = figure(); AQnet.Histogram(label='diameter_mean',region='lobe');
+        fig_save(f,fullfile(results_dir, strcat(casename,"_hist_diameter")));
         close(f);
     
         % reset

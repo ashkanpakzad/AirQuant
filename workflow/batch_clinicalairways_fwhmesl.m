@@ -1,15 +1,10 @@
-% By Ashkan Pakzad, 2021. ashkanpakzad.github.io
 % Parent function to set up and run AQ on several cases based on given
 % config file
 
-function batch_clinicalairways_fwhmesl(source_dir, seg_dir, skel_dir, gpu, overwrite)
+function batch_clinicalairways_fwhmesl(source_dir, seg_dir, skel_dir, overwrite)
+
 
 if nargin < 4
-    % default behaviour is not to use gpu.
-    gpu = 0;
-end
-
-if nargin < 5
     % default behaviour is not to overwrite.
     overwrite = 0;
 end
@@ -58,8 +53,10 @@ for ii = 1:length(casenames)
     segf = fullfile(seg_dir,[casename,filesuffix]);
     skelf = fullfile(skel_dir,[casename,filesuffix]);
     try
-    skip = wf_clinicalairways_fwhmesl(casename, sourcef, segf, skelf, results_dir, gpu);
-    catch
+    skip = wf_clinicalairways_fwhmesl(casename, sourcef, segf, skelf, results_dir);
+    catch e %e is an MException struct
+        fprintf(2,'error identifier :\n%s\n',e.identifier);
+        fprintf(2,'There was an error! The message was:\n%s\n',e.message);
         skip = 1;
     end
 

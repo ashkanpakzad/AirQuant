@@ -517,9 +517,10 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             % i.e. the spline interval as found by :meth:`tube.Tube.FindSplinePoints` and saves them to :attr:`tube.Tube.source`.
             %
             % .. note::
-            %   This function will use the GPU if available only when
-            %   :param:`options.method` = 'linear' and the `parallel copmputing toolbox`_
-            %   is installed.
+            %   * GPU only compatible when :param:`options.method` = 'linear' and the `parallel copmputing toolbox`_
+            %       is installed.
+            %   * GPU is not compatible with :param:`options.usesegcrop` = true.
+            %   * GPU is a legacy feature and will be removed in future versions.
             %
             % .. todo::
             %   * Heavily reliant on the network class structure.
@@ -546,7 +547,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
                 options.usesegcrop logical = false
                 options.method char = 'linear'
                 options.sample_sz = obj.network.plane_sample_sz
-                options.gpu logical = true
+                options.gpu logical = false
             end
 
             assert(~isempty(obj.spline), 'spline is empty, see method MakeSpline')
@@ -1472,13 +1473,18 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
                 write(t,imgdata)
                 close(t);
             end
+            
+            if length(chosenslices) > 0
+                % append files to tar path 
+                tarcommand = ['tar --append -f ', tarpath, ' --remove-files -C ', atemp_dir,...
+                    ' $(cd ', atemp_dir, ' ; echo *.tif)'];
 
-            % append files to tar path 
-            tarcommand = ['tar --append -f ', tarpath, ' --remove-files -C ', atemp_dir,...
-                ' $(cd ', atemp_dir, ' ; echo *.tif)'];
+                % execute tar
+                system(tarcommand);
+            end
 
-            % execute tar
-            system(tarcommand);
+            % remove temp dir
+            rmdir(atemp_dir,'s');
         end
 
         function toGif(obj, filename, options)

@@ -284,7 +284,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
                 options.type = 'both'
                 options.usesegcrop logical = false
                 options.method char = 'linear'
-                options.gpu logical = 1
+                options.gpu logical = false
             end
 
             for ii = progress(1:length(obj.tubes), 'Title', 'Making tube patches')
@@ -521,6 +521,25 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
                 outlabel = cell2mat(outlabel);
             end
 
+        end
+
+        function [statsopt, regionopt] = VisualisationOptions(obj)
+            % get visualisation options from :attr:`tubes` by :attr:`tube.Tube.stats` and :attr:`tube.Tube.region`.
+            statsopt = [];
+            regionopt = [];
+
+            % get stats options
+            for ii = 1:length(obj.tubes)
+                if ~isempty(obj.tubes(ii).stats)
+                    current_stats = fieldnames(obj.tubes(ii).stats);
+                    statsopt = [statsopt, setdiff(current_stats,statsopt)];
+                end
+                if ~isempty(obj.tubes(ii).region)
+                    current_region = fieldnames(obj.tubes(ii).region);
+                    regionopt = [regionopt, setdiff(current_region,regionopt)];
+                end
+            end
+            
         end
 
         function [regionkwarg,regionid] = ParseRegion(obj, regionkwarg)
