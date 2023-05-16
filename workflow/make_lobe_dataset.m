@@ -7,7 +7,7 @@ alldir = dir(fullfile(top_results_dir));
 alldir = alldir(~startsWith({alldir.name}, '.'));
 casenames = string({(alldir.name)});
 
-for ii = 28:length(casenames)
+for ii = 1:length(casenames)
     casename = casenames(ii);
     disp(casename)
     disp([num2str(ii), ' of ', num2str(length(casenames))])
