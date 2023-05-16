@@ -3,6 +3,18 @@
 
 function batch_clinicalairways_fwhmesl(source_dir, seg_dir, skel_dir, overwrite)
 
+if nargin < 1
+    % default behaviour is not to overwrite.
+    source_dir = 'source';
+end
+
+if nargin < 2
+    seg_dir = 'airway';
+end
+
+if nargin < 3
+    skel_dir = 'airway_skel_pakzad';
+end
 
 if nargin < 4
     % default behaviour is not to overwrite.

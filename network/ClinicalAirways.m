@@ -332,6 +332,52 @@ classdef ClinicalAirways < TubeNetwork
             end
 
         end
+
+        function node_table = ExportGraph(obj, path)
+        % export the airway network as a graph. If lobe classifications
+        % are present, they will be included.
+        %
+
+        parse_filename_extension(path, '.csv')
+
+        % construct node table
+        id = [obj.tubes.ID]';
+        xyz = cell(length(id),1);
+        edge = cell(length(id),1);
+        for ii = id'
+            % get xyz position from midpoint of tube
+            skelpoints = obj.tubes(ii).skelpoints;
+            midpoint = floor(length(skelpoints)/2);
+            point_pix = obj.I2S(skelpoints(midpoint));
+            point_mm = point_pix .* obj.voxdim;
+            xyz{ii,1} = num2str(point_mm,'% .2f');
+            % convert children nodes to string
+            try
+                children = num2str([obj.tubes(ii).children.ID]);
+            catch
+                children = '';
+            end
+            try
+                parent = num2str(obj.tubes(ii).parent.ID);
+            catch
+                parent = '';
+            end
+            % save edge
+            edge{ii,1} = [parent, ' ', children];
+        end
+        node_table = table(id, edge, xyz);
+
+        try
+            % add lobe classifications if exist
+            lobe = AirQuant.list_property({obj.tubes.region},'lobe')';
+            node_table = addvars(node_table, lobe);
+        catch
+        end
+            
+        % export to csv
+        writetable(node_table, path)
+
+        end
     end
 
     methods(Static)

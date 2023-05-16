@@ -54,8 +54,10 @@ function skip = wf_clinicalairways_fwhmesl(casename, sourcef, segf, skelf, root_
         AQnet = ClinicalAirways(skel, source=CT, header=meta, seg=S,fillholes=1, ...
             largestCC=1, spline_sample_sz=0.5, plane_sample_sz=0.5)
 
-        % Generate initial analysis figures and save
+        % save graph
+        AQnet.ExportGraph(fullfile(results_dir, [casename, '_graph.csv']));
 
+        %%% Generate initial analysis figures and save
         % segskel
         f = figure(); AQnet.Plot3D(alpha=0.3); hold on; AQnet.Plot3D(type='skel',alpha=1);
         fig_save(f,fullfile(results_dir, strcat(casename,"_skel")));
