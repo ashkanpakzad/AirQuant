@@ -1,7 +1,7 @@
 % Parent function to set up and run AQ on several cases based on given
 % config file
 
-function skip = wf_clinicalairways_fwhmesl(casename, sourcef, segf, skelf, root_results_dir)
+function [skip, runinfo] = wf_clinicalairways_fwhmesl(casename, sourcef, segf, skelf, root_results_dir)
 
     % prune ends of airways
     prune_ends = [2, 2];
@@ -12,6 +12,7 @@ function skip = wf_clinicalairways_fwhmesl(casename, sourcef, segf, skelf, root_
 
 %% run loop
     % init
+    runinfo = struct('casename',casename);
     skip = 0; % do not skip by default
     disp(['[',casename,'] ','Starting'])
     results_dir = fullfile(root_results_dir,casename);
@@ -148,7 +149,42 @@ function skip = wf_clinicalairways_fwhmesl(casename, sourcef, segf, skelf, root_
         disp(['Case: ', casename, ' complete.'])
         disp(['Total time: ', num2str(toc/60), ' minutes.'])
         disp(datetime)
+
+        % save info to summary table
+        % total number of tubes
+        runinfo.n = length(AQnet.tubes);
+        % lengths
+        lengths = cell2mat(AirQuant.list_property({AQnet.tubes.stats},'arclength'));
+        runinfo.arclen_mm = sum(lengths);        
+        % lumen volume
+        vols = cell2mat(AirQuant.list_property({AQnet.tubes.stats},'volume'))/1e6;
+        vols = vols(1,:);
+        runinfo.lumen_vol_l = sum(vols,'omitnan');
+        % max lobe generation
+        gens = cell2mat(AirQuant.list_property({AQnet.tubes.region},'lobe_gen'));
+        runinfo.maxlobegen = max(gens);
+        runinfo.runtime_m = toc/60;
+        % breakdown by lobe
+        try
+            lobes = AirQuant.list_property({AQnet.tubes.region},'lobe');
+            lobecodes = {'RUL','RML','RLL','LUL','LML','LLL'};
+            for i = 1:length(lobecodes)
+                idx = strcmp(lobes,lobecodes{i});
+                runinfo.([lobecodes{i},'_n']) = sum(idx);
+                runinfo.([lobecodes{i},'_len']) = sum(lengths(idx));
+                runinfo.([lobecodes{i},'_vol']) = sum(vols(idx),'omitnan');
+                runinfo.([lobecodes{i}, '_maxlobegen']) = max(gens(idx));
+            end
+        catch
+            warning([casname,' lobe info not available'])
+        end
+        % append runinfo to csv
+        runinfo_T = struct2table(runinfo);
+        writetable(runinfo_T, fullfile(root_results_dir, 'summary.csv'), 'WriteMode', 'append');
     end
+
+
+
     close all;
     diary off;
 
