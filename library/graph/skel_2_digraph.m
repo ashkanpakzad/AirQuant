@@ -48,10 +48,12 @@ function [digraphout, glinkout, gnode, isloops] = skel_2_digraph(skel, method)
     
     edges_og = [[glink.n1]', [glink.n2]'];
     edges_rev = [[glink.n2]', [glink.n1]'];
+    weights = cellfun(@numel, {glink.point});
+    weights = [weights'; weights'];
     edges_twoway = [edges_og; edges_rev];
-    Edgetable = table(edges_twoway,'VariableNames',{'EndNodes'});
+    Edgetable = table(edges_twoway,weights,'VariableNames',{'EndNodes','Weight'});
     G = digraph(Edgetable);
-
+    nodelist = 1:numnodes(G);
 
     G_loop_check = digraph(gadj);
     if length(glink) ~= height(G_loop_check.Edges)/2
@@ -59,8 +61,9 @@ function [digraphout, glinkout, gnode, isloops] = skel_2_digraph(skel, method)
         isloops = 1;
     end
 
-    bins = conncomp(G);
-    
+    [bins,binsize] = conncomp(G);
+    originnode = zeros(max(bins),1);
+
     if isnumeric(method)
         assert(length(unique(bins)) < 2, ['Can only be used with one ' ...
             'connected component.'])
@@ -71,21 +74,77 @@ function [digraphout, glinkout, gnode, isloops] = skel_2_digraph(skel, method)
 
     elseif strcmp(method,'topnode')
             % use most superiour node as origin for each subgraph
-            originnode = zeros(max(bins),1);
             for ii = 1:max(bins)
                 binbool = (bins==ii);
-                nodelist = 1:numnodes(G);
                 binidx = nodelist(binbool);
                 gnodeii = gnode(binidx);
                 [~, binorigin] = max([gnodeii.comz]);
                 originnode(ii) = binidx(binorigin);
             end
+
+    elseif strcmp(method,'carina')
+        % airway specific method - largest cc first
+        [~, I] = max(binsize);
+        binbool = (bins==I);
+        binidx = nodelist(binbool);
+        
+        g = subgraph(G, binidx);
+        gnodeI=gnode(binidx);
+        %%% identfy carina by most central position
+        pos = [[gnodeI.comx]', [gnodeI.comy]', [gnodeI.comz]'];
+        center = size(skel)/2;
+        centralist_node=zeros(length(pos),1);
+        for i=1:length(pos)
+            centralist_node(i) = norm(center-pos(i,:));
+        end
+        % rank centralist_node - minimise
+        [~, ~, centralist_node_rank] = unique(centralist_node);
+
+        %%% identify carina by greatest node sum weight
+        weightiest_node = centrality(g,'outdegree',...
+        'importance',g.Edges.Weight);
+
+        % rank weightiest - maximise
+        [~,~,weightiest_node_rank_rev] = unique(weightiest_node);
+        weightiest_node_rank = max(weightiest_node_rank_rev) - ...
+            weightiest_node_rank_rev+1;
+        
+        %%% identify carina by graph closeness (stucturally central)
+        closest_node = centrality(g,'outcloseness');
+        [~,~,closest_node_rank_rev] = unique(closest_node);
+        closest_node_rank = max(closest_node_rank_rev) - ...
+            closest_node_rank_rev+1;
+
+        %%% determine carina by rank of all 3 measures
+        all_ranks = centralist_node_rank+weightiest_node_rank+closest_node_rank;
+        [~, carina_node] = min(all_ranks);
+
+        %%% identify origin by most superior neighbor
+        %%% determine trachea by superior pos node to carina
+        % pos of carina neighbors
+        carina_neighbors = predecessors(g, carina_node);
+        neighbor_pos = pos(carina_neighbors,:);
+        [~, neighbor_pos_idx] = max(neighbor_pos(:,3));
+        binorigin=carina_neighbors(neighbor_pos_idx);
+        originnode(I) = binidx(binorigin);
+
+        % remaining uses topnode
+        for ii = 1:max(bins)
+            if ii == I
+                continue
+            end
+            binbool = (bins==ii);
+            binidx = nodelist(binbool);
+            gnodeii = gnode(binidx);
+            [~, binorigin] = max([gnodeii.comz]);
+            originnode(ii) = binidx(binorigin);
+        end
     else
         error('Invalid method')
     end
 
 
-    % BF search from carina node to distal for each disconnected graph.
+    % BF search from origin node to distal for each disconnected graph.
     allnode_discovery = cell(max(bins),1);
     for ii = 1:max(bins)
         allnode_discovery{ii} = bfsearch(G,originnode(ii));

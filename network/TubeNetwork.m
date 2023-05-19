@@ -364,7 +364,6 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
 
             % init edgetable
             gn = TubesAsNodes(obj);
-            asedges = gn.Edges;
 
             % add incomming edge to nodes that have no incoming edges
             nin = find(indegree(gn) == 0);
@@ -377,7 +376,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
 %                 asedges.EndNodes(height(asedges)+1,:) = [max(asedges.EndNodes(:))+1 nini];
             end
             
-            gn.Edges.ID = gn.Edges.EndNodes(:,2);
+            gn.Edges.ID = str2double(gn.Edges.EndNodes(:,2));
 
             ge = gn;
 
@@ -391,30 +390,41 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             %   * Scope for improving efficiency, variables that change
             %       size.
             %
+            
+            %%% identify origin node of all graphs
+            origintubes = [];
+            % loop through every tube
+            for ii = 1:length(obj.tubes)
+                currenttube = obj.tubes(ii);
+                % for current tube, find the origin tube (tube with no parent)
+                while ~isempty(currenttube.parent)
+                    currenttube = currenttube.parent;
+                end
+                if ~any(origintubes == currenttube)
+                    origintubes = [origintubes, currenttube];
+                end
+            end
 
-            % get all tubes with generation 0
-            zerogentubes = find([obj.tubes(:).generation] == 0);
-
-            % set up initial nodes with zero gen tubes
             g = digraph();
             
             % DFS from each zero gen tube, creating edgetable.
-            for ii = 1:length(zerogentubes)
-                % independent DFS search from each origin tube.
-                edgestosearch = obj.tubes(zerogentubes(ii));
-                if isempty(edgestosearch.parent) && isempty(edgestosearch.children)
-                    g = addnode(g,1);
+            for origintube = origintubes
+                % case of isolated tube
+                if isempty(origintube.parent) && isempty(origintube.children)
+                    g = addnode(g,num2str(origintube.ID));
+                    continue
                 end
+                % independent DFS search from each origin tube.
+                edgestosearch = origintube;
                 while ~isempty(edgestosearch)
                     current_tube = edgestosearch(1);
-                    parent = current_tube.ID;
+                    edgestosearch(1) = [];
                     if ~isempty(current_tube.children)
                         for childtube = current_tube.children
-                            g = addedge(g, parent, childtube.ID);
+                            g = addedge(g, num2str(current_tube.ID), num2str(childtube.ID));
                             edgestosearch = [edgestosearch, childtube];
                         end
                     end
-                    edgestosearch(1) = [];
                 end
             end
         end

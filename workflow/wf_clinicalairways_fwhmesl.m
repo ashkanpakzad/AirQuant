@@ -53,7 +53,7 @@ function [skip, runinfo] = wf_clinicalairways_fwhmesl(casename, sourcef, segf, s
         % Parses CT, segmentation and skeleton to compute airway tree graph
         disp(['[',casename,'] ','Init AirQuant.'])
         AQnet = ClinicalAirways(skel, source=CT, header=meta, seg=S,fillholes=1, ...
-            largestCC=1, spline_sample_sz=0.5, plane_sample_sz=0.5)
+            largestCC=1, spline_sample_sz=0.5, plane_sample_sz=0.5,originmethod='carina')
 
         % save graph
         AQnet.ExportGraph(fullfile(results_dir, [casename, '_graph.csv']));

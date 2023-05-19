@@ -338,7 +338,7 @@ classdef ClinicalAirways < TubeNetwork
         % are present, they will be included.
         %
 
-        parse_filename_extension(path, '.csv')
+        parse_filename_extension(path, '.csv');
 
         % construct node table
         id = [obj.tubes.ID]';
