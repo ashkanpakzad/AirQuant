@@ -13,13 +13,11 @@ function setupOnce(testCase)
 
     % set names
     data_dir = fullfile(AQpath,'data','airquant');
-    results_dir = fullfile(AQpath,'results','chestct');
+    results_dir = fullfile(AQpath,'data','results');
 
     % clear results dir if anything stored
-    if exist(results_dir,'dir')
-        rmdir(results_dir,'s')
-    else
-        mkdir(results_dir)
+    if exist(fullfile(results_dir,casename),'dir')
+        rmdir(fullfile(results_dir,casename),'s')
     end
 
     % get file names
@@ -33,7 +31,7 @@ function setupOnce(testCase)
 end
 
 function test_runcases(testCase)
-    vars=testCase.TestData
+    vars=testCase.TestData;
     wf_clinicalairways_fwhmesl(vars.casename, vars.sourcef, vars.segf, vars.skelf, vars.results_dir);
     % check AQnet saves
     verifyTrue(testCase,exist(fullfile(vars.results_dir,vars.casename,[vars.casename,'_AQnet.mat']),'file')>0)
