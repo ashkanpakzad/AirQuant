@@ -1159,7 +1159,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             colororder(linspecer(12))
 
             % set initial annotation
-            obj.UpdateAnnotateOrthoviewer(ax,s.SliceNumbers(3),...
+            obj.UpdateAnnotateOrthoviewer(tubearray,ax,s.SliceNumbers(3),...
                 options.rings,options.ellipses...
                 ,options.points)
 
@@ -1170,7 +1170,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
                         ppos = evt.PreviousPosition(3);
                         cpos = evt.CurrentPosition(3);
                         if ppos ~= cpos
-                            obj.UpdateAnnotateOrthoviewer(ax,cpos,...
+                            obj.UpdateAnnotateOrthoviewer(tubearray,ax,cpos,...
                                 options.rings,options.ellipses...
                                 ,options.points)
                         end
@@ -1435,12 +1435,18 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             allslices = 1:length(obj.source);
             chosenslices = obj.PruneMeasure(allslices);
 
+            % incase no slices are selected because they've all been pruned
+            if isempty(chosenslices)
+                warning(['No orthopatches to export. TubeID: ', num2str(obj.ID),'; Tube length: ', num2str(obj.stats.arclength),'; prune length: [', num2str(obj.prunelength'),'].'])
+            end
+
             % save files to temp dir
             atemp_dir = tempname;
             mkdir(atemp_dir);
 
             % check tar path
             tarpath = parse_filename_extension(tarpath,'.tar');
+
 
             % loop through slices
             for k = chosenslices
@@ -1533,6 +1539,9 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             % parse filename
             filename = parse_filename_extension(filename, '.gif');
 
+            % convert from cell stack to 3D array.
+            tubearray = ParseVolOut(obj, type=options.type);
+
             % instantiate orthosliceviewer
             s = obj.OrthoView(type=options.type, rings=options.rings, ...
                 ellipses=options.ellipses, ...
@@ -1545,7 +1554,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             for idx = sliceNums
                 % Update z slice number and annotation to get XY Slice.
                 s.SliceNumbers(3) = idx;
-                obj.UpdateAnnotateOrthoviewer(ax,idx,options.rings,...
+                obj.UpdateAnnotateOrthoviewer(tubearray,ax,idx,options.rings,...
                     options.ellipses,options.points)
 
                 % Use getframe to capture image.
@@ -1702,7 +1711,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
     end
 
     methods (Access = protected)
-        function UpdateAnnotateOrthoviewer(obj,ax,pos,rings,showellipses,showpoints)
+        function UpdateAnnotateOrthoviewer(obj,tubearray,ax,pos,rings,showellipses,showpoints)
             % internal function that updates the interactive plot of
             % :meth:`OrthoView`.
             %
@@ -1716,7 +1725,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
 
                     % get centre displacement
                     canvas_sz = floor(obj.network.max_plane_sz/obj.network.plane_sample_sz);
-                    image_sz = size(obj.source{ii,1},1);
+                    image_sz = size(tubearray(:,1),1);
                     min_centre = canvas_sz/2 - image_sz/2;
                     obj.measures{ii,pos}.plot(min_centre, ax, showellipses, showpoints);
                 end
