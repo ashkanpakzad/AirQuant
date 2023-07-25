@@ -10,6 +10,8 @@ classdef AQEllipse < handle
     end
     properties (SetAccess = protected)
         area
+        min_diameter
+        maj_diameter
         diameter
         hydraulic_diameter
     end
@@ -46,8 +48,11 @@ classdef AQEllipse < handle
                 obj.area = nan;
                 obj.hydraulic_diameter = nan;
                 obj.diameter = nan;
+                obj.min_diameter = nan;
+                obj.maj_diameter = nan;
             else
                 obj.Area();
+                obj.MinMajDiameters();
                 obj.NominalDiameter();
                 obj.HydraulicDiameter();
             end
@@ -64,6 +69,15 @@ classdef AQEllipse < handle
         function area = Area(obj)
             area = obj.Rx*obj.Ry*pi*prod(obj.pixsize);
             obj.area = area;
+        end
+
+        function [min_diameter,maj_diameter] = MinMajDiameters(obj)
+            radiusx = obj.Rx*obj.pixsize(1);
+            radiusy = obj.Ry*obj.pixsize(1);
+            min_diameter = min(radiusx,radiusy)*2;
+            maj_diameter = max(radiusx,radiusy)*2;
+            obj.min_diameter = min_diameter;
+            obj.maj_diameter = maj_diameter;
         end
 
         function nominaldiameter = NominalDiameter(obj)

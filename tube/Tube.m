@@ -722,6 +722,39 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             obj.stats.tortuosity = tortuosity;
         end
 
+        function [meanDminval, meanDmajval] = ComputeMeanMinMajDiameters(obj, trim)
+            % Computes the trim mean diameter of the minor and major diameters of each measurement type in
+            % :attr:`tube.Tube.diameters`.
+            %
+            % Where :attr:`tube.Tube.diameters` is a `m x n` matrix, the trimmean
+            % is calculated for each m row returning an n length vector. result is saved
+            % in `tube.Tube.stats`.trimmean and  `tube.Tube.stats`.trimmean_trim. 
+            % For ordinary mean (no trim) set trim to 0.
+            %
+            % Args:
+            %   trim(float): *OPTIONAL* `default = 0` trim as % of extremes 
+            %   of data to discard in trimmean calculation.
+            %
+            %
+
+            if nargin < 2
+                trim = 0;
+            end
+
+            assert(~isempty(obj.diameters), 'No diameters property. Need measurements.')        
+
+            % prune the two variables
+            pruned_min = obj.PruneMeasure(obj.patchprop.min_diameters);
+            pruned_maj = obj.PruneMeasure(obj.patchprop.maj_diameters);
+
+            % compute average
+            meanDminval = real(trimmean(pruned_min', trim));
+            meanDmajval = real(trimmean(pruned_maj', trim));
+            obj.stats.min_diameter_mean = meanDminval;
+            obj.stats.maj_diameter_mean = meanDmajval;
+            obj.stats.minmajdiameter_trim = trim;
+        end
+
         function meanDval = ComputeMeanDiameter(obj, trim)
             % Computes the trim mean diameter of each measurement type in
             % :attr:`tube.Tube.diameters`.
@@ -996,6 +1029,8 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             classmeasures = feval(classmethod, varargin{:});
             % set raw measures to tube properties
             obj.measures = classmeasures.measures;
+            obj.patchprop.min_diameters = classmeasures.OutputVar('min_diameter');
+            obj.patchprop.maj_diameters = classmeasures.OutputVar('maj_diameter');  
             obj.diameters = classmeasures.OutputVar('diameter');
             obj.areas = classmeasures.OutputVar('area');
             % get hydraulic diameter if exist
@@ -1004,6 +1039,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             catch
             end
             % derive stats of measurements
+            obj.ComputeMeanMinMajDiameters();
             obj.ComputeMeanDiameter();
             obj.ComputeMeanHydraulicD();
             obj.ComputeMeanArea();
