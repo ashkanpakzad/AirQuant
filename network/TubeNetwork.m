@@ -603,6 +603,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
                 options.types = ''
                 options.name = ''
                 options.maptype char {mustBeMember(options.maptype,{'qua','seq',''})} = ''
+                options.colorbar = true
             end
 
             assert(length(obj.tubes) == length(vals), ['Should have same number ' ...
@@ -639,17 +640,19 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             clims = [1 max(cdata(:))];
             colorbarstring = options.name;
             rgb = linspecer(max(cdata(:)), options.maptype);
-            colormap(rgb)
-            if strcmp(options.maptype, 'qua')
-                colourshow = clims(1):clims(2);
-                colourlabels = types;
-            else
-                colourshow = [clims(1), clims(2)];
-                colourlabels = [min(types), max(types)];
+            if options.colorbar
+                colormap(rgb)
+                if strcmp(options.maptype, 'qua')
+                    colourshow = clims(1):clims(2);
+                    colourlabels = types;
+                else
+                    colourshow = [clims(1), clims(2)];
+                    colourlabels = [min(types), max(types)];
+                end
+                    c = colorbar('Ticks', colourshow, 'TickLabels', colourlabels);
+                    c.Label.String = colorbarstring;
+                    caxis(clims)
             end
-            c = colorbar('Ticks', colourshow, 'TickLabels', colourlabels);
-            c.Label.String = colorbarstring;
-            caxis(clims)
         end
 
         function vol3daxes(obj, ax)
@@ -1312,6 +1315,59 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
         end
         % Data IO
         
+        function ExportSlicerLine(obj, path, options)
+            arguments
+                obj
+                path
+                options.n = length(obj.tubes);
+                options.colour = ''; % turquoise
+                options.colouridx = 1
+            end
+
+            % Export tubes as JSON line markups for viewing in slicer
+            
+            % ensure correct extension on path
+            path = parse_filename_extension(path, '.mrk.json');
+            
+            % attempt to set colour
+            if ~isempty(options.colour)
+                try
+                colourvals = GetTubeValues(obj, options.colour, options.colouridx);
+                [cdata, rgb] = ColourIndex(obj, colourvals, name=options.colour, colorbar=false);                
+                catch
+                    warning(['Attempted to colour image. Failed ' ...
+                        'due to incomplete region definition for all tubes.'])
+                    rgb = [];
+
+                end
+            else
+                rgb = [];
+            end
+
+
+            % process tubes
+            tubemarkups = cell(options.n,1);
+            for ii = 1:options.n
+                if ~isempty(rgb)
+                    tubemarkups{ii,1} = obj.tubes(ii).ExportSlicerLine(rgb(cdata(obj.tubes(ii).ID),:));
+                else
+                    tubemarkups{ii,1} = obj.tubes(ii).ExportSlicerLine();
+                end
+            end
+            
+            % make json sting
+            jsondict = struct();
+            jsondict.schema = "https://raw.githubusercontent.com/slicer/slicer/master/Modules/Loadable/Markups/Resources/Schema/markups-schema-v1.0.3.json#";
+            jsondict.markups = tubemarkups;
+            jsonstr = jsonencode(jsondict,PrettyPrint=true);
+            jsonstr = replace(jsonstr,'"schema":','"@schema":');
+            
+            % save
+            fid = fopen(path,'w');
+            fprintf(fid,'%s',jsonstr);
+            fclose(fid);
+        end
+
         function ExportOrthoPatches(obj, path, casename, options)
             % export perpendicular slice patches of all :attr:`tubes`.
             %

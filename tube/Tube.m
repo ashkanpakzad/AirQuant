@@ -1437,6 +1437,86 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
         end
 
         % Data IO
+        
+        function objdict = ExportSlicerLine(obj,colour)
+            % Export tube object to slicer line markup format.
+            %
+            % .. Warning:
+            %   MATLAB built in JSON encoding is sloppy with encoding
+            %     floats. RBG colours as integers will not be encoded 
+            %     correctly. 
+            %
+            
+            if nargin < 2
+                % default colour - turquoise
+                colour = [48, 213, 200]/255;
+            end
+
+
+            % validate colour
+            colour = validatecolor(colour);
+
+            % get endpoints
+            [X,Y,Z] = obj.I2S([obj.skelpoints(1),obj.skelpoints(end)]);
+            
+            % convert to global coordinates
+            RAS1 = IJKtoRAS([X(1);Y(1);Z(1)]);
+            RAS2 = IJKtoRAS([X(2);Y(2);Z(2)]);
+
+            % create control point dictionaries
+            cp1 = MakeControlPoint(RAS1', '1');
+            cp2 = MakeControlPoint(RAS2', '2');
+            
+            % create measurements dict
+            measurements = MakeMeasurement("length", obj.stats.euclength, "mm");
+            
+            % create display
+            display = struct();
+            display.selectedColor = colour;
+
+            % create Line dictionary
+            objdict = struct();
+            objdict.type = "Line";
+            objdict.coordinateSystem = "RAS";
+            objdict.coordinateUnits = "mm";
+            objdict.labelFormat = num2str(obj.ID);
+            objdict.controlPoints = [cp1, cp2];
+            objdict.locked = true;
+            objdict.measurements = {measurements};
+            objdict.display = display;
+
+            % encode to json and save
+
+            function cp = MakeControlPoint(pos, id)
+                cp = struct();
+                cp.id = id;
+                cp.label = string(['Tube_', num2str(obj.ID),'-',id]);
+                cp.associatedNodeID = "vtkMRMLScalarVolumeNode1";
+                % force pos to be float
+                cp.position = pos+[0.000001,0.000001,0.000001];
+                % force orientation to be float
+                cp.orientation = [-1.000001, 0.000001, 0.000001, 0.000001, -1.000001, 0.000001, 0.000001, 0.000001, 1.000001];
+                cp.visibility = true;
+            end
+
+            function mm = MakeMeasurement(name, value, unit)
+                mm = struct();
+                mm.name = name;
+                mm.enabled = false;
+                mm.value = value;
+                mm.unit = unit;
+%                 mm.printFormat = " ";
+            end
+
+            function RAS = IJKtoRAS(ijk)
+                % ijk must be 1 x 3 vector
+                ijk = ijk + obj.network.lims(:,1);
+                ijk(4) = 1;
+                T = obj.network.header.Transform.T';
+                RAS = T * ijk;
+                RAS = RAS(1:3);
+            end
+        end
 
         function ExportOrthoPatches(obj, tarpath, casename)
             % export perpendicular slice patches of this tube.
