@@ -53,7 +53,8 @@ function [skip, runinfo] = wf_clinicalairways_fwhmesl(casename, sourcef, segf, s
         % Parses CT, segmentation and skeleton to compute airway tree graph
         disp(['[',casename,'] ','Init AirQuant.'])
         AQnet = ClinicalAirways(skel, source=CT, header=meta, seg=S,fillholes=1, ...
-            largestCC=1, spline_sample_sz=0.5, plane_sample_sz=0.5,originmethod='carina')
+            spline_sample_sz=0.1, plane_sample_sz=0.2, ...
+            max_plane_sz=40, largestCC=1,originmethod='carina');  % removed spline_sample_sz=0.5, plane_sample_sz=0.5 as gsk scans are huge, max_plane_sz=40,
 
         % save graph
         AQnet.ExportGraph(fullfile(results_dir, [casename, '_graph.csv']));
@@ -161,9 +162,14 @@ function [skip, runinfo] = wf_clinicalairways_fwhmesl(casename, sourcef, segf, s
         vols = vols(1,:);
         runinfo.lumen_vol_l = sum(vols,'omitnan');
         % max lobe generation
-        gens = cell2mat(AirQuant.list_property({AQnet.tubes.region},'lobe_gen'));
-        runinfo.maxlobegen = max(gens);
-        runinfo.runtime_m = toc/60;
+        try
+            gens = cell2mat(AirQuant.list_property({AQnet.tubes.region},'lobe_gen'));
+            runinfo.maxlobegen = max(gens);
+            runinfo.runtime_m = toc/60;
+        catch 
+            warning([casename,' ---------------------- cell2mat converrsion FAILED because of missing lobe labels? CHECK! ----------------'])
+            runinfo.mesfailures = casename;
+        end 
         % breakdown by lobe
         try
             lobes = AirQuant.list_property({AQnet.tubes.region},'lobe');
@@ -176,7 +182,7 @@ function [skip, runinfo] = wf_clinicalairways_fwhmesl(casename, sourcef, segf, s
                 runinfo.([lobecodes{i}, '_maxlobegen']) = max(gens(idx));
             end
         catch
-            warning([casname,' lobe info not available'])
+            warning([casename,' lobe info not available'])
         end
         % append runinfo to csv
         runinfo_T = struct2table(runinfo);
