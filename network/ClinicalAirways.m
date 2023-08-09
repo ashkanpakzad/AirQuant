@@ -29,8 +29,12 @@ classdef ClinicalAirways < TubeNetwork
             
             obj.regioncategories.lobe = {'B','RUL','RML','RLL','LUL','LML','LLL','T'};
             obj.IdentifyCarinaAndTrachea();
-
-%             obj.ClassifyLungLobes()
+            
+            % attempt to classify into lunglobes
+            try
+                obj.ClassifyLungLobes()
+            catch
+            end
 
         end
 
@@ -121,12 +125,18 @@ classdef ClinicalAirways < TubeNetwork
             % identify upper lobe and lingular
             MLULLML2 = MLlung(MLULLML).children;
             [~, ~, MLl2z] = obj.I2S(ClinicalAirways.SkelEnds(MLULLML2));
-            [~,MLUL] = max(MLl2z);
+            % set LML by lowest z descendant
             [~,MLML] = min(MLl2z);
-            MLULLML2(MLUL).SetRegionDescendants('lobe','LUL');
             MLULLML2(MLML).SetRegionDescendants('lobe','LML');
+            
+            % set remaining descendants to LUL
+            MLULLML2(MLML) = [];
+            for idx = 1:length(MLULLML2)
+%                 [~,MLUL] = max(MLl2z);
+                MLULLML2(idx).SetRegionDescendants('lobe','LUL');
+            end
 
-            % % Identify right upper lobe
+            % identify right upper lobe
             MRlung = MB(rightMBI).children;
             [~, ~, MRz] = obj.I2S(ClinicalAirways.SkelEnds(MRlung));
             [~,MRULi] = max(MRz);
@@ -157,12 +167,14 @@ classdef ClinicalAirways < TubeNetwork
             % get ancestor list and find intersection
             RML_endpath = [RML_eptube.Ancestors().ID];
             RLL_endpath = [RLL_eptube.Ancestors().ID];
-            [~, intersections] = intersect(RML_endpath, RLL_endpath);
-            RML_RLLNid = RML_endpath(min(intersections));
+            [intersected_B, intersections] = intersect(RML_endpath, RLL_endpath);
 
-            % assign right bronchus intermedius
-            obj.tubes(RML_RLLNid).SetRegion('lobe','B');
-            obj.tubes(RML_RLLNid).SetRegion('name','RightIntermedius');
+            % assign right bronchus intermedius to branches between carina
+            % and RML except the major right bronchus
+            for id = intersected_B(2:end)
+                obj.tubes(id).SetRegion('lobe','B');
+                obj.tubes(id).SetRegion('name','RightIntermedius');
+            end
 
             % assign RML
             RML_id = RML_endpath(min(intersections)-1);
@@ -184,9 +196,188 @@ classdef ClinicalAirways < TubeNetwork
             end
 
             % set gen by lobe
-%             obj.RunAllTubes('SetRegionGeneration', 'lobe')
+            obj.RunAllTubes('SetRegionGeneration', 'lobe')
         end
-    
+        
+        function X = GraphLobarLayout(obj, h, g)
+            % Order lobes in graph plot to standard layout.
+            %
+            % :class:`network.TubeNetwork.Plot` usually orders the lobes randomly.
+            % this function will manipulate x positions of lobes so that
+            % they appear in the standard layout. This helps make plots
+            % more homogenous and therefore comparable to each other.
+            %
+            % .. warning:
+            %   This may cause edges to cross.
+            %
+            % .. todo:
+            %   Integrate a cross over correction mechanism.
+            %
+            %
+            % Args:
+            %   h = graphical object of graph plot
+            %   g = digraph object
+            %
+            % Example:
+            %   >>> run CA_base.m;
+            %   >>> figure;
+            %   >>> [h, g] = AQnet.Plot(colour='lobe');
+            %   >>> AQnet.GraphLobarLayout(h, g)
+            %
+
+            X = h.XData;
+
+            % identify root nodes of lobes
+            lobe_ids = GetTubeValues(obj, 'lobe');
+
+            % find root nodes of lungs
+            lobes = {'RUL', 'RML', 'RLL', 'LLL', 'LML', 'LUL'};
+            lobe_origins_id = zeros(length(lobes),1);
+            % tube index origins in same order as lobes
+            for ii = 1:length(lobes)
+                lobe = lobes{ii};
+                % first occurance of that lobe idx will be the root of it.
+                lobe_origins_id(ii) = find(strcmp(lobe_ids,lobe),1);
+            end
+            
+            % check if lungs in the correct order.
+            % this is done by comparing the parent nodes of the RUL and
+            % LLL.
+
+            % get x pos of the two nodes
+            RUL_edge = find(g.Edges.ID == lobe_origins_id(1));
+            R_node = g.Edges.EndNodes(RUL_edge,1);
+            LLL_edge = find(g.Edges.ID == lobe_origins_id(4));
+            L_node = g.Edges.EndNodes(LLL_edge,1);
+            % right must be less than left
+            if X(R_node) > X(L_node) 
+                % swap the right and left lungs at these nodes.
+                swapnodes(R_node, L_node)
+            end
+                        
+            % focus on ordering right lobes
+
+            all_lobe_node_xpos = get_all_lobe_node_xpos();
+            % if RUL not in 1st pos, swap RUL and right BI
+            % find the two decendents of the RUL node
+            [~,I] = min(all_lobe_node_xpos);
+            if I ~= 1
+                % identify right BI
+                RUL_node = lobe_origins_id(1);
+                R_node_suc = successors(g,R_node);
+                RBI_node = R_node_suc(R_node_suc ~= RUL_node);
+                swapnodes(RBI_node, RUL_node)
+            end
+            % swap RML and RLL if in wrong order
+            if get_lobe_node_xpos(2) > get_lobe_node_xpos(3)
+                % swap LML node and LLL node
+                swapnodes(lobe_origins_id(2), lobe_origins_id(3))
+            end
+            % 
+
+            % focus on ordering left lobes
+            all_lobe_node_xpos = get_all_lobe_node_xpos();
+            left_lobe_node_xpos = all_lobe_node_xpos(4:6);
+            % if LLL not in 1st pos, swap LLL and left BI
+            [~,I] = min(left_lobe_node_xpos);
+            if I ~= 1
+                % swap LLL node and left BI node
+                LLL_node = lobe_origins_id(4);
+                L_node_suc = successors(g,L_node);
+                LBI_node = L_node_suc(L_node_suc ~= LLL_node);
+                swapnodes(LBI_node, LLL_node)
+            end
+
+            % swap LML and LUL if in wrong order
+            if get_lobe_node_xpos(5) > get_lobe_node_xpos(6)
+                % swap LML node and LLL node
+                swapnodes(lobe_origins_id(5), lobe_origins_id(6))
+            end
+
+            % set XData
+            h.XData = X;
+
+            function out = get_lobe_node_xpos(idx)
+                    % get a lobes x position given index in lobe cell array.
+                    lobe_edge = find(g.Edges.ID == lobe_origins_id(idx));
+                    lobe_node = g.Edges.EndNodes(lobe_edge,2);
+                    out = X(lobe_node);
+            end
+
+            function out = get_all_lobe_node_xpos()
+                % get all lobes x postion
+                out = zeros(length(lobes),1);
+                for ii = 1:length(lobes)
+                    out(ii) = get_lobe_node_xpos(ii);
+                end
+            end
+
+            function swapnodes(node_idx_1, node_idx_2)
+                % swaps nodes positions in x of two nodes and all 
+                % subsequent nodes.
+
+                % identify all nodes on 1
+                v1 = dfsearch(g,node_idx_1);
+
+                % identify all nodes on 2
+                v2 = dfsearch(g,node_idx_2);
+
+                % identify relative shift
+                xshift = X(node_idx_1) - X(node_idx_2);
+
+                % execute relative shift.
+                X(v1) = X(v1) - xshift;
+                X(v2) = X(v2) + xshift;
+
+            end
+
+        end
+
+        function node_table = ExportGraph(obj, path)
+        % export the airway network as a graph. If lobe classifications
+        % are present, they will be included.
+        %
+
+        parse_filename_extension(path, '.csv');
+
+        % construct node table
+        id = [obj.tubes.ID]';
+        xyz = cell(length(id),1);
+        edge = cell(length(id),1);
+        for ii = id'
+            % get xyz position from midpoint of tube
+            skelpoints = obj.tubes(ii).skelpoints;
+            midpoint = floor(length(skelpoints)/2);
+            point_pix = obj.I2S(skelpoints(midpoint));
+            point_mm = point_pix .* obj.voxdim;
+            xyz{ii,1} = num2str(point_mm,'% .2f');
+            % convert children nodes to string
+            try
+                children = num2str([obj.tubes(ii).children.ID]);
+            catch
+                children = '';
+            end
+            try
+                parent = num2str(obj.tubes(ii).parent.ID);
+            catch
+                parent = '';
+            end
+            % save edge
+            edge{ii,1} = [parent, ' ', children];
+        end
+        node_table = table(id, edge, xyz);
+
+        try
+            % add lobe classifications if exist
+            lobe = AirQuant.list_property({obj.tubes.region},'lobe')';
+            node_table = addvars(node_table, lobe);
+        catch
+        end
+            
+        % export to csv
+        writetable(node_table, path)
+
+        end
     end
 
     methods(Static)

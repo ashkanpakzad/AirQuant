@@ -40,7 +40,7 @@ classdef AirQuant < handle & matlab.mixin.SetGet & matlab.mixin.Copyable
             if isprop(obj,'sourceinfo')
                 info = obj.sourceinfo;
             elseif isprop(obj,'network')
-                info = obj.network.sourceinfo;
+                info = obj.network.header;
             end
 
             if exist('info','var')

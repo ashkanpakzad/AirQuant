@@ -51,6 +51,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
         Dmap
         tubemat
         tubepath
+        isloops
     end
 
     methods
@@ -283,7 +284,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
                 options.type = 'both'
                 options.usesegcrop logical = false
                 options.method char = 'linear'
-                options.gpu logical = 1
+                options.gpu logical = false
             end
 
             for ii = progress(1:length(obj.tubes), 'Title', 'Making tube patches')
@@ -355,7 +356,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             if nargin < 2
                 method = 'topnode';
             end
-            [g, glink, gnode] = skel_2_digraph(obj.skel, method);
+            [g, glink, gnode, obj.isloops] = skel_2_digraph(obj.skel, method);
         end
 
         function ge = TubesAsEdges(obj)
@@ -363,7 +364,6 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
 
             % init edgetable
             gn = TubesAsNodes(obj);
-            asedges = gn.Edges;
 
             % add incomming edge to nodes that have no incoming edges
             nin = find(indegree(gn) == 0);
@@ -376,7 +376,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
 %                 asedges.EndNodes(height(asedges)+1,:) = [max(asedges.EndNodes(:))+1 nini];
             end
             
-            gn.Edges.ID = gn.Edges.EndNodes(:,2);
+            gn.Edges.ID = str2double(gn.Edges.EndNodes(:,2));
 
             ge = gn;
 
@@ -390,29 +390,41 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             %   * Scope for improving efficiency, variables that change
             %       size.
             %
+            
+            %%% identify origin node of all graphs
+            origintubes = [];
+            % loop through every tube
+            for ii = 1:length(obj.tubes)
+                currenttube = obj.tubes(ii);
+                % for current tube, find the origin tube (tube with no parent)
+                while ~isempty(currenttube.parent)
+                    currenttube = currenttube.parent;
+                end
+                if ~any(origintubes == currenttube)
+                    origintubes = [origintubes, currenttube];
+                end
+            end
 
-            % get all tubes with generation 0
-            zerogentubes = find([obj.tubes(:).generation] == 0);
-
-            % set up initial nodes with zero gen tubes
             g = digraph();
             
             % DFS from each zero gen tube, creating edgetable.
-            for ii = 1:length(zerogentubes)
-                edgestosearch = obj.tubes(zerogentubes(ii));
-                if isempty(edgestosearch.parent) && isempty(edgestosearch.children)
-                    g = addnode(g,1);
+            for origintube = origintubes
+                % case of isolated tube
+                if isempty(origintube.parent) && isempty(origintube.children)
+                    g = addnode(g,num2str(origintube.ID));
+                    continue
                 end
+                % independent DFS search from each origin tube.
+                edgestosearch = origintube;
                 while ~isempty(edgestosearch)
                     current_tube = edgestosearch(1);
-                    parent = current_tube.ID;
+                    edgestosearch(1) = [];
                     if ~isempty(current_tube.children)
                         for childtube = current_tube.children
-                            g = addedge(g, parent, childtube.ID);
+                            g = addedge(g, num2str(current_tube.ID), num2str(childtube.ID));
                             edgestosearch = [edgestosearch, childtube];
                         end
                     end
-                    edgestosearch(1) = [];
                 end
             end
         end
@@ -434,7 +446,13 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             assert(isa(tubefunc,"char") || isa(tubefunc,"string"), ...
                 'tubefunction must be provided as char/string.')
             for ii = progress(1:length(obj.tubes), 'Title', strcat('RunAllTubes: ', tubefunc))
+                try
                 obj.tubes(ii).(tubefunc)(varargin{:});
+                catch e
+                    warning([char(tubefunc), ' failed for tube index ', num2str(ii), ' .'])
+                    fprintf(2,'error identifier :\n%s\n',e.identifier);
+                    fprintf(2,'There was an error! The message was:\n%s\n',e.message);
+                end
             end
         end
 
@@ -496,7 +514,11 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
 
             % get values
             for ii = 1:numtubes
-                label_all = [eval(object_eval).(labelname)];
+                try
+                    label_all = [eval(object_eval).(labelname)];
+                catch % incase tube doesn't have the label
+                    label_all = NaN;
+                end
                 if ischar(label_all)
                     outlabel{ii} = label_all;
                 else
@@ -509,6 +531,25 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
                 outlabel = cell2mat(outlabel);
             end
 
+        end
+
+        function [statsopt, regionopt] = VisualisationOptions(obj)
+            % get visualisation options from :attr:`tubes` by :attr:`tube.Tube.stats` and :attr:`tube.Tube.region`.
+            statsopt = [];
+            regionopt = [];
+
+            % get stats options
+            for ii = 1:length(obj.tubes)
+                if ~isempty(obj.tubes(ii).stats)
+                    current_stats = fieldnames(obj.tubes(ii).stats);
+                    statsopt = [statsopt, setdiff(current_stats,statsopt)];
+                end
+                if ~isempty(obj.tubes(ii).region)
+                    current_region = fieldnames(obj.tubes(ii).region);
+                    regionopt = [regionopt, setdiff(current_region,regionopt)];
+                end
+            end
+            
         end
 
         function [regionkwarg,regionid] = ParseRegion(obj, regionkwarg)
@@ -570,7 +611,11 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             
             % convert labels into numbers
             if isempty(options.types)
-                types = unique(vals);
+                if isfield(obj.regioncategories,options.name)
+                    types = obj.regioncategories.(options.name);
+                else
+                    types = unique(vals);
+                end
             else
                 types = options.types;
             end
@@ -632,7 +677,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
 
         % VISUALISATION
 
-        function h = Plot(obj, options)
+        function [h, ge] = Plot(obj, options)
             % Very powerful graph visualisation tool of tubes. Can
             % manipulate by label, edge weight and colour.
             %
@@ -845,17 +890,17 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             %  colour: *OPTIONAL* `default = 'c'` color of surface. Can be any
             %   MATLAB accepted color format, e.g. RGB.
             %  type(char): *OPTIONAL* `default = 'seg'` can be either
-            %  `'seg'` or `'skel'`. which to plot surface.
-            %  region
+            %   `'seg'` or `'skel'`. which to plot surface.
+            %  smooth_sz(int): *OPTIONAL* `default = 0` size of gaussian 
+            %   smoothing kernel. 0 for no smoothing.
             %
             % .. note:
-            %   plotting multiple patches (>20) significantly reduces
-            %   performance. This is why this function tries to collate everys
-            %   patch that is designated a different colour and then plots
-            %   them. 
+            %   Plotting multiple patches (>20) significantly reduces
+            %   performance. This function attempts to group
+            %   segments of the same colour to plot together.
             % 
             % .. warning:
-            %   Choosing a colour option that is continuous will cause this
+            %   Choosing a colour option with several colours will cause this
             %   method to take a very long time.
             %
             %
@@ -878,6 +923,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
                 options.colour = ''
                 options.colouridx = 1
                 options.type {mustBeMember(options.type,{'seg','skel'})} = 'seg'
+                options.smooth_sz = 0
             end
 
 
@@ -910,6 +956,8 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
                     V(tubeii.([options.type,'points'])) = 1;
                 end
             end
+            
+
 
             % plot each color vol as isosurface individually
 
@@ -917,16 +965,23 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
                 for ii = 1:max(cdata)
                 U = zeros(size(V));
                 U(V==ii) = 1;
+                % smoothing
+                if options.smooth_sz > 0
+                    U = smooth3(U,'gaussian',options.smooth_sz);
+                end
                 patch(isosurface(U),...
                 'FaceAlpha', options.alpha,...
                 'FaceColor', rgb(ii,:),...
                 'EdgeColor', 'none');
                 hold on
                 end
-            else                
+            else
+                if options.smooth_sz > 0
+                    V = smooth3(V,'gaussian',options.smooth_sz);
+                end
                 patch(isosurface(V),...
                 'FaceAlpha', options.alpha,...
-                'FaceColor', 'k',...
+                'FaceColor', 'c',...
                 'EdgeColor', 'none');
                 hold on
             end
@@ -1079,7 +1134,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
 
         end
         
-        function [h, out] = Histogram(obj, options)
+        function [h, out] = Histogram2(obj, options)
             % Plot histogram of :attr:`tubes`.
             %
             %
@@ -1091,6 +1146,9 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             %
             %   Behaviour untested for label containing NaNs.
             %
+            % .. todo::
+            %
+            %   Remove redundant variables.
             %
             % Args:
             %   label = *OPTIONAL* `default = 'generation'` set variable to count.
@@ -1100,14 +1158,16 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             %       in order. 
             %   labelidx(scalar) = *OPTIONAL* `default = 1`. Index of
             %       chosen property in `label`.
-            %   print(bool) = *OPTIONAL* `default = false`. print frequency
+            %   print(bool) = *OPTIONAL* `default = false`. Print frequency
             %       table.
+            %   exact(bool) = *OPTIONAL* `default = false`. Bin values by
+            %       their exact number if label is numerical.
             %  
             %
             % Example:
             %   >>> run CA_base.m;
             %   >>> figure;
-            %   >>> AQnet.PlotGen();
+            %   >>> AQnet.Histogram();
             %
             %
             arguments
@@ -1115,6 +1175,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
                 options.label = 'generation'
                 options.labelidx = 1
                 options.print = false
+                options.exact = false
             end
             
             % get index for each branch
@@ -1123,25 +1184,39 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
 
             % get unique values
             outlabel_unique = unique(outlabel);
-
+            categoricalinput = 0;
             % set up cell for each unique val
             if isnumeric(outlabel_unique)
                 rownames = compose('%d', outlabel_unique);
                 rownames = cellstr(string(rownames));
                 % 2nd variable defines the right side of each bin only
-                [count, ~] = histcounts(outlabel, [outlabel_unique; outlabel_unique(end)+1]);
             else
                 % must be categorical, convert
+                categoricalinput = 1;
                 rownames = outlabel_unique;
                 outlabel = categorical(outlabel);
                 outlabel_unique = categorical(outlabel_unique);
-                [count, ~] = histcounts(outlabel);
             end
 
+            if ~options.exact || categoricalinput
+                % determine counts by binning algorithm if numeric
+                [count, edges] = histcounts(outlabel);
+            else
+                % use exact bins
+                [count, edges] = histcounts(outlabel, [outlabel_unique; outlabel_unique(end)+1]);
+            end
+            
+            if categoricalinput
+                % convert to categoric
+                edges = categorical(edges);
+            else
+                % remove right most edge if numerical.
+                edges = edges(1:end-1);
+            end
 
             % count for all vals
             % show figure result as bar chart
-            h = bar(outlabel_unique, count');
+            h = bar(edges, count');
             title(['Number of tubes per ', options.label])
             xlabel(options.label)
             ylabel('count')
@@ -1161,7 +1236,80 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             end
             
         end
-        
+ 
+        function h = Histogram(obj, options)
+            % Plot histogram of :attr:`tubes`.
+            %
+            %
+            % .. note::
+            %
+            %   Consider case where label contains NaNs.
+            %
+            % .. warning::
+            %
+            %   Behaviour untested for label containing NaNs.
+            %
+            % .. todo::
+            %
+            %   Remove redundant variables.
+            %
+            % Args:
+            %   label = *OPTIONAL* `default = 'generation'` set variable to count.
+            %       if `char` must be an :class:`tube` property, :class:`tube` `stats` or `region` field.
+            %       e.g. `'generation'`, `'arclength'`, `'lobe'`.
+            %       Can also be vector of length equal to number of tubes
+            %       in order. 
+            %   labelidx(scalar) = *OPTIONAL* `default = 1`. Index of
+            %       chosen property in `label`.
+            %   region(char) = *OPTIONAL* `default = ''`. Region to
+            %       group label values by.
+            %  
+            %
+            % Example:
+            %   >>> run CA_base.m;
+            %   >>> figure;
+            %   >>> AQnet.Histogram2();
+            %
+            %
+            arguments
+                obj
+                options.label = 'generation'
+                options.labelidx = 1
+                options.region = ''
+            end
+            
+            % get index for each branch
+            outlabel = GetTubeValues(obj, options.label, options.labelidx);
+            outlabel = outlabel';
+            
+            if ~isempty(options.region)
+                regions = GetTubeValues(obj, options.region, 1);
+            else
+                regions = cell(1, length(outlabel));
+                regions(:) = {'all'};
+            end
+            
+            % make any possible nans into chars
+            [regions{~cellfun(@ischar,regions)}] = deal('none');
+            % convert to categorical for histogram function
+            regions = categorical(regions);
+            regions_unique = unique(regions);
+
+            % count for all vals
+            % show figure result as bar chart
+            tcl = tiledlayout('flow');
+            for iregion = regions_unique
+                nexttile
+                h = histogram(outlabel(regions == iregion));
+                title(iregion)
+                xlabel(options.label)
+                ylabel('count')
+            end
+            title(tcl,options.label)
+            grid on
+
+
+        end
         % Data IO
         
         function ExportOrthoPatches(obj, path, casename, options)
