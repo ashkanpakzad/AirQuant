@@ -9,7 +9,7 @@ if nargin < 3
 end
 
 % save as MATLAB proprietary .fig
-savefig(fig_handle, path)
+savefig(fig_handle, strcat(path,'.fig'));
 % save as image file
 exportgraphics(fig_handle, strcat(path,ext));
 end
