@@ -43,7 +43,7 @@ classdef AQEllipse < handle
             end
             
             % compute values from ellipses
-            if obj.Rx < 0 || obj.Ry < 0 
+            if obj.Rx < 0 || obj.Ry < 0 || isnan(obj.Rx) || isnan(obj.Ry)
                 % if ellipse RA or RB turns out to be negative
                 obj.area = nan;
                 obj.hydraulic_diameter = nan;
@@ -59,7 +59,11 @@ classdef AQEllipse < handle
         end
 
         function obj = FitEllipse(obj)
-            ellipseout = Elliptical_fitting(obj.xpoints, obj.ypoints);
+            points = unique([obj.xpoints, obj.ypoints],'rows');
+            if size(points) < 5
+                error('Need at least 5 points to fit ellipse.')
+            end
+            ellipseout = Elliptical_fitting(points(:,1), points(:,2));
             obj.center = [ellipseout(1), ellipseout(2)];
             obj.Rx = ellipseout(3);
             obj.Ry = ellipseout(4);
