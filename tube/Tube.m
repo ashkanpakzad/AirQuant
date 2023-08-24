@@ -120,7 +120,84 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             obj.FindSplinePoints();
 
         end
+        
+        function obj = SetRoot(obj)
+            % Set this tube as the root in the network.
+            %
+            % The root tube is defined to have no parents and that every connected tube 
+            % will be a decendent. This will manipulate every connected 
+            % tube to ensure it originates from this tube. Tubes which are
+            % flipped in relation (i.e. parent becomes child and vice
+            % versa) will also have its skel points flipped and spline 
+            % remade.
+            %
 
+            if isempty(obj.parent)
+                % already root
+                return
+            end
+            root = obj;
+
+            % init variables
+            newparent = obj;
+            oldparent = newparent.parent;
+            % loop through all parents
+            while ~isempty(oldparent)
+                % old siblings become children
+                siblings = newparent.GetSibling();
+                for sibling = siblings
+                    % eliminate direct relations with old parent
+                    sibling.parent(find(sibling.parent == oldparent)) = [];
+                    oldparent.children(find(oldparent.children == sibling)) = [];
+                    % set sibling as child
+                    newparent.SetChildren(sibling);
+                end
+                
+                % flip parent and children roles
+                newparent.SetChildren(oldparent)
+                % delete old references
+                oldparent.children(find(oldparent.children == newparent)) = [];
+                newparent.parent(find(newparent.parent == oldparent)) = [];
+                
+                % flip parent indices
+                newparent.skelpoints = flip(newparent.skelpoints);
+                % redo spline with flipped indices
+                newparent.MakeSpline();
+                newparent.FindSplinePoints();
+                
+                % prepare next iteration
+                newgrandchild = oldparent.parent(find(oldparent.parent ~= newparent));
+                newparent = oldparent;
+                oldparent = newgrandchild;
+            end
+
+            % set ID by BFS
+            root.SetID_BFS()
+        end
+
+        function obj = SetID_BFS(obj)
+            % set ID of all tubes by BFS from current tube.
+            %
+            % .. warning:
+            %   This will reset all the IDs of tubes. IDs will be duplicates
+            %   if the tube network is not a complete component.
+            %
+            id = 1;
+            obj.ID = id;
+            todo = obj.children;
+            while ~isempty(todo)
+                current = todo(1);
+                todo(1) = [];
+                id = id + 1;
+                current.ID = id;
+                todo = [todo, current.children];
+            end
+
+            % sort array by new id in tube network object
+            [~,idx]=sort([obj.network.tubes.ID]);
+            obj.network.tubes = obj.network.tubes(idx);
+        end
+        
         function obj = SetChildren(obj, tube)
             % Set children of tube.
             %
@@ -337,7 +414,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             % get linear indexed points of previous branch if available.
             if options.useparent == true && ~isempty(obj.parent)
                 parent_points = obj.parent.skelpoints;
-                [x_p1, y_p1, z_p1] = I2S(size(obj.network.skel), parent_points);
+                [x_p1, y_p1, z_p1] = I2S(obj,parent_points);
             else
                 x_p1 = []; y_p1 = []; z_p1 = [];
             end
@@ -1843,7 +1920,9 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
                     canvas_sz = floor(obj.network.max_plane_sz/obj.network.plane_sample_sz);
                     image_sz = size(tubearray(:,1),1);
                     min_centre = canvas_sz/2 - image_sz/2;
-                    obj.measures{ii,pos}.plot(min_centre, ax, showellipses, showpoints);
+                    if isa(obj.measures{ii,pos},'AQEllipse')
+                        obj.measures{ii,pos}.plot(min_centre, ax, showellipses, showpoints);
+                    end
                 end
             end
         end
