@@ -107,7 +107,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             options.max_plane_sz = nan
             options.reorient logical = 1
             options.voxdim (1,3)
-            options.originmethod = 'topnode';
+            options.originmethod = 'largest';
             end
 
             assert(all(~skel,'all') == false, 'Skel appears to be empty.')
@@ -218,11 +218,10 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
                 num2str(obj.max_plane_sz)])
 
             % Convert skel into digraph
-            [~, glink, ~] = Skel2Digraph(obj, options.originmethod);
+            [~, glink, ~] = Skel2Digraph(obj, 'topnode');
 
             % make tube objects
             obj.MakeTubes(glink);
-            
             disp(strcat(num2str(length(glink)), ' tubes found.'))
 
             % set tube relationships
@@ -232,6 +231,14 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
                     obj.tubes(ii).SetChildren(obj.tubes(iii));
                 end
             end
+            
+            % classify segmentation to tubes
+            if isfield(options,'seg')
+                obj.ClassifySegmentationTubes();
+            end
+
+            % set origin node by method
+            obj.SetOrigin(options.originmethod)
 
             obj.RunAllTubes('SetGeneration');
 
@@ -241,10 +248,6 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             obj.RunAllTubes('ComputeParentAngle');
             obj.RunAllTubes('ComputeSiblingAngle',0);
 
-            % classify segmentation to tubes
-            if isfield(options,'seg')
-                obj.ClassifySegmentationTubes();
-            end
         end
 
         function obj = MakeTubes(obj, glink)
@@ -428,7 +431,21 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
                 end
             end
         end
+    
+        function obj = SetOrigin(obj, method)
+        % set the origin node by desired method
+        if strcmp(method, 'topnode') || strcmp(method, 'none')
+            return
+        elseif strcmp(method, 'largest') && ~isempty(obj.seg)
+            % choose tube with most segmentation points
+            [~,I] = max(cellfun(@length,{obj.tubes.segpoints}));
+        elseif strcmp(method, 'largest') && isempty(obj.seg)
+            [~,I] = max(cellfun(@length,{obj.tubes.skelpoints}));
+        end
+        obj.tubes(I).SetRoot()
 
+        end
+        
         % UTILITIES
 
         function obj = RunAllTubes(obj, tubefunc, varargin)
@@ -1292,10 +1309,12 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
                 regions(:) = {'all'};
             end
             
-            % make any possible nans into chars
-            [regions{~cellfun(@ischar,regions)}] = deal('none');
-            % convert to categorical for histogram function
-            regions = categorical(regions);
+            if iscell(regions)
+                % make any possible nans into chars
+                [regions{~cellfun(@ischar,regions)}] = deal('none');
+                % convert to categorical for histogram function
+                regions = categorical(regions);
+            end
             regions_unique = unique(regions);
 
             % count for all vals
@@ -1314,6 +1333,45 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
 
         end
         % Data IO
+
+        function node_table = ExportGraph(obj, path)
+        % export the airway network as a graph. If lobe classifications
+        % are present, they will be included.
+        %
+
+        parse_filename_extension(path, '.csv');
+
+        % construct node table
+        id = [obj.tubes.ID]';
+        xyz = cell(length(id),1);
+        edge = cell(length(id),1);
+        for ii = id'
+            % get xyz position from midpoint of tube
+            skelpoints = obj.tubes(ii).skelpoints;
+            midpoint = floor(length(skelpoints)/2);
+            point_pix = obj.I2S(skelpoints(midpoint));
+            point_mm = point_pix .* obj.voxdim;
+            xyz{ii,1} = num2str(point_mm,'% .2f');
+            % convert children nodes to string
+            try
+                children = num2str([obj.tubes(ii).children.ID]);
+            catch
+                children = '';
+            end
+            try
+                parent = num2str(obj.tubes(ii).parent.ID);
+            catch
+                parent = '';
+            end
+            % save edge
+            edge{ii,1} = [parent, ' ', children];
+        end
+        node_table = table(id, edge, xyz);
+            
+        % export to csv
+        writetable(node_table, path)
+
+        end
         
         function ExportSlicerLine(obj, path, options)
             arguments
