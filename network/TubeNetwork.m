@@ -379,7 +379,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
 %                 asedges.EndNodes(height(asedges)+1,:) = [max(asedges.EndNodes(:))+1 nini];
             end
             
-            gn.Edges.ID = str2double(gn.Edges.EndNodes(:,2));
+            gn.Edges.ID = gn.Edges.EndNodes(:,2);
 
             ge = gn;
 
@@ -430,6 +430,8 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
                     end
                 end
             end
+            % remove node names
+            g.Nodes.Name = '';
         end
     
         function obj = SetOrigin(obj, method)
