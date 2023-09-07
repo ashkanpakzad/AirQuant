@@ -44,7 +44,7 @@ classdef VesselFWHMesl < SuperMeasure
             %
 
             if nargin < 2
-                num_rays = 30;
+                num_rays = 64;
             end
 
             if nargin < 2
@@ -72,11 +72,8 @@ classdef VesselFWHMesl < SuperMeasure
                         num_rays, ray_interval);
 
                     % compute FWHM points of ray
-                    [innerraypoints, ~, outerraypoints] = compute_vessel_fwhm(...
+                    arraypoints = compute_vessel_fwhm(...
                         source_rays, seg_rays, coords, outlierremoval);
-
-                    % cat array points 
-                    arraypoints = cat(1,innerraypoints,outerraypoints);
 
                     % compute ellipses
                     ellipse{k,1} = AQEllipse(obj.pixsize, arraypoints);

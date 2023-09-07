@@ -1,4 +1,4 @@
-function [FWHMl, FWHMp, FWHMr] = compute_vessel_fwhm(source_rays, ...
+function [FWHM] = compute_vessel_fwhm(source_rays, ...
         seg_rays, coords, outlier_removal)
     % Identify fwhm of vessel using findpeaks on CT image only.
 
@@ -58,27 +58,25 @@ function [FWHMl, FWHMp, FWHMr] = compute_vessel_fwhm(source_rays, ...
 
     end
 
-    % anomaly correction on inner ONLY
-    valid_rays = [1:number_of_rays]';
+    % anomaly correction
+    % concatenate the two sets of right and left
+    FWHM_r = cat(1,FWHMl_r,FWHMr_r);
+    valid_rays = repmat([1:number_of_rays]',2,1);
+
+    % compute midpoint of profile (center of vessel)
+    midpoint = size(source_rays,1)/2;
+
     if outlier_removal == true
         % identify any outliers by width.
-        [~,anomalies] = rmoutliers(FWHMr_r-FWHMl_r, 'median');
+        [~,anomalies] = rmoutliers(abs(FWHM_r-midpoint), 'median');
         valid_rays = valid_rays(~anomalies);
-        FWHMl_r = FWHMl_r(~anomalies);
-        FWHMp_r = FWHMp_r(~anomalies);
-        FWHMr_r = FWHMr_r(~anomalies);
+        FWHM_r = FWHM_r(~anomalies);
     end
 
     % convert radial index into plane coordinates
-    FWHMl_x = DualIndex(coords(:,:,1), FWHMl_r, valid_rays);
-    FWHMl_y = DualIndex(coords(:,:,2), FWHMl_r, valid_rays);
-    FWHMp_x = DualIndex(coords(:,:,1), FWHMp_r, valid_rays);
-    FWHMp_y = DualIndex(coords(:,:,2), FWHMp_r, valid_rays);
-    FWHMr_x = DualIndex(coords(:,:,1), FWHMr_r, valid_rays);
-    FWHMr_y = DualIndex(coords(:,:,2), FWHMr_r, valid_rays);
+    FWHM_x = DualIndex(coords(:,:,1), FWHM_r, valid_rays);
+    FWHM_y = DualIndex(coords(:,:,2), FWHM_r, valid_rays);
 
     % output
-    FWHMl = cat(2, FWHMl_x, FWHMl_y);
-    FWHMp = cat(2, FWHMp_x, FWHMp_y);
-    FWHMr = cat(2, FWHMr_x, FWHMr_y);
+    FWHM = cat(2, FWHM_x, FWHM_y);
 end
