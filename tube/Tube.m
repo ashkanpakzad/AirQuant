@@ -877,7 +877,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             end
 
             assert(~isempty(obj.patchprop.perimeter), ...
-                'No hydraulic_diameter in patchprop. Need measurements.')
+                'No perimeter in patchprop. Need measurements.')
 
             % prune the two variables
             pruned = obj.PruneMeasure(obj.patchprop.perimeter);
@@ -1147,6 +1147,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             obj.ComputeMeanMinMajDiameters();
             obj.ComputeMeanDiameter();
             obj.ComputeMeanHydraulicD();
+            obj.ComputeMeanPerimeter();
             obj.ComputeMeanArea();
             obj.ComputeIntrataper();
             obj.ComputeGradient();
