@@ -13,6 +13,7 @@ classdef AQEllipse < handle
         min_diameter
         maj_diameter
         diameter
+        perimeter
         hydraulic_diameter
     end
     methods
@@ -54,6 +55,7 @@ classdef AQEllipse < handle
                 obj.Area();
                 obj.MinMajDiameters();
                 obj.NominalDiameter();
+                obj.Perimeter();
                 obj.HydraulicDiameter();
             end
         end
@@ -89,6 +91,11 @@ classdef AQEllipse < handle
             nominaldiameter = nominalradius*2;
             obj.diameter = nominaldiameter;
         end
+        
+        function perimeter = Perimeter(obj)
+            perimeter = ellipsePerimeter(obj.Rx,obj.Ry,5);
+            obj.perimeter = perimeter;
+        end
 
         function hydraulic_diameter = HydraulicDiameter(obj)
             % Compute the hydraulic diameter for this ellipse.
@@ -112,7 +119,11 @@ classdef AQEllipse < handle
             end
 
             % compute perimeter
-            perimeter = ellipsePerimeter(obj.Rx,obj.Ry,5);
+            if ~isempty(obj.perimeter)
+                perimeter = obj.perimeter;
+            else
+                perimeter = obj.Perimeter();
+            end
 
             % compute
             hydraulic_diameter = 4*area/perimeter;

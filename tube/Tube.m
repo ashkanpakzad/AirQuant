@@ -862,6 +862,33 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             obj.stats.diameter_trim = trim;
         end
 
+        function meanPerimeter= ComputeMeanPerimeter(obj, trim)
+            % Computes the trim mean perimeter of each measurement type in
+            % :attr:`tube.Tube.patchprop.perimeter.
+            %
+            % Args:
+            %   trim(float): *OPTIONAL* `default = 0` trim as % of extremes
+            %   of data to discard in trimmean calculation.
+            %
+            %
+
+            if nargin < 2
+                trim = 0;
+            end
+
+            assert(~isempty(obj.patchprop.perimeter), ...
+                'No hydraulic_diameter in patchprop. Need measurements.')
+
+            % prune the two variables
+            pruned = obj.PruneMeasure(obj.patchprop.perimeter);
+
+            % compute average
+            meanPerimeter = real(trimmean(pruned', trim));
+            obj.stats.perimeter_mean = meanPerimeter;
+            obj.stats.perimeter_trim = trim;
+        end
+
+
         function meanHydraulicDval = ComputeMeanHydraulicD(obj, trim)
             % Computes the trim mean hydraulic diameter of each measurement type in
             % :attr:`tube.Tube.patchprop.hydraulic_diameter`.
@@ -1110,6 +1137,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             obj.patchprop.maj_diameters = classmeasures.OutputVar('maj_diameter');  
             obj.diameters = classmeasures.OutputVar('diameter');
             obj.areas = classmeasures.OutputVar('area');
+            obj.patchprop.perimeter = classmeasures.OutputVar('perimeter');
             % get hydraulic diameter if exist
             try
                 obj.patchprop.hydraulic_diameter = classmeasures.OutputVar('hydraulic_diameter');
