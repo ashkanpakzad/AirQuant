@@ -443,6 +443,8 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             [~,I] = max(cellfun(@length,{obj.tubes.segpoints}));
         elseif strcmp(method, 'largest') && isempty(obj.seg)
             [~,I] = max(cellfun(@length,{obj.tubes.skelpoints}));
+        else
+            error(['Set valid origin method. Got ', method])
         end
         obj.tubes(I).SetRoot()
 
