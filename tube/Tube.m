@@ -1932,7 +1932,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
 
     end
 
-    methods (Access = protected)
+    methods %(Access = protected)
         function UpdateAnnotateOrthoviewer(obj,tubearray,ax,pos,rings,showellipses,showpoints)
             % internal function that updates the interactive plot of
             % :meth:`OrthoView`.
