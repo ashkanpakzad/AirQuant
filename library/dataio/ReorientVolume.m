@@ -32,7 +32,9 @@ function [output, outvoxdim] = ReorientVolume(source, meta)
     aff_raw_RAS = aff_raw_RAS./abs(aff_raw_RAS);
     aff_raw_RAS(isnan(aff_raw_RAS)) = 0;
     % convert to LPS affine
-    aff_raw_LPS = aff_raw_RAS*diag([-1,-1,1,1]);
+    aff_raw_LPS = aff_raw_RAS;
+    aff_raw_LPS(1,:) = aff_raw_LPS(1,:) * -1;
+    aff_raw_LPS(2,:) = aff_raw_LPS(2,:) * -1;
 
     % take absolute values to figure out anatomical axes
     aff_raw_LPS_pos = abs(aff_raw_LPS);
