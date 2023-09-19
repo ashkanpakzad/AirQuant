@@ -1490,7 +1490,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             % map patch count to continuous index
             for id = 1:length(obj.tubes)
                 tube = obj.tubes(id);
-                n_tube_patches = length(tube.source);
+                n_tube_patches = size(tube.source,3);
                 map = [ones(n_tube_patches,1)*id,(1:n_tube_patches)'];
                 if id == 1
                     mapping = map;
@@ -1504,13 +1504,13 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             randi = randperm(npatches);
 
             if npatches < ngrid
-                warning('Not enough patches in tar file for grid. Resizing grid.')
+                warning('Not enough patches. Resizing grid.')
                 n_cols = floor(npatches/n_rows);
                 ngrid = n_rows*n_cols;
             end
 
             % synthesize the grid
-            patch_size = size(obj.tubes(1).source{1,1});
+            patch_size = size(obj.tubes(1).source(:,:,1));
             grid = uint8(zeros(patch_size(1)*n_rows, patch_size(2)*n_cols, 3));
             k=1;
             for i=1:n_rows
@@ -1519,7 +1519,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
                     tube = obj.tubes(patch_map(1));
 
                     % convert from cell stack to 3D array.
-                    tubearray = ParseVolOut(tube, type="source");
+                    tubearray = tube.source;
 
                     % instantiate orthosliceviewer
                     s = tube.OrthoView(type="source", rings=options.rings, ...
