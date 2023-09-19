@@ -43,7 +43,7 @@ function [skip, runinfo] = wf_clinicalairways_fwhmesl(casename, sourcef, segf, s
         
         % Load CT data as double
         meta = niftiinfo(sourcef);
-        CT = double(niftiread(meta));
+        CT = niftiread(meta);
         
         % Load Airway segmentation and its skeleton as logicals
         S = logical(niftiread(segf));
@@ -122,7 +122,7 @@ function [skip, runinfo] = wf_clinicalairways_fwhmesl(casename, sourcef, segf, s
         tarpath = fullfile(results_dir,[casename, '_patches.tar']);
         AQnet.RunAllTubes('ExportOrthoPatches',tarpath, casename);
         % save grid preview of patches
-        AQnet.grid_preview_measures(4, 4,savepath=fullfile(results_dir,[casename, '_patch_preview.png']));
+        AQnet.grid_preview_measures(4, 4,savepath=fullfile(results_dir,[casename, '_patch_preview_fwhm.png']));
 
         % generate post analysis figures
         % plot 2d - avg D

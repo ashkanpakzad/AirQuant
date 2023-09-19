@@ -23,7 +23,7 @@ skel_name = [dataname, '_airway_PTKskel.nii.gz'];
 % Load the source CT metadata information
 meta = niftiinfo(CT_name);
 % Load CT data as double
-source = double(niftiread(meta));
+source = niftiread(meta);
 
 % Load Airway segmentation and its skeleton as logicals
 seg = logical(niftiread(seg_name));

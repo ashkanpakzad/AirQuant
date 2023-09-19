@@ -1,7 +1,8 @@
 % Parent function to set up and run AQ on several cases based on given
 % config file
 
-function [skip, runinfo] = wf_clinicalvessels_fwhmesl(casename, sourcef, segf, skelf, root_results_dir)
+function [skip, runinfo] = wf_clinicalvessels_fwhmesl(casename, sourcef, ...
+    segf, skelf, root_results_dir)
 
     % prune ends of airways
     prune_ends = [2, 2];
@@ -43,7 +44,7 @@ function [skip, runinfo] = wf_clinicalvessels_fwhmesl(casename, sourcef, segf, s
         
         % Load CT data as double
         meta = niftiinfo(sourcef);
-        CT = double(niftiread(meta));
+        CT = niftiread(meta);
         
         % Load Airway segmentation and its skeleton as logicals
         S = logical(niftiread(segf));
