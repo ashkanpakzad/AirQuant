@@ -1474,15 +1474,11 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             end
         end
         
-        function grid = grid_preview_measures(obj, n_rows, n_cols, options)
+        function grid_preview_measures(obj, n_rows, n_cols)
             arguments
                 obj
                 n_rows
                 n_cols
-                options.rings = ones(size(obj.tubes(1).measures,1),1)'
-                options.ellipses = true
-                options.points = false
-                options.savepath = 'patch_preview.png'
             end
             % export grid of preview of patches, with measures
             %
@@ -1499,62 +1495,21 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
                 end
             end
             npatches = length(mapping);
-            ngrid = n_rows*n_cols;
             % sample n desired patches
             randi = randperm(npatches);
-
-            if npatches < ngrid
-                warning('Not enough patches in tar file for grid. Resizing grid.')
-                n_cols = floor(npatches/n_rows);
-                ngrid = n_rows*n_cols;
+            
+            f = gcf;
+            % force figure to be square
+            f.Position(3:4) = [800, 800];
+            tiledlayout(n_rows,n_cols,"TileSpacing","none")
+            
+            for k = randi(1:n_rows*n_cols)
+                patch_map = mapping(randi(k),:);
+                tube = obj.tubes(patch_map(1));
+                nexttile;
+                tube.View(patch_map(2));
+                axis off
             end
-
-            % synthesize the grid
-            patch_size = size(obj.tubes(1).source{1,1});
-            grid = uint8(zeros(patch_size(1)*n_rows, patch_size(2)*n_cols, 3));
-            k=1;
-            for i=1:n_rows
-                for j=1:n_cols
-                    patch_map = mapping(randi(k),:);
-                    tube = obj.tubes(patch_map(1));
-
-                    % convert from cell stack to 3D array.
-                    tubearray = ParseVolOut(tube, type="source");
-
-                    % instantiate orthosliceviewer
-                    s = tube.OrthoView(type="source", rings=options.rings, ...
-                        ellipses=options.ellipses, points=options.points);
-                    [ax, ~, ~] = getAxesHandles(s);
-
-                    set(s,'CrosshairEnable','off');
-
-                    % Update z slice number and annotation to get XY Slice.
-                    s.SliceNumbers(3) = patch_map(2);
-                    tube.UpdateAnnotateOrthoviewer(tubearray,ax, patch_map(2),...
-                        options.rings,options.ellipses,options.points);
-
-                    % Use getframe to capture image.
-                    I = getframe(ax);
-                    patch = I.cdata;
-                    % pad if patchsize < expected
-                    size_diff = patch_size - size(patch,[1,2]);
-                    if any(size_diff > 0)
-                        patch = padarray(patch, size_diff/2);
-                    end
-
-                    grid((i-1)*patch_size(1)+1:i*patch_size(1), ...
-                        (j-1)*patch_size(2)+1:j*patch_size(2),:) = patch;
-                    k=k+1;
-                end
-            end
-
-
-            % balance the grid
-            [indI,cm] = rgb2ind(grid,256);
-            %         grid = imadjust(rescale(grid));
-
-            % save the grid as png
-            imwrite(indI,cm, options.savepath);
 
         end
 
