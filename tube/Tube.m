@@ -1327,6 +1327,74 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
 
         end
 
+        function h = View(obj, idx, options)
+            % View a series of patches of tube slices as a volume image
+            % stack using MATLAB's inbuilt othogonal 3d viewer.
+            %
+            % .. todo::
+            %   * add 4th panel to show plot
+            %   * make scrollable by mousewheel
+            %   * link to orthosliceviewer
+            %
+            % Args:
+            %   type(char): *OPTIONAL* `default = 'source' object property
+            %       that is a 3D array to view.
+            %   rings(bool array): *OPTIONAL* `default = 
+            %       ones(1,size(:attr:`measures`,1))` same length as number
+            %       of measures per patch, i.e. number of rings. For each
+            %       ring to visualise. All rings by default.
+            %   ellipses(bool): *OPTIONAL* `default = true` to view 
+            %       ellipses of measure if available.
+            %   points(bool): *OPTIONAL* `default = true` to view 
+            %       points of measure if available.
+            %
+            % Return:
+            %   1 variable
+            %   * s(`orthosliceViewer`): handle to created graphics
+            %
+            % Example:
+            %   >>> run CA_base.m;
+            %   >>> figure;
+            %   >>> AQnet.tubes(98).View();
+            %
+            % .. |tube_Tube_OrthoView| image:: figs/tube_orthoview.png
+            %    :width: 400
+            %    :alt: figure plot - Tube Orthoview
+            %
+            % |tube_Tube_OrthoView|
+            %
+
+            arguments
+                obj
+                idx
+                options.type {mustBeMember(options.type,{'source','seg'})} = 'source'
+                options.ellipses = true
+                options.points = false
+            end
+
+            % convert from cell stack to 3D array.
+            tubearray = get(obj,options.type);
+            patch = tubearray(:,:,idx);
+
+            h = imagesc(patch);
+            ax = gca();
+            colormap(ax,'gray');
+            daspect(obj.voxdim)
+            
+            % set annotation
+            measure = obj.measures(:,idx);
+            for ii = 1:length(measure)
+                % get centre displacement
+                canvas_sz = floor(obj.network.max_plane_sz/obj.network.plane_sample_sz);
+                image_sz = size(patch,1);
+                min_centre = canvas_sz/2 - image_sz/2;
+                if isa(obj.measures{ii,idx},'AQEllipse')
+                    obj.measures{ii,idx}.plot(min_centre, ax, options.ellipses, options.points);
+                end
+            end
+
+        end
+
         % 3D visualisation - level 1
         function h = Plot3(obj, color)
             % plot this tube as a line as if an edge on a 3D network graph.
