@@ -1167,14 +1167,14 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             obj.areas = [];
             
             % clear derived measures
-            para_fields = ["min_diameters", "maj_diameters", "perimeter", ...
-                    "hydraulic_diameter"];
-            obj.patchprop = rmfield(obj.patchprop,para_fields);
-            stat_fields = ["intertaper", "volume", "gradient", "intrataper",...
-                "area_trim", "area_mean", "perimeter_trim", "perimeter_mean", ...
-                "hydraulicD_trim", "hydraulicD_mean", "diameter_trim", "diameter_mean", ... 
-                "minmajdiameter_trim", "maj_diameter_mean", "min_diameter_mean"];
-            obj.stats = rmfield(obj.stats,stat_fields);
+
+            % get fields and remove ones to keep.
+            pp_fields = fields(obj.patchprop);
+            pp_fields = pp_fields(3:end,:);
+            obj.patchprop = rmfield(obj.patchprop,pp_fields);
+            s_fields = fields(obj.stats);
+            s_fields = s_fields(7:end,:);
+            obj.stats = rmfield(obj.stats,s_fields);
         end
 
         % 2D visualisation
