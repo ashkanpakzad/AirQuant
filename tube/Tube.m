@@ -1154,6 +1154,29 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             obj.ComputeVolume();
         end
 
+        function obj = ClearMeasures(obj)
+            % clear all measures related to diameter
+            %
+            % ..todo:
+            %       Need a method to identify such measures automatically
+            %           instead of hardcoding.
+            % clear measures
+            obj.measures = [];
+            obj.method = [];
+            obj.diameters = [];
+            obj.areas = [];
+            
+            % clear derived measures
+            para_fields = ["min_diameters", "maj_diameters", "perimeter", ...
+                    "hydraulic_diameter"];
+            obj.patchprop = rmfield(obj.patchprop,para_fields);
+            stat_fields = ["intertaper", "volume", "gradient", "intrataper",...
+                "area_trim", "area_mean", "perimeter_trim", "perimeter_mean", ...
+                "hydraulicD_trim", "hydraulicD_mean", "diameter_trim", "diameter_mean", ... 
+                "minmajdiameter_trim", "maj_diameter_mean", "min_diameter_mean"];
+            obj.stats = rmfield(obj.stats,stat_fields);
+        end
+
         % 2D visualisation
         function h = plot(obj, options)
             % Line plot two object properties with linear regression
