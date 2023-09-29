@@ -722,8 +722,9 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             %       in order. 
             %   weightidx(scalar) = *OPTIONAL* `default = 1`. Index of
             %       chosen property in `weight`.
-            %   weightfactor(float) = *OPTIONAL* `default = 1`
-            %     determines the highest scaling of the linethickness.
+            %   weightfactor(float) = *OPTIONAL* `default = NaN`
+            %     determines the highest scaling of the linethickness. if
+            %     Nan then no scaling is applied.
             %   colour(char) = *OPTIONAL* `default = 1`. Set variable for
             %       colour labelling.
             %       if `char` must be an :class:`tube` property, :class:`tube` `stats` or `region` field.
@@ -752,7 +753,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
                 options.labelidx = 1
                 options.weight = ''
                 options.weightidx = 1
-                options.weightfactor = 1
+                options.weightfactor = NaN
                 options.colour = ''
                 options.colouridx = 1
             end
@@ -798,7 +799,12 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
 
             % scale up thickest line
             max_thick = max(edgevar);
-            scale = options.weightfactor/max_thick;
+            if ~isnan(options.weightfactor)
+                scale = options.weightfactor/max_thick;
+            else
+                scale = 1;
+            end
+
             edgevar = edgevar*scale;
 
             % set nan or 0 variable edges to very small value
