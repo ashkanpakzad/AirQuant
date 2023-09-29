@@ -655,7 +655,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             
             % plane size
             plane_size_mm = obj.network.max_plane_sz;
-            plane_size_pix = obj.network.max_plane_sz/options.sample_sz;
+            plane_size_pix = floor(obj.network.max_plane_sz/options.sample_sz);
 
             % set up slice store
             reformedimages = zeros(plane_size_pix,plane_size_pix,length(obj.patchprop.parapoints),'single');
