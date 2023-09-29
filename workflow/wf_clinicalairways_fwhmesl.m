@@ -7,7 +7,7 @@ function [skip, runinfo] = wf_clinicalairways_fwhmesl(casename, sourcef, segf, s
     prune_ends = [2, 2];
 
     % recommended fwhmesl parameters
-    num_rays = 60;
+    num_rays = 180; 
     ray_interval = 0.2;
 
 %% run loop
@@ -116,13 +116,17 @@ function [skip, runinfo] = wf_clinicalairways_fwhmesl(casename, sourcef, segf, s
         save(savename, "AQnet");
         
         % save measurements
-       (fullfile(results_dir,strcat(casename,"_FWHMesl")));
+        AQnet.ExportCSV(fullfile(results_dir,strcat(casename,"_FWHMesl")));
 
         % save orthopatches
         tarpath = fullfile(results_dir,[casename, '_patches.tar']);
         AQnet.RunAllTubes('ExportOrthoPatches',tarpath, casename);
+        
         % save grid preview of patches
-        AQnet.grid_preview_measures(4, 4,savepath=fullfile(results_dir,[casename, '_patch_preview.png']));
+        f = figure();
+        AQnet.grid_preview_measures(4, 4);
+        exportgraphics(f,fullfile(results_dir,strcat(casename, '_patch_preview_fwhm.png')));
+        close(f);
 
         % generate post analysis figures
         % plot 2d - avg D
