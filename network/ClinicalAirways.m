@@ -294,6 +294,28 @@ classdef ClinicalAirways < TubeNetwork
                 swapnodes(lobe_origins_id(5), lobe_origins_id(6))
             end
 
+            % check if any are overlapped.
+            % get range of each lung
+            X_R = X(dfsearch(g,R_node));
+            X_L = X(dfsearch(g,L_node));
+            overlap = max(X_R)-min(X_L);
+
+            % shift each lung by half overlap.
+            X(dfsearch(g,R_node)) = X(dfsearch(g,R_node)) - overlap/2 - 1;
+            X(dfsearch(g,L_node)) = X(dfsearch(g,L_node)) + overlap/2 + 1;
+            
+            % tighten RML and RLL lobes
+            % move RML towards RLL
+            tighten(2,3,1,0)
+            % move RUL towards RML
+            tighten(1,2,1,0)
+            
+            % move LML towards LLL
+%             tighten(4,5,0,1)
+            % move LUL towards LML
+%             tighten(5,6,0,1)
+
+
             % set XData
             h.XData = X;
 
@@ -331,7 +353,32 @@ classdef ClinicalAirways < TubeNetwork
 
             end
 
+            function out = get_lobe(idx)
+                lobe_edge = find(g.Edges.ID == lobe_origins_id(idx));
+                lobe_node = g.Edges.EndNodes(lobe_edge,2);
+                out = dfsearch(g,lobe_node);
+            end
+            
+            function [xmin, xmax] = get_lobe_xrange()
+                xmin = zeros(6,1); 
+                xmax = zeros(6,1);
+                for idx = 1:6
+                    out = X(get_lobe(idx));
+                    xmin(idx,1) = min(out);
+                    xmax(idx,1) = max(out);
+                end
+            end
+
+            function tighten(Lidx,Ridx,Lfac,Rfac)
+                L_lobe = dfsearch(g,lobe_origins_id(Lidx));
+                R_lobe = dfsearch(g,lobe_origins_id(Ridx));
+                distance = min(X(R_lobe)) - max(X(L_lobe));
+                X(L_lobe) = X(L_lobe) + distance*Lfac + 0.5;
+                X(R_lobe) = X(R_lobe) + distance*Rfac - 0.5;
+            end
         end
+
+        
 
         function node_table = ExportGraph(obj, path)
         % export the airway network as a graph. If lobe classifications
