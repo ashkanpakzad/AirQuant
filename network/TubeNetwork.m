@@ -234,11 +234,13 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             
             % classify segmentation to tubes
             if isfield(options,'seg')
-                obj.ClassifySegmentationTubes();
+                classedseg = obj.ClassifySegmentationTubes();
+            else
+                classedseg = obj.ClassifySkeletonisationTubes();
             end
 
             % set origin node by method
-            obj.SetOrigin(options.originmethod)
+            obj.SetOrigin(options.originmethod,classedseg)
 
             obj.RunAllTubes('SetGeneration');
 
@@ -311,20 +313,25 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             end
 
         end
+        
+        function classedskel = ClassifySkeletonisationTubes(obj)
+            % create classified skeleton
+            classedskel = zeros(size(obj.skel));
+            for ii = 1:length(obj.tubes)
+                classedskel(obj.tubes(ii).skelpoints) = obj.tubes(ii).ID;
+            end
+        end
 
-        function obj = ClassifySegmentationTubes(obj)
+        function classedseg = ClassifySegmentationTubes(obj)
             % Classify :attr:`seg` into its tube components.
             %
             % Classifies every foreground point of :attr:`seg` to the
             % nearest point in :attr:`skel`. Assigning it to the respective
             % :class:`tube.Tube` object in :attr:`tubes`.
             %
-
+        
             % create classified skeleton
-            classedskel = zeros(size(obj.skel));
-            for ii = 1:length(obj.tubes)
-                classedskel(obj.tubes(ii).skelpoints) = obj.tubes(ii).ID;
-            end
+            classedskel = obj.ClassifySkeletonisationTubes();
 
             % get list of everypoint on segmentation
             [XPQ, YPQ, ZPQ] = obj.I2S(find(obj.seg == 1));
@@ -434,14 +441,37 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             g.Nodes.Name = '';
         end
     
-        function obj = SetOrigin(obj, method)
+        function obj = SetOrigin(obj, method, classedseg)
         % set the origin node by desired method
-        if strcmp(method, 'topnode') || strcmp(method, 'none')
+        if isnumeric(method)
+            % numerical origin in RAS provided.
+            if length(method) == 3 && numel(method) == 3
+                if isrow(method)
+                    % ensure it is a vertical vector
+                    method = method';
+                end
+                % convert RAS origin to IJK in context of image
+                ijk = round(obj.RAS2IJK(method));
+                if any(ijk < 0) || any(ijk' > size(obj.source))
+                    % ensure ijk is within ROI
+                    error(['Provided origin is outside of ROI. Got ijk: ', ijk])
+                end
+                % identify which tube this coordinate is within by
+                % seg/skel.
+                I = classedseg(ijk(1),ijk(2),ijk(3));
+                if I == 0
+                    error('origin must be exactly within segmentation (if available, otherwise skeleton)')
+                end
+            else
+                error(['numerical origin must be a vector of length 3. Got ', method])
+            end
+        elseif strcmp(method, 'topnode') || strcmp(method, 'none')
             return
         elseif strcmp(method, 'largest') && ~isempty(obj.seg)
-            % choose tube with most segmentation points
+            % choose tube with most segmentation points if available
             [~,I] = max(cellfun(@length,{obj.tubes.segpoints}));
         elseif strcmp(method, 'largest') && isempty(obj.seg)
+            % choose tube with longest skeleton
             [~,I] = max(cellfun(@length,{obj.tubes.skelpoints}));
         else
             error(['Set valid origin method. Got ', method])
@@ -1343,6 +1373,19 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
 
         end
         % Data IO
+
+        function [ijk] = RAS2IJK(obj,ras)
+            % RAS2IJK converts from RAS to IJK coordinates and crops.
+            % see :func:`RAS2IJK` for more details.
+            %
+            
+            % apply affine transform
+            ijk_whole = ras_2_ijk(ras, obj.header);
+
+            % crop
+            ijk = ijk_whole - obj.lims(:,1) + 1;
+
+        end        
 
         function node_table = ExportGraph(obj, path)
         % export the airway network as a graph. If lobe classifications
