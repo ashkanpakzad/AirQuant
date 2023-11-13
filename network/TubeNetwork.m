@@ -1374,6 +1374,43 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
         end
         % Data IO
 
+        function RegionMap(obj,rawmap,regiontype,region_values,region_names)
+            % set region for tubes based on a map.
+            %
+            % .. Note :: If it is possible for tubes to not be in the map foreground, 
+            %   then set the background value e.g. 0 to e.g. "None".
+            %
+            % Args:
+            %   rawmap(array): 3D array of region map. Should be same size as original source.
+            %   regiontype(char): name of region type. e.g. 'lobe'
+            %   region_values(array): list of values in map that correspond to each region. e.g. [1,2,3]
+            %   region_names(array): list of string, names for each region. e.g. ["LUL","RUL","RML"]
+            %
+
+
+            % process map same as source
+            % check reorient
+            reorientmap = ReorientVolume(rawmap, obj.header);
+            % crop
+            map = CropVol(reorientmap, obj.lims);
+            
+            % create dictionary between region names and values
+
+            % set region of each tube final skel point
+            for ii = 1:length(obj.tubes)
+                % get final skel point
+                skelpoints = obj.tubes(ii).skelpoints;
+                finalskelpoint = skelpoints(end);
+                % get value
+                mapval = map(finalskelpoint);
+                % get region name
+                regionname = region_names(region_values == mapval);
+                % set region
+                obj.tubes(ii).SetRegion(regiontype, char(regionname));
+            end
+
+        end
+
         function [ijk] = RAS2IJK(obj,ras)
             % RAS2IJK converts from RAS to IJK coordinates and crops.
             % see :func:`RAS2IJK` for more details.

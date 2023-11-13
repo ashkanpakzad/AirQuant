@@ -1,7 +1,7 @@
 % Parent function to set up and run AQ on several cases based on given
 % config file
 
-function batch_clinicalvessels_fwhmesl(source_dir, seg_dir, skel_dir, overwrite)
+function batch_clinicalvessels_fwhmesl(source_dir, seg_dir, skel_dir, lobe_dir, overwrite)
 
 if nargin < 1
     % default behaviour is not to overwrite.
@@ -17,6 +17,10 @@ if nargin < 3
 end
 
 if nargin < 4
+    lobe_dir = 'lobes';
+end
+
+if nargin < 5
     % default behaviour is not to overwrite.
     overwrite = 0;
 end
@@ -64,8 +68,9 @@ for ii = 1:length(casenames)
     sourcef = fullfile(source_dir,[casename,filesuffix]);
     segf = fullfile(seg_dir,[casename,filesuffix]);
     skelf = fullfile(skel_dir,[casename,filesuffix]);
+    lobef = fullfile(lobe_dir,[casename,filesuffix]);
     try
-    skip = wf_clinicalvessels_fwhmesl(casename, sourcef, segf, skelf, results_dir);
+    skip = wf_clinicalvessels_fwhmesl(casename, sourcef, segf, skelf, lobef, results_dir);
     catch e %e is an MException struct
         fprintf(2,'error identifier :\n%s\n',e.identifier);
         fprintf(2,'There was an error! The message was:\n%s\n',e.message);

@@ -2,10 +2,10 @@
 % config file
 
 function [skip, runinfo] = wf_clinicalvessels_fwhmesl(casename, sourcef, ...
-    segf, skelf, root_results_dir)
+    segf, skelf, lobef, root_results_dir)
 
     % prune ends of airways
-    prune_ends = [2, 2];
+    prune_ends = [0, 0];
 
     % recommended fwhmesl parameters
     num_rays = 30;
@@ -37,6 +37,8 @@ function [skip, runinfo] = wf_clinicalvessels_fwhmesl(casename, sourcef, ...
     checkfile(sourcef, 'source')
     checkfile(segf, 'segmentation')
     checkfile(skelf, 'skeleton')
+    checkfile(lobef, 'lobe')
+
     
     if skip == 0
         
@@ -56,6 +58,11 @@ function [skip, runinfo] = wf_clinicalvessels_fwhmesl(casename, sourcef, ...
         AQnet = TubeNetwork(skel, source=CT, header=meta, seg=S,fillholes=1, ...
             largestCC=1, spline_sample_sz=0.5, plane_sample_sz=0.5);
 
+        % set lobe by segmentation from TotalSegmentator(https://github.com/wasserth/TotalSegmentator)
+        lobes = niftiread(lobef);
+        AQnet.RegionMap(lobes,'lobe',[0,10,11,12,13,14],["B","LULLML","LLL","RUL","RML","RLL"]);
+        AQnet.RunAllTubes('SetRegionGeneration', 'lobe');
+
         % save graph
         AQnet.ExportGraph(fullfile(results_dir, [casename, '_graph.csv']));
 
@@ -66,7 +73,7 @@ function [skip, runinfo] = wf_clinicalvessels_fwhmesl(casename, sourcef, ...
         close(f);
 
         % plot3
-        f = figure(); AQnet.Plot3D(alpha=0.3); hold on; AQnet.Plot3();
+        f = figure(); AQnet.Plot3D(alpha=0.3,colour='lobe'); hold on; AQnet.Plot3(colour='lobe');
         fig_save(f,fullfile(results_dir, strcat(casename,"_plot3")));
         close(f);
 
@@ -76,17 +83,17 @@ function [skip, runinfo] = wf_clinicalvessels_fwhmesl(casename, sourcef, ...
         close(f);
 
         % generation per lobe histogram
-        f = figure(); AQnet.Histogram(label='generation')
+        f = figure(); AQnet.Histogram(label='generation',region='lobe')
         fig_save(f,fullfile(results_dir, strcat(casename,"_hist")));
         close(f);
 
         % plot 2d
-        f = figure(); AQnet.Plot(weightfactor=3);
+        f = figure(); AQnet.Plot(weightfactor=3,colour='lobe');
         fig_save(f,fullfile(results_dir, strcat(casename,"_plot")))
         close(f);
 
         % lobe 3d + plot 3
-        f = figure(); AQnet.Plot3D(colour='generation'); hold on; AQnet.Plot3(colour='generation');
+        f = figure(); AQnet.Plot3D(colour='lobe'); hold on; AQnet.Plot3(colour='lobe');
         fig_save(f,fullfile(results_dir, strcat(casename,"_plot3d")));
         close(f);
 
@@ -96,7 +103,7 @@ function [skip, runinfo] = wf_clinicalvessels_fwhmesl(casename, sourcef, ...
         close(f);
 
         % tortuosity
-        f = figure(); AQnet.Histogram(label='tortuosity',region='generation')
+        f = figure(); AQnet.Histogram(label='tortuosity',region='lobe')
         fig_save(f,fullfile(results_dir, strcat(casename,"_hist_tortuosity")));
         close(f);
 
@@ -124,17 +131,17 @@ function [skip, runinfo] = wf_clinicalvessels_fwhmesl(casename, sourcef, ...
         % generate post analysis figures
         % plot 2d - avg D
         f = figure();AQnet.Plot(weight='diameter_mean', ...,
-            weightfactor=10);
+            weightfactor=10,colour='lobe');
         fig_save(f,fullfile(results_dir, strcat(casename,"_plot_diameter")));
         close(f);
 
         % intertapering
-        f = figure(); AQnet.Histogram(label='intertaper',region='generation');
+        f = figure(); AQnet.Histogram(label='intertaper',region='lobe');
         fig_save(f,fullfile(results_dir, strcat(casename,"_hist_inter")));
         close(f);
 
         % diameter
-        f = figure(); AQnet.Histogram(label='diameter_mean',region='generation');
+        f = figure(); AQnet.Histogram(label='diameter_mean',region='lobe');
         fig_save(f,fullfile(results_dir, strcat(casename,"_hist_diameter")));
         close(f);
     
