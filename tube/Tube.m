@@ -652,22 +652,39 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
 
             % cast volume to single for interpolation
             vol = single(vol);
-            
-            % plane size
-            plane_size_mm = obj.network.max_plane_sz;
-            plane_size_pix = floor(obj.network.max_plane_sz/options.sample_sz);
+
+            if options.usesegcrop == true
+                obj.patchprop.approx_diameter = NaN(size(obj.patchprop.arclength));
+            end
 
             % set up slice store
-            reformedimages = zeros(plane_size_pix,plane_size_pix,length(obj.patchprop.parapoints),'single');
+            reformedimages = cell(length(obj.patchprop.parapoints),1);
             for i = 1:length(obj.patchprop.parapoints)
                 % Compute Normal Vector per spline point
                 [normvec, point] = spline_normal(obj.spline, ...
                     obj.patchprop.parapoints(i));
 
+                % plane size
+                max_sz = obj.network.max_plane_sz;
+                plane_sz = max_sz+1;
+                if options.usesegcrop == true
+                    assert(obj.network.plane_scaling_sz > 0, ...
+                        'obj.network.plane_scaling_sz must be real positive')
+                    scaling_sz = obj.network.plane_scaling_sz;
+                    % get approx size from distance map of seg
+                    obj.patchprop.seg_diameter(i) = ApproxSegDiameter(obj, point, i);
+                    plane_sz = ceil(approx_diameter*scaling_sz);
+
+                end
+                % use max plane size if current plane size exceeds it
+                if plane_sz > max_sz
+                    plane_sz = max_sz;
+                end
+
                 % Interpolate Perpendicular Slice per spline point
-                reformedimages(:,:,i) = PlaneInterpVol(vol, ...
+                reformedimages{i,1} = PlaneInterpVol(vol, ...
                     obj.network.voxdim, point, normvec, ...
-                    plane_sz=plane_size_mm, ...
+                    plane_sz=plane_sz, ...
                     sample_sz=options.sample_sz, ...
                     offgrid_val=0, method=options.method, gpu=options.gpu);
             end
@@ -1292,7 +1309,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
                 , num2str(size(options.rings,2)), ' instead of ' num2str(size(obj.measures,1),2)])
 
             % convert from cell stack to 3D array.
-            tubearray = get(obj,options.type);
+            tubearray = ParseVolOut(obj, type=options.type);
 
             % display with orthoview
             s = orthosliceViewer(tubearray, 'DisplayRangeInteraction','off', ...
@@ -1728,7 +1745,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             casename = char(casename);
             
             % choose which slices to save
-            allslices = 1:size(obj.source,3);
+            allslices = 1:length(obj.source);
             chosenslices = obj.PruneMeasure(allslices);
 
             % incase no slices are selected because they've all been pruned
@@ -1747,7 +1764,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             % loop through slices
             for k = chosenslices
                 % save as int16
-                float = obj.source(:,:,k);
+                float = obj.source{k,1};
                 img = int16(float);
 
                 % patch name
@@ -1977,6 +1994,31 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             prunebool = repmat(prunebool,nrings,1);
             prunedprop = var(prunebool == 1);
             prunedprop = reshape(prunedprop,nrings,[]);
+        end
+
+        function volout = ParseVolOut(obj,options)
+            % Parse volume of a given property name
+            %
+            % See :class:`AirQuant.AirQuant`:meth:`ParseVolOut`.
+            %
+            %
+
+            arguments
+                obj
+                options.type {mustBeMember(options.type,{'source','seg'})} = 'source'
+            end
+            % generate an airway's interpolated slices into an array
+            % stack.
+            tubecell = get(obj,options.type);
+            canvas_sz = floor(obj.network.max_plane_sz/obj.network.plane_sample_sz);
+            volout = zeros([canvas_sz, canvas_sz, length(tubecell)]);
+            for slice = 1:length(tubecell)
+                image = tubecell{slice,1};
+                image_sz = size(image,1);
+                min_centre = canvas_sz/2 - image_sz/2;
+                max_centre = canvas_sz/2 + image_sz/2;
+                volout(min_centre+1:max_centre, min_centre+1:max_centre, slice) = image;
+            end
         end
 
     end

@@ -35,15 +35,15 @@ classdef SegBoundary < SuperMeasure
             %   y(type):
             %
 
-            n_slices = size(obj.tube.seg,3);
-            ellipse = cell(n_slices, 1);
-            ellipse_center = cell(n_slices, 1);
+            slices_sz = length(obj.tube.seg);
+            ellipse = cell(slices_sz, 1);
+            ellipse_center = cell(slices_sz, 1);
             
-            for k = 1:n_slices
+            for k = 1:slices_sz
                 try
                     
                     
-                    seg_slice = obj.tube.seg(:,:,k);
+                    seg_slice = obj.tube.seg{k,1};
                     center =  AirwayCenter(seg_slice, seg_slice);
 
                     % filter to binary if necessary

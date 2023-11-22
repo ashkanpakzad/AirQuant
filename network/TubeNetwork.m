@@ -1572,7 +1572,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             % map patch count to continuous index
             for id = 1:length(obj.tubes)
                 tube = obj.tubes(id);
-                n_tube_patches = size(tube.source,3);
+                n_tube_patches = length(tube.source);
                 map = [ones(n_tube_patches,1)*id,(1:n_tube_patches)'];
                 if id == 1
                     mapping = map;

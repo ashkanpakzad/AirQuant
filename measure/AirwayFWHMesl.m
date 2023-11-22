@@ -35,29 +35,21 @@ classdef AirwayFWHMesl < SuperMeasure
             %   y(type):
             %
 
-            if nargin < 2
-                num_rays = 128;
-            end
-
-            if nargin < 3
-                ray_interval = 0.2;
-            end
-
             if nargin < 4
                 outlierremoval = true;
             end
 
-            n_slices = size(obj.tube.source,3);
-            ellipse_inner = cell(n_slices, 1);
-            ellipse_outer = cell(n_slices, 1);
-            ellipse_center = cell(n_slices, 1);
+            slices_sz = length(obj.tube.source);
+            ellipse_inner = cell(slices_sz, 1);
+            ellipse_outer = cell(slices_sz, 1);
+            ellipse_center = cell(slices_sz, 1);
             
-            for k = 1:n_slices
+            for k = 1:slices_sz
                 try
                     
                     
-                    source_slice = obj.tube.source(:,:,k); 
-                    seg_slice = obj.tube.seg(:,:,k);
+                    source_slice = obj.tube.source{k,1}; 
+                    seg_slice = obj.tube.seg{k,1};
                     center =  AirwayCenter(source_slice, seg_slice);
 
                     [source_rays, seg_rays, coords] = ray_cast(...
