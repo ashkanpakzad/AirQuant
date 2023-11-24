@@ -586,6 +586,8 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
         end
 
         % perpendicular slice interpolation
+        
+        
         function obj = MakePatchSlices(obj, vol, options)
             % Interpolates perpendicular slices as if travelling along the tube
             % spline.
@@ -654,7 +656,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             vol = single(vol);
 
             if options.usesegcrop == true
-                obj.patchprop.approx_diameter = NaN(size(obj.patchprop.arclength));
+                obj.patchprop.approx_diameter = NaN(size(obj.patchprop.arcpoints));
             end
 
             % set up slice store
@@ -672,8 +674,8 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
                         'obj.network.plane_scaling_sz must be real positive')
                     scaling_sz = obj.network.plane_scaling_sz;
                     % get approx size from distance map of seg
-                    obj.patchprop.seg_diameter(i) = ApproxSegDiameter(obj, point, i);
-                    plane_sz = ceil(approx_diameter*scaling_sz);
+                    obj.patchprop.seg_diameter(i) = ApproxSegDiameter(obj, point);
+                    plane_sz = ceil(obj.patchprop.seg_diameter(i)*scaling_sz);
 
                 end
                 % use max plane size if current plane size exceeds it
@@ -718,9 +720,14 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             vox_point = sourcepoint'./obj.network.voxdim;
             % find nearest skel point to voxpoint
             assert(~isempty(obj.skelpoints),'need skelpoints defined')
-            P = obj.skelpoints;
+            [x,y,z] = obj.I2S(obj.skelpoints);
+            P = [x;y;z]';
+            
             k = dsearchn(P,vox_point);
             % Get radius and convert to diameter
+            if isempty(obj.network.Dmap)
+                error('Need to run TubeNetwork.MakeDistanceTransform() first.')
+            end
             segdiameter = obj.network.Dmap(P(k,1),P(k,2),P(k,3))*2;
             % incase of edge case, unit radius
             if segdiameter == 0
@@ -1387,13 +1394,24 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
                 options.type {mustBeMember(options.type,{'source','seg'})} = 'source'
                 options.ellipses = true
                 options.points = false
+                options.pad = true
             end
 
             % convert from cell stack to 3D array.
             tubearray = get(obj,options.type);
-            patch = tubearray(:,:,idx);
+            patch = tubearray{idx};
+    
+            if options.pad == 1
+                canvas_sz = floor(obj.network.max_plane_sz/obj.network.plane_sample_sz);
+                image_sz = size(patch,1);
+                min_centre = canvas_sz/2 - image_sz/2;
+                displayimage = padarray(patch,[min_centre,min_centre],0);
+            else
+                displayimage = patch;
+                min_centre = 0;
+            end
 
-            h = imagesc(patch);
+            h = imagesc(displayimage);
             ax = gca();
             colormap(ax,'gray');
             daspect(obj.voxdim)
@@ -1402,9 +1420,6 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             measure = obj.measures(:,idx);
             for ii = 1:length(measure)
                 % get centre displacement
-                canvas_sz = floor(obj.network.max_plane_sz/obj.network.plane_sample_sz);
-                image_sz = size(patch,1);
-                min_centre = canvas_sz/2 - image_sz/2;
                 if isa(obj.measures{ii,idx},'AQEllipse')
                     obj.measures{ii,idx}.plot(min_centre, ax, options.ellipses, options.points);
                 end
@@ -2038,7 +2053,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
 
                     % get centre displacement
                     canvas_sz = floor(obj.network.max_plane_sz/obj.network.plane_sample_sz);
-                    image_sz = size(tubearray(:,1),1);
+                    image_sz = size(obj.source{pos},1);
                     min_centre = canvas_sz/2 - image_sz/2;
                     if isa(obj.measures{ii,pos},'AQEllipse')
                         obj.measures{ii,pos}.plot(min_centre, ax, showellipses, showpoints);
