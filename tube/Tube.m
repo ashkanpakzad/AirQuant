@@ -655,10 +655,6 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             % cast volume to single for interpolation
             vol = single(vol);
 
-            if options.usesegcrop == true
-                obj.patchprop.approx_diameter = NaN(size(obj.patchprop.arcpoints));
-            end
-
             % set up slice store
             reformedimages = cell(length(obj.patchprop.parapoints),1);
             for i = 1:length(obj.patchprop.parapoints)
@@ -675,7 +671,9 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
                     scaling_sz = obj.network.plane_scaling_sz;
                     % get approx size from distance map of seg
                     obj.patchprop.seg_diameter(i) = ApproxSegDiameter(obj, point);
-                    plane_sz = ceil(obj.patchprop.seg_diameter(i)*scaling_sz);
+                    plane_sz_px = ceil(obj.patchprop.seg_diameter(i)*scaling_sz);
+                    % highball pixel plane size to mm
+                    plane_sz = plane_sz_px*max(obj.network.voxdim);
 
                 end
                 % use max plane size if current plane size exceeds it

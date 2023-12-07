@@ -267,7 +267,18 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             % Compute distance transform of segmentation and save as
             % property :attr:`Dmap`.
             %
+            % Also readouts out the largest airway using the distance
+            % transform. This is approximate and limited by airway shape
+            % (where it will return the smallest axis of the largest
+            % airway) and also uses the largest voxel dimension. So may be
+            % inaccurate for anisotropic voxels.
+            %
             obj.Dmap = bwdist(~obj.seg);
+            
+            % identify largest predicted airway and readout
+            skel_vals = obj.Dmap(find(obj.skel));
+            largest = max(skel_vals);
+            disp(['Largest airway lumen approx. ',  num2str(largest), ' pixels, ', num2str(largest*obj.voxdim(1)), ' mm'])
         end
 
         function obj = MakeTubePatches(obj, options)
