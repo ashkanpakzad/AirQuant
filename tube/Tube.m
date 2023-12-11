@@ -686,7 +686,7 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
                     obj.network.voxdim, point, normvec, ...
                     plane_sz=plane_sz, ...
                     sample_sz=options.sample_sz, ...
-                    offgrid_val=0, method=options.method, gpu=options.gpu);
+                    offgrid_val=NaN, method=options.method, gpu=options.gpu);
             end
 
             % Save plane images
@@ -1402,13 +1402,17 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             if options.pad == 1
                 canvas_sz = floor(obj.network.max_plane_sz/obj.network.plane_sample_sz);
                 image_sz = size(patch,1);
+                % diff between canvas and image
                 min_centre = canvas_sz/2 - image_sz/2;
-                displayimage = padarray(patch,[min_centre,min_centre],0);
+                % pad by diff
+                padsize = [floor(min_centre), floor(min_centre)];
+                displayimage = padarray(patch,padsize,NaN);
             else
                 displayimage = patch;
                 min_centre = 0;
             end
 
+            % identify intensity 5th and 95th percentile
             h = imagesc(displayimage);
             ax = gca();
             colormap(ax,'gray');
