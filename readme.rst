@@ -13,6 +13,10 @@
     :target: https://github.com/ashkanpakzad/AirQuant/blob/master/LICENSE
     :alt: License
 
+.. image:: https://img.shields.io/badge/paper-10.1080/21681163.2024.2325361-1b1bb3.svg?style=for-the-badge
+    :target: http://doi.org/10.1080/21681163.2024.2325361
+    :alt: Paper
+
 .. image:: https://img.shields.io/badge/arXiv-2111.10443-b31b1b.svg?style=for-the-badge
     :target: https://arxiv.org/abs/2111.10443
     :alt: arXiv
@@ -47,6 +51,21 @@ Open to ★★★★★, issues, discussions and contributions!
 Would really appreciate a message or a star if this has been useful for you!
 
 ..  code-block:: bibtex
+
+   @article{doi:10.1080/21681163.2024.2325361,
+            author = {A. Pakzad, WK. Cheung, CHM. Van Moorsel, K. Quan, N. Mogulkoc, BJ. Bartholmai, HW. Van Es, A. Ezircan, F. Van Beek, M. Veltkamp, R. Karwoski, T. Peikert, RD. Clay, F. Foley, C. Braun, R. Savas, C. Sudre, T. Doel, DC. Alexander, P. Wijeratne, D. Hawkes, Y. Hu, JR. Hurst and J. Jacob},
+            title = {Evaluation of automated airway morphological quantification for assessing fibrosing lung disease},
+            journal = {Computer Methods in Biomechanics and Biomedical Engineering: Imaging \& Visualization},
+            volume = {12},
+            number = {1},
+            pages = {2325361},
+            year = {2024},
+            publisher = {Taylor \& Francis},
+            doi = {10.1080/21681163.2024.2325361},
+            URL = {https://doi.org/10.1080/21681163.2024.2325361},
+            eprint = {https://doi.org/10.1080/21681163.2024.2325361}
+   }
+
 
    @misc{pakzad2021evaluation,
          title={Evaluation of automated airway morphological quantification for assessing fibrosing lung disease},
