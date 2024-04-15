@@ -385,6 +385,27 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
                 tubes(1) = [];
             end
         end
+        
+        % segmentation methods
+        function obj = DilateDensity(obj,options)
+            % dilate segmentation of tube and save average density
+            arguments
+                obj
+                options.SE = strel("sphere",1)
+            end
+            
+            % get image of just segmentation
+            I = false(size(obj.network.seg));
+            I(obj.segpoints) = 1;
+
+            % imdilate segmentation
+            D = imdilate(I,options.SE);
+            dilated = D - I;
+            % get density of dilated pixels in source
+            vox_dense = obj.network.source(dilated==1);
+            % compute and store average
+            obj.stats.mean_dilated_density = mean(vox_dense);
+        end
 
         % spline related
         function obj = MakeSpline(obj, options)
@@ -586,8 +607,6 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
         end
 
         % perpendicular slice interpolation
-        
-        
         function obj = MakePatchSlices(obj, vol, options)
             % Interpolates perpendicular slices as if travelling along the tube
             % spline.
@@ -892,7 +911,6 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
             obj.stats.perimeter_mean = meanPerimeter;
             obj.stats.perimeter_trim = trim;
         end
-
 
         function meanHydraulicDval = ComputeMeanHydraulicD(obj, trim)
             % Computes the trim mean hydraulic diameter of each measurement type in
@@ -1315,6 +1333,8 @@ classdef Tube < AirQuant & matlab.mixin.SetGet
 
             % convert from cell stack to 3D array.
             tubearray = ParseVolOut(obj, type=options.type);
+            % make finite for viewing
+            tubearray(isnan(tubearray)) = 0;
 
             % display with orthoview
             s = orthosliceViewer(tubearray, 'DisplayRangeInteraction','off', ...
