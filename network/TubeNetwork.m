@@ -1385,7 +1385,7 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
         end
         % Data IO
 
-        function RegionMap(obj,rawmap,regiontype,region_values,region_names)
+        function RegionMap(obj,rawmap,regiontype,region_values,region_names,type)
             % set region for tubes based on a map.
             %
             % .. Note :: If it is possible for tubes to not be in the map foreground, 
@@ -1398,6 +1398,10 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             %   region_names(array): list of string, names for each region. e.g. ["LUL","RUL","RML"]
             %
 
+            if nargin < 6
+                % determines how to classify based on map
+                type = 'endpoint';
+            end
 
             % process map same as source
             % check reorient
@@ -1406,18 +1410,69 @@ classdef TubeNetwork < AirQuant & matlab.mixin.SetGet
             map = CropVol(reorientmap, obj.lims);
             
             % create dictionary between region names and values
-
-            % set region of each tube final skel point
-            for ii = 1:length(obj.tubes)
-                % get final skel point
-                skelpoints = obj.tubes(ii).skelpoints;
-                finalskelpoint = skelpoints(end);
-                % get value
-                mapval = map(finalskelpoint);
-                % get region name
-                regionname = region_names(region_values == mapval);
-                % set region
-                obj.tubes(ii).SetRegion(regiontype, char(regionname));
+            
+            if strcmp(type,'endpoint')
+                % set region of each tube by label of final skel point
+                for ii = 1:length(obj.tubes)
+                    % get final skel point
+                    skelpoints = obj.tubes(ii).skelpoints;
+                    finalskelpoint = skelpoints(end);
+                    % get value
+                    mapval = map(finalskelpoint);
+                    % get region name
+                    regionname = region_names(region_values == mapval);
+                    % set region
+                    obj.tubes(ii).SetRegion(regiontype, char(regionname));
+                end
+            elseif strcmp(type,'midpoint')
+                % set region of each tube by label of final skel point
+                for ii = 1:length(obj.tubes)
+                    % get final skel point
+                    skelpoints = obj.tubes(ii).skelpoints;
+                    midskelpoint = skelpoints(round(length(skelpoints)));
+                    % get value
+                    mapval = map(midskelpoint);
+                    % get region name
+                    regionname = region_names(region_values == mapval);
+                    % set region
+                    obj.tubes(ii).SetRegion(regiontype, char(regionname));
+                end
+            elseif strcmp(type,'any')
+                % set region of tube if any skelpoints
+                % inside label region_values.
+                if length(region_values) ~= 1 || length(region_names) ~= 2 
+                    error('region_values must only be one value.')
+                end
+                for ii = 1:length(obj.tubes)
+                    % get final skel point
+                    skelpoints = obj.tubes(ii).skelpoints;
+                    % get values
+                    mapval = map(skelpoints);
+                    % get region name
+                    if any(mapval==region_values)
+                        regionval = region_names(2);
+                    else
+                        regionval = region_names(1);
+                    end
+                    % set region
+                    obj.tubes(ii).SetRegion(regiontype, char(regionval));
+                end
+            elseif strcmp(type, 'ratio')
+                % set region of each tube by percentage of skelpoints 
+                % inside label region_values.
+                if length(region_values) ~= 1
+                    error('region_values must only be one value.')
+                end
+                for ii = 1:length(obj.tubes)
+                    % get final skel point
+                    skelpoints = obj.tubes(ii).skelpoints;
+                    % get values
+                    mapval = map(skelpoints);
+                    % get region name
+                    regionval = sum(mapval == region_values)/length(mapval);
+                    % set region
+                    obj.tubes(ii).SetRegion(regiontype, regionval);
+                end
             end
 
         end
