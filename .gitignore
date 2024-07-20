@@ -7,3 +7,5 @@ docs/_*
 old/
 *.mat
 *.ipynb_checkpoints
+*.nii
+*.nii.gz

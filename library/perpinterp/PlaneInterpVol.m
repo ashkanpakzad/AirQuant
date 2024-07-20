@@ -1,4 +1,4 @@
-function out_plane = PlaneInterpVol(vol, voxdim, point, normal, options)
+function out_plane = PlaneInterpVol(whole_vol, voxdim, whole_point, normal, options)
     % short desc
     %
     % long desc
@@ -28,9 +28,9 @@ function out_plane = PlaneInterpVol(vol, voxdim, point, normal, options)
 
     % Construct vol grid
     arguments
-        vol 
+        whole_vol 
         voxdim {mustBeNumeric}
-        point (3,1) {mustBeNumeric}
+        whole_point (3,1) {mustBeNumeric}
         normal (3,1) {mustBeNumeric}
         options.plane_sz (1,1) = 40
         options.sample_sz (1,1) = 0.5
@@ -38,6 +38,8 @@ function out_plane = PlaneInterpVol(vol, voxdim, point, normal, options)
         options.gpu logical = 1
         options.offgrid_val (1,1) {mustBeNumeric} = 0
     end
+
+    [vol,point] = min_tube_vol(whole_vol,whole_point,voxdim,options.plane_sz);
 
     image_sz = single(size(vol));
     [x_domain , y_domain , z_domain] = ...
@@ -51,9 +53,12 @@ function out_plane = PlaneInterpVol(vol, voxdim, point, normal, options)
     plane_grid = Grids_coords_for_plane(basis_vecs(:,3),...
         basis_vecs(:,2), point, options.plane_sz, options.sample_sz);
         
+
     if options.gpu
-        assert(strcmp(options.method,'linear'),'Can only use "linear" method with gpu optimisation.')
-        assert(license('test','distrib_computing_toolbox'),' "Parallel Computing Toolbox required for gpu optimisation.')
+        assert(strcmp(options.method,'linear'),'Can only use "linear" method with gpu optimisation.')        
+        verstruct = struct2cell(ver);
+        assert(contains([verstruct{:}], 'Parallel Computing Toolbox'), "Parallel Computing Toolbox required for gpu optimisation. Otherwise set gpu=0")
+        
 
         % use gpu
         x_domain = gpuArray(x_domain);

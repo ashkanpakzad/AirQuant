@@ -38,15 +38,15 @@ function out = CropVol(varargin)
         % incase lower lims are < index 1, set to min possible
         lims = varargin{2};
         for ii = 1:3
-            if lims(ii) < 1
-                lims(ii) = 1;
+            if lims(ii,1) < 1
+                lims(ii,1) = 1;
             end
         end
         % incase upper lims are > size dim, set to max possible
         j = 1;
-        for ii = 4:6
-            if lims(ii) > s(j)
-                lims(ii) = s(j);
+        for ii = 1:3
+            if lims(ii,2) > s(j)
+                lims(ii,2) = s(j);
             end
             j = j+1;
         end
